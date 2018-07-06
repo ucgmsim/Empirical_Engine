@@ -1,8 +1,12 @@
 import argparse
-from classdef import Site
-from classdef import Fault
+from GMM_models.classdef import Site
+from GMM_models.classdef import Fault
+from GMM_models.classdef import TectType
+import empirical_factory
 import h5py
 
+IM_LIST = ['PGA', 'PGV', 'CAV', 'AI', 'Ds575', 'Ds595', 'pSA']
+PERIOD = [0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.75, 1.0, 2.0, 3.0, 4.0, 5.0, 7.5, 10.0]
 
 def create_fault_parameters(srf_info):
     fault = Fault()
@@ -16,10 +20,10 @@ def create_fault_parameters(srf_info):
     else:
         fault.Ztor = attrs['hdepth']
     if 'tect_type' in attrs:
-        fault.faultstyle = attrs['tect_type']
+        fault.tect_type = TectType[attrs['tect_type']]
     else:
         print "tect_type not found assuming 'ACTIVE_SHALLOW'"
-        fault.faultstyle = 'ACTIVE_SHALLOW'
+        fault.tect_type = TectType.ACTIVE_SHALLOW
     fault.hdepth = attrs['hdepth']
     return fault
 
@@ -87,8 +91,10 @@ def calculate_empirical():
     fault = create_fault_parameters(args.srf_info)
     sites = create_site_parameters(args.rupture_distance, args.vs30_file, args.vs30_default, args.max_rupture_distance)
 
-    determine_empirical(fault)
-    for site in sites:
+    for im in IM_LIST:
+        GMM = empirical_factory.determine_gmm(fault, im)
+        for site in sites:
+            empirical_factory.compute_gmm(fault, site, GMM, im, PERIOD)
 
 
 if __name__ == '__main__':

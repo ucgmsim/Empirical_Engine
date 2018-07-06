@@ -1,7 +1,10 @@
 import numpy as np
+from classdef import TectType
+from classdef import FaultStyle
+from classdef import SiteClass
 
-period = [0.0, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 1.00, 1.25, 1.50, 2.00, 2.50,
-          3.00, 4.00, 5.00]
+period_list = np.array([0.0, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 1.00, 1.25, 1.50,
+                        2.00, 2.50, 3.00, 4.00, 5.00])
 a = [1.101, 1.076, 1.118, 1.134, 1.147, 1.149, 1.163, 1.200, 1.25, 1.293, 1.336, 1.386, 1.433, 1.479, 1.551, 1.621,
      1.694, 1.748, 1.759, 1.826, 1.825]
 b = [-0.00564, -0.00671, -0.00787, -0.00722, -0.00659, -0.00590, -0.00520, -0.00422, -0.00338, -0.00282, -0.00258,
@@ -32,94 +35,117 @@ C4 = [1.420, 1.814, 2.082, 2.113, 2.030, 1.937, 1.770, 1.397, 0.955, 0.559, 0.18
       -2.661, -3.64, -4.341, -4.758, -5.588, -5.798]
 sigma = [0.604, 0.640, 0.694, 0.702, 0.692, 0.682, 0.670, 0.659, 0.653, 0.653, 0.652, 0.647, 0.653, 0.657, 0.660, 0.664,
          0.669, 0.671, 0.667, 0.647, 0.643]
-tau = [0.398, 0.444, 0.490, 0.460, 0.423, 0.391, 0.379, 0.390, 0.389, 0.401, 0.408, 0.418, 0.411, 0.410, 0.402, 0.408,
-       0.414, 0.411, 0.396, 0.382, 0.377]
-sigmaT = [0.732, 0.779, 0.849, 0.839, 0.811, 0.786, 0.770, 0.766, 0.760, 0.766, 0.769, 0.770, 0.771, 0.775, 0.773,
-          0.779, 0.787, 0.786, 0.776, 0.751, 0.745]
+tau_s = [0.321, 0.378, 0.420, 0.372, 0.324, 0.294, 0.284, 0.278, 0.272, 0.285, 0.29,  0.299, 0.289, 0.286, 0.277, 0.282, 0.300, 0.292, 0.274, 0.281, 0.296]
+tau_i = [0.308, 0.343, 0.403, 0.367, 0.328, 0.289, 0.280, 0.271, 0.277, 0.296, 0.313, 0.329, 0.324, 0.328, 0.339, 0.352, 0.360, 0.356, 0.338, 0.307, 0.272]
+tau_c = [0.303, 0.326, 0.342, 0.331, 0.312, 0.298, 0.300, 0.346, 0.338, 0.349, 0.351, 0.356, 0.348, 0.338, 0.313, 0.306, 0.283, 0.287, 0.278, 0.273, 0.275]
 
 
-def Zhaoetal_2006_Sa(siteprop, faultprop, period_T):
+def Zhaoetal_2006_Sa(site, fault, periods):
+    periods = periods
+    results = []
+    for period in periods:
 
-    M = faultprop.Mw
-    R = siteprop.Rrup
+        T = period
 
-    T = period_T
-    period_np = np.array(period)
-    # interpolate between periods if neccesary
+        # interpolate between periods if necessary
+        closest_index = np.argmin(np.abs(period_list - T))
+        closest_period = period_list[closest_index]
 
-    closest_index = np.argmin(np.abs(period_np - T))
-    closest_period = period_np[closest_index]
+        if not np.isclose(closest_period, T):
+            T_low = period_list[T >= period_list][-1]
+            T_hi = period_list[T <= period_list][0]
 
-    if not np.isclose(closest_period, T):
-        T_low = period_np[T >= period_np][-1]
-        T_hi = period_np[T <= period_np][0]
+            zhao_low = calculate_zhao(site, fault, T_low)
+            zhao_high = calculate_zhao(site, fault, T_hi)
 
-        siteprop.period = T_low
-        [SA_low, sigma_SA_low] = Zhaoetal_2006_Sa(siteprop, faultprop)
-        siteprop.period = T_hi
-        [SA_high, sigma_SA_high] = Zhaoetal_2006_Sa(siteprop, faultprop)
-        siteprop.period = T
+            result = interpolate_to_closest(T, T_hi, T_low, zhao_high, zhao_low)
 
-        if T_low > np.finfo(float).eps: # log interpolation
-            x = [np.log(T_low), np.log(T_hi)]
-            Y_sa = [np.log(SA_low), np.log(SA_high)]
-            SA_sigma = [sigma_SA_low, sigma_SA_high]
-            SA = np.exp(np.interp(x, Y_sa, np.log(T)))
-            sigma_SA = np.interp(x, SA_sigma, np.log(T))
-        else: # linear interpolation
-            x = [T_low, T_hi]
-            Y_sa = [SA_low, SA_high]
-            SA_sigma = [sigma_SA_low, sigma_SA_high]
-            SA = np.interp(x, Y_sa, T)
-            sigma_SA = np.interp(x, SA_sigma, T)
+        else:
+            result = calculate_zhao(site, fault, period)
+        results.append(result)
+    return results
 
-        return SA, sigma_SA
-    else:
-        i = int(closest_index)
 
-        faultSR = 0
-        faultSI = 0
-        faultSS = 0
-        faultSSL = 0
-        if faultprop.faultstyle == 'reverse':
-            faultSR = 1
-        elif faultprop.faultstyle == 'interface':
-            faultSI = 1
-        elif faultprop.faultstyle == 'slab':
-            faultSS = 1
-            faultSSL = 1
+def calculate_zhao(site, fault, period):
+    M = fault.Mw
+    R = site.Rrup
 
-        siterock = 0
-        siteSCI = 0
-        siteSCII = 0
-        siteSCIII = 0
-        siteSCIV = 0
-        if siteprop.siteclass == 'hardrock':
-            siterock = 1
-        elif siteprop.siteclass == 'rock':
-            siteSCI = 1
-        elif siteprop.siteclass == 'hardsoil':
-            siteSCII = 1
-        elif siteprop.siteclass == 'mediumsoil':
-            siteSCIII = 1
-        elif siteprop.siteclass == 'softsoil':
-            siteSCIV = 1
+    closest_index = np.argmin(np.abs(period_list - period))
+    i = int(closest_index)
+    faultSR = 0
+    faultSI = 0
+    faultSS = 0
+    faultSSL = 0
+    if fault.tect_type == TectType.ACTIVE_SHALLOW and fault.faultstyle == FaultStyle.REVERSE:
+        faultSR = 1
+    elif fault.tect_type == TectType.SUBDUCTION_INTERFACE:
+        faultSI = 1
+    elif fault.tect_type == TectType.SUBDUCTION_SLAB:
+        faultSS = 1
+        faultSSL = 1
+    siterock = 0
+    siteSCI = 0
+    siteSCII = 0
+    siteSCIII = 0
+    siteSCIV = 0
+    if site.siteclass == SiteClass.HARDROCK:
+        siterock = 1
+    elif site.siteclass == SiteClass.ROCK:
+        siteSCI = 1
+    elif site.siteclass == SiteClass.HARDSOIL:
+        siteSCII = 1
+    elif site.siteclass == SiteClass.MEDIUMSOIL:
+        siteSCIII = 1
+    elif site.siteclass == SiteClass.SOFTSOIL:
+        siteSCIV = 1
+    h = fault.h
+    hc = 15
+    R_star = R + c[i] * np.exp(d[i] * M)
+    logSA = (a[i] * M + b[i] * R - np.log(R_star) + e[i] * max(min(h, 125), - hc, 0) + faultSR * SR[i] +
+             faultSI * SI[i] + faultSS * SS[i] + faultSSL * SSL[i] * np.log(R) + siterock * CH[i] + siteSCI * C1[i] +
+             siteSCII * C2[i] + siteSCIII * C3[i] + siteSCIV * C4[i])
+    # convert to median in g
+    SA = np.exp(logSA) / 981
+    sigma_SA = determine_stdev(i, fault.tect_type)
+    return SA, sigma_SA
 
-        h = faultprop.h
-        hc = 15
 
-        R_star = R + c[i] * np.exp(d[i] * M)
-
-        logSA = (a[i] * M + b[i] * R - np.log(R_star) + e[i] * max(min(h, 125), - hc, 0) + faultSR * SR[i] +
-                 faultSI * SI[i] + faultSS * SS[i] + faultSSL * SSL[i] * np.log(R) + siterock * CH[i] + siteSCI * C1[i] +
-                 siteSCII * C2[i] + siteSCIII * C3[i] + siteSCIV * C4[i])
-
-        # convert to median in g
-        SA = np.exp(logSA) / 981
-
-        sigma_intra = tau[i]
-        sigma_inter = sigma[i]
-        sigma_total = sigmaT[i]
+def interpolate_to_closest(T, T_hi, T_low, zhao_high, zhao_low):
+    [SA_low, sigma_SA_low] = zhao_low
+    [SA_high, sigma_SA_high] = zhao_high
+    SA_sigma = np.array([sigma_SA_low, sigma_SA_high])
+    if T_low > np.finfo(float).eps:  # log interpolation
+        x = [np.log(T_low), np.log(T_hi)]
+        Y_sa = [np.log(SA_low), np.log(SA_high)]
+        SA = np.exp(np.interp(T, x, Y_sa))
+        sigma_SA = np.interp(np.log(T), x, SA_sigma)
+    else:  # linear interpolation
+        x = [T_low, T_hi]
+        Y_sa = [SA_low, SA_high]
+        SA = np.interp(T, x, Y_sa)
+        sigma_total = np.interp(T, x, SA_sigma[:, 0])
+        sigma_inter = np.interp(T, x, SA_sigma[:, 1])
+        sigma_intra = np.interp(T, x, SA_sigma[:, 2])
         sigma_SA = [sigma_total, sigma_inter, sigma_intra]
+    return SA, sigma_SA
 
-        return SA, sigma_SA
+
+def determine_stdev(i, tect_type):
+    sigma_intra = get_tau(tect_type)[i]
+    sigma_inter = sigma[i]
+    sigma_total = np.sqrt(sigma_intra ** 2 + sigma_inter ** 2)
+    sigma_SA = [sigma_total, sigma_inter, sigma_intra]
+    return sigma_SA
+
+
+def get_tau(tect_type):
+    if tect_type == TectType.ACTIVE_SHALLOW:
+        tau = tau_c
+    elif tect_type == TectType.SUBDUCTION_INTERFACE:
+        tau = tau_i
+    elif tect_type == TectType.SUBDUCTION_SLAB:
+        tau = tau_s
+    else:
+        print "TectType is unset assuming SHALLOW CRUSTAL"
+        tau = tau_c
+    return tau
