@@ -1,8 +1,8 @@
 import argparse
-from classdef import Site, Fault
-from classdef import TectType
-from classdef import GMM
-from GMM_models.Bradley_2010_Sa import Bradley_2010_Sa
+from GMM_models.classdef import Site, Fault
+from GMM_models.classdef import TectType
+from GMM_models.classdef import GMM
+from GMM_models.Bradley_2013_Sa import Bradley_2013_Sa
 from GMM_models.zhou_2006 import Zhaoetal_2006_Sa
 from GMM_models.AfshariStewart_2016_Ds import Afshari_Stewart_2016_Ds
 from GMM_models.CampbellBozorgina_2012_AI import CampbellBozorgina_2012
@@ -31,13 +31,10 @@ def determine_gmm(fault, im):
 
 
 def compute_gmm(fault, site, gmm, im, period=None):
-    if im is 'PGA':
-        period = 0
-    if im is 'PGV':
-        period = -1
+
 
     if gmm is GMM.Br_13:
-        Bradley_2010_Sa(site, fault, period)
+        Bradley_2013_Sa(site, fault, period)
     elif gmm is GMM.AS_16:
         Afshari_Stewart_2016_Ds(site, fault, im)
     elif gmm is GMM.CB_12:

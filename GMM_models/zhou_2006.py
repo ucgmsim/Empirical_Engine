@@ -2,6 +2,7 @@ import numpy as np
 from classdef import TectType
 from classdef import FaultStyle
 from classdef import SiteClass
+from classdef import interpolate_to_closest
 
 period_list = np.array([0.0, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 1.00, 1.25, 1.50,
                         2.00, 2.50, 3.00, 4.00, 5.00])
@@ -40,8 +41,11 @@ tau_i = [0.308, 0.343, 0.403, 0.367, 0.328, 0.289, 0.280, 0.271, 0.277, 0.296, 0
 tau_c = [0.303, 0.326, 0.342, 0.331, 0.312, 0.298, 0.300, 0.346, 0.338, 0.349, 0.351, 0.356, 0.348, 0.338, 0.313, 0.306, 0.283, 0.287, 0.278, 0.273, 0.275]
 
 
-def Zhaoetal_2006_Sa(site, fault, periods):
-    periods = periods
+def Zhaoetal_2006_Sa(site, fault, im, periods=None):
+
+    if im is 'PGA':
+        periods = [0]
+
     results = []
     for period in periods:
 
@@ -63,6 +67,7 @@ def Zhaoetal_2006_Sa(site, fault, periods):
         else:
             result = calculate_zhao(site, fault, period)
         results.append(result)
+
     return results
 
 
@@ -109,25 +114,6 @@ def calculate_zhao(site, fault, period):
     sigma_SA = determine_stdev(i, fault.tect_type)
     return SA, sigma_SA
 
-
-def interpolate_to_closest(T, T_hi, T_low, zhao_high, zhao_low):
-    [SA_low, sigma_SA_low] = zhao_low
-    [SA_high, sigma_SA_high] = zhao_high
-    SA_sigma = np.array([sigma_SA_low, sigma_SA_high])
-    if T_low > np.finfo(float).eps:  # log interpolation
-        x = [np.log(T_low), np.log(T_hi)]
-        Y_sa = [np.log(SA_low), np.log(SA_high)]
-        SA = np.exp(np.interp(T, x, Y_sa))
-        sigma_SA = np.interp(np.log(T), x, SA_sigma)
-    else:  # linear interpolation
-        x = [T_low, T_hi]
-        Y_sa = [SA_low, SA_high]
-        SA = np.interp(T, x, Y_sa)
-        sigma_total = np.interp(T, x, SA_sigma[:, 0])
-        sigma_inter = np.interp(T, x, SA_sigma[:, 1])
-        sigma_intra = np.interp(T, x, SA_sigma[:, 2])
-        sigma_SA = [sigma_total, sigma_inter, sigma_intra]
-    return SA, sigma_SA
 
 
 def determine_stdev(i, tect_type):

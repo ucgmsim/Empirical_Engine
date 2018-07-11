@@ -65,6 +65,7 @@ Issues:
 """
 import numpy as np
 from matplotlib.mlab import find
+from classdef import interpolate_to_closest
 
 period_list = [-1, 0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.075, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.75, 1, 1.5, 2, 3, 4, 5,
                7.5, 10]
@@ -171,50 +172,44 @@ sigma3 = [0.7504, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.7999, 0.79
           0.7136, 0.7035, 0.7006, 0.7001, 0.7, 0.7, 0.7]
 
 
-def Bradley_2010_Sa(siteprop, faultprop, period_T):
+def Bradley_2013_Sa(siteprop, faultprop, im, periods=None):
     # declare a whole bunch of coefficients
     ##################
 
-    T = period_T
+    if im is 'PGA':
+        periods = [0]
+    if im is 'PGV':
+        periods = [-1]
 
-    tol = 0.0001  # tolerance to the recorded period values before we interpolate
+    results = []
 
-    closestIndex = int(np.argmin(np.abs(np.array(period_list) - T)))
-    closestPeriod = period_list[closestIndex]
-    if np.abs(closestPeriod - T) > tol:  # interpolate between periods if neccesary
+    for period in periods:
 
-        # find the period values above and below
-        T_low = period_list[np.max(find(np.array(period_list) < T))]
-        T_high = period_list[np.min(find(np.array(period_list) > T))]
+        T = period
 
-        # recursively call this function for the periods above and below
-        [SA_low, sigma_SA_low] = calculate_Bradley(siteprop, faultprop, T_low)
+        tol = 0.0001  # tolerance to the recorded period values before we interpolate
 
-        [SA_high, sigma_SA_high] = calculate_Bradley(siteprop, faultprop, T_high)
+        closestIndex = int(np.argmin(np.abs(np.array(period_list) - T)))
+        closestPeriod = period_list[closestIndex]
+        if not np.isclose(closestPeriod, T):  # interpolate between periods if neccesary
 
-        sigma_SA = []  # initialize empty list
+            # find the period values above and below
+            T_low = period_list[np.max(find(np.array(period_list) < T))]
+            T_high = period_list[np.min(find(np.array(period_list) > T))]
 
-        # now interpolate the low and high values
-        if T_low > 0:  # from .m >eps
-            x = [np.log(T_low), np.log(T_high)]
-            Y_sa = [np.log(SA_low), np.log(SA_high)]
-            SA = np.exp(np.interp(np.log(T), x, Y_sa))
+            # recursively call this function for the periods above and below
+            brad_low = calculate_Bradley(siteprop, faultprop, T_low)
+            brad_high = calculate_Bradley(siteprop, faultprop, T_high)
 
-            for i in range(len(sigma_SA_low)):
-                # there is no log of sigma or exp in .m file !! as already sigma?
-                sigma_SA.append(np.interp(np.log(T), x, [sigma_SA_low[i], sigma_SA_high[i]]))
+            sigma_SA = []  # initialize empty list
+
+            # now interpolate the low and high values
+            interpolate_to_closest(T, T_high, T_low, brad_high, brad_low)
 
         else:
-            x = [T_low, T_high]
-            Y_sa = [SA_low, SA_high]
-            SA = np.interp(T, x, Y_sa)
-
-            for i in range(len(sigma_SA_low)):
-                # linear is same as log?
-                sigma_SA.append(np.interp(np.log(T), x, [sigma_SA_low[i], sigma_SA_high[i]]))
-
-    else:
-        return calculate_Bradley(siteprop, faultprop, T)
+            result = calculate_Bradley(siteprop, faultprop, T)
+        results.append(result)
+    return results
 
 
 def calculate_Bradley(siteprop, faultprop, period):
@@ -222,14 +217,14 @@ def calculate_Bradley(siteprop, faultprop, period):
     Rrup = siteprop.Rrup
     Rjb = siteprop.Rjb
     Rx = siteprop.Rx
-    Vs30 = siteprop.V30
-    if siteprop.Z1pt0 < 0:
+    Vs30 = siteprop.vs30
+    if siteprop.Z1p0 < 0:
         Z10 = np.exp(28.5 - 3.82 / 8 * np.log(Vs30 ** 8. + 378.7 ** 8.))
     else:
-        Z10 = siteprop.Z1pt0  # depth to 1.0km/s Vs horizon
+        Z10 = siteprop.Z1p0  # depth to 1.0km/s Vs horizon
     delta = faultprop.dip  # dip in degrees
     Lambda = faultprop.rake  # rake in degrees			#lambda is a keyword in Python so changed to Lambda
-    Ztor = faultprop.Ztor
+    Ztor = faultprop.ztor
     Rtvz = siteprop.Rtvz
     deltar = delta * np.pi / 180.0
     frv = (Lambda >= 30) & (Lambda <= 150)  # frv: 1 for lambda between 30 and 150, 0 otherwise
@@ -240,7 +235,7 @@ def calculate_Bradley(siteprop, faultprop, period):
 
     f_inferred = None
     f_measured = None
-    if siteprop.V30measured == 1:
+    if siteprop.vs30measured == 1:
         f_inferred = 0  # 1: Vs30 is measured.
         f_measured = 1
     else:
@@ -302,15 +297,15 @@ def calculate_Bradley(siteprop, faultprop, period):
 
     # Compute standard deviation
     sigma_SA = compute_stdev(f_inferred, f_measured, M, Sa1130, Vs30, i)
-    return (Sa, sigma_SA)
+    return Sa, sigma_SA
 
 
 def compute_stdev(Finferred, Fmeasured, M, Sa1130, Vs30, i):
     b = phi2[i] * (np.exp(phi3[i] * (np.min((Vs30, 1130.)) - 360.)) - np.exp(phi3[i] * (1130. - 360.)))
     c = phi4[i]
     NL0 = b * Sa1130 / (Sa1130 + c)
-    sigma = (sigma1[i] + (sigma2[i] - sigma1[i]) / 2. * (np.min((np.max((M, 5.)), 7.)) - 5.)) * np.sqrt(
-        sigma3[i] * Finferred + 0.7 * Fmeasured + (1. + NL0) ** 2)
+    sigma = ((sigma1[i] + (sigma2[i] - sigma1[i]) / 2. * (np.min((np.max((M, 5.)), 7.)) - 5.)) *
+             np.sqrt(sigma3[i] * Finferred + 0.7 * Fmeasured + (1. + NL0) ** 2))
     tau = tau1[i] + (tau2[i] - tau1[i]) / 2. * (np.min((np.max((M, 5.)), 7.)) - 5.)
     # outputs
 

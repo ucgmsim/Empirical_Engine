@@ -16,9 +16,9 @@ def create_fault_parameters(srf_info):
     fault.Mw = attrs['mag']
     fault.rake = attrs['rake']
     if 'dtop' in attrs:
-        fault.Ztor = min(attrs['dtop'])
+        fault.ztor = min(attrs['dtop'])
     else:
-        fault.Ztor = attrs['hdepth']
+        fault.ztor = attrs['hdepth']
     if 'tect_type' in attrs:
         fault.tect_type = TectType[attrs['tect_type']]
     else:
