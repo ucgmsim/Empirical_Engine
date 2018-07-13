@@ -68,6 +68,9 @@ def Zhaoetal_2006_Sa(site, fault, im, periods=None):
             result = calculate_zhao(site, fault, period)
         results.append(result)
 
+    if im == 'PGA':
+        results = results[0]
+
     return results
 
 

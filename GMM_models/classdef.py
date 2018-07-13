@@ -2,8 +2,12 @@ from enum import Enum
 import numpy as np
 
 
+VS30_DEFAULT = 500
+
+
 class Site:  # Class of site properties. initialize all attributes to None
     def __init__(self):
+        self.name = None
         self.period = None  # '(-1),(0),(real variable)' period of vibration =-1->PGV; =0->PGA; >0->SA
         self.Rrup = None  # closest distance coseismic rupture (km)
         self.Rjb = None  # closest horizontal distance coseismic rupture (km)
@@ -13,7 +17,9 @@ class Site:  # Class of site properties. initialize all attributes to None
         self.vs30measured = None  # yes =True (i.e. from Vs tests); no=False (i.e. estimated from geology)
         self.vs30 = None  # shear wave velocity at 30m depth (m/s)
         self.z1p0 = None  # depth to the 1.0km/s shear wave velocity horizon (optional, uses default relationship otherwise
+        self.z1p5 = None
         self.z2p5 = None
+        self.siteclass = None
         self.orientation = 'average'
 
 
@@ -26,6 +32,7 @@ class Fault:  # Class of fault properties. initialize all attributes to None
         self.rupture_type = None  # Valid values are: N, R, SS and None which correlate to Normal, Reverse, Strike-Slip and Unknown
         self.tect_type = None
         self.faultstyle = None
+        self.hdepth = None
 
 
 class TectType(Enum):

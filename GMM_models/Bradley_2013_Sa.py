@@ -209,6 +209,10 @@ def Bradley_2013_Sa(siteprop, faultprop, im, periods=None):
         else:
             result = calculate_Bradley(siteprop, faultprop, T)
         results.append(result)
+
+    if im in ['PGA', 'PGV']:
+        results = results[0]
+
     return results
 
 
@@ -218,10 +222,10 @@ def calculate_Bradley(siteprop, faultprop, period):
     Rjb = siteprop.Rjb
     Rx = siteprop.Rx
     Vs30 = siteprop.vs30
-    if siteprop.Z1p0 < 0:
+    if siteprop.z1p0 < 0:
         Z10 = np.exp(28.5 - 3.82 / 8 * np.log(Vs30 ** 8. + 378.7 ** 8.))
     else:
-        Z10 = siteprop.Z1p0  # depth to 1.0km/s Vs horizon
+        Z10 = siteprop.z1p0  # depth to 1.0km/s Vs horizon
     delta = faultprop.dip  # dip in degrees
     Lambda = faultprop.rake  # rake in degrees			#lambda is a keyword in Python so changed to Lambda
     Ztor = faultprop.ztor

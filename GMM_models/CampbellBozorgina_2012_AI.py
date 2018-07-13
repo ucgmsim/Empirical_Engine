@@ -75,18 +75,12 @@ def CampbellBozorgina_2012(siteprop, faultprop, im_name):
     Rrup = siteprop.Rrup
 
     Rjb = siteprop.Rjb
-    Ztor = faultprop.Ztor
+    Ztor = faultprop.ztor
     rake = faultprop.rake
     delta = faultprop.dip
     V30 = siteprop.V30
-    Z_2p5 = siteprop.Z_2p5
+    Z_2p5 = siteprop.z2p5
     siteprop.orientation = 'average'
-
-    if Z_2p5 is None:  # distance to 2.5km / s shear wave horizon
-        Z1pt0 = np.exp(28.5 - 3.82 / 8.0 * np.log(V30 ** 8 + 378.7 ** 8))  # CY08 estimate
-        Zvs = 0.519 + 3.595 * (Z1pt0 / 1000.0)  # CB08 estimate of Zvs - note that the CY08 Z10 is in m not km
-    else:
-        Zvs = Z_2p5
 
     # Magnitude dependence
     if M <= 5.5:
@@ -146,12 +140,12 @@ def CampbellBozorgina_2012(siteprop, faultprop, im_name):
         fsite = (c10[i] + k2[i] * n) * np.log(min(V30, 1100.0) / k1[i])
 
     # Sediment effects
-    if Zvs < 1:
-        fsed = c11[i] * (Zvs-1)
-    elif Zvs <= 3:
+    if Z_2p5 < 1:
+        fsed = c11[i] * (Z_2p5-1)
+    elif Z_2p5 <= 3:
         fsed = 0.0
     else:
-        fsed = c12[i] * k3[i] * np.exp(-0.75) * (1 - np.exp(-0.25 * (Zvs - 3.0)))
+        fsed = c12[i] * k3[i] * np.exp(-0.75) * (1 - np.exp(-0.25 * (Z_2p5 - 3.0)))
 
     # Median value
     IM_value = np.exp(fmag + fdis + fflt + fhng + fsite + fsed)
