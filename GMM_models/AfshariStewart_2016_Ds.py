@@ -46,23 +46,53 @@ Output Variables:
 import math
 import numpy as np
 
+beta = 3.2
+Mstar = 6.0
 
-def Afshari_Stewart_2016_Ds(siteprop, faultprop):
+M1 = [5.35, 5.2, 5.2]
+M2 = [7.15, 7.4, 7.4]
+
+b2 = [0.9011, 0.9443, 0.7414]
+b3 = [-1.684, -3.911, -3.164]
+
+c1 = [0.1159, 0.3165, 0.0646]
+c2 = [0.1065, 0.2539, 0.0865]
+c3 = [0.0682, 0.0932, 0.0373]
+
+c4 = [-0.2246, -0.3183, -0.4237]
+c5 = [0.0006, 0.0006, 0.0005]
+
+R1 = 10
+R2 = 50
+
+V1 = 600
+Vref = [368.2, 369.9, 369.6]
+sigma_z1ref = 200
+
+tau1 = [0.28, 0.25, 0.30]
+tau2 = [0.25, 0.19, 0.19]
+phi1 = [0.54, 0.43, 0.56]
+phi2 = [0.41, 0.35, 0.45]
+
+def Afshari_Stewart_2016_Ds(siteprop, faultprop, im):
     M = faultprop.Mw
     R = siteprop.Rrup
     v30 = siteprop.V30
+    Z1p0 = siteprop.z1p0
 
-    if siteprop.defn is not None:
-        i = siteprop.defn
-    else:
+    if im == 'Ds575':
+        i = 0
+    elif im == 'Ds595':
         i = 1
+    elif im == 'Ds2080':
+        i = 2
+    else:
+        print("Invalid IM specified")
+        exit()
 
-    beta = 3.2
-    Mstar = 6.0
+
 
     M0 = 10 ** (1.5 * M + 16.05)
-    M1 = [5.35, 5.2, 5.2]
-    M2 = [7.15, 7.4, 7.4]
 
     if faultprop.rupture_type == 'n':
         b0 = [1.555, 2.541, 1.409]
@@ -77,27 +107,7 @@ def Afshari_Stewart_2016_Ds(siteprop, faultprop):
         b0 = [1.28, 2.182, 0.8822]
         b1 = [5.576, 3.628, 6.182]
 
-    b2 = [0.9011, 0.9443, 0.7414]
-    b3 = [-1.684, -3.911, -3.164]
 
-    c1 = [0.1159, 0.3165, 0.0646]
-    c2 = [0.1065, 0.2539, 0.0865]
-    c3 = [0.0682, 0.0932, 0.0373]
-
-    c4 = [-0.2246, -0.3183, -0.4237]
-    c5 = [0.0006, 0.0006, 0.0005]
-
-    R1 = 10
-    R2 = 50
-
-    V1 = 600
-    Vref = [368.2, 369.9, 369.6]
-    sigma_z1ref = 200
-
-    tau1 = [0.28, 0.25, 0.30]
-    tau2 = [0.25, 0.19, 0.19]
-    phi1 = [0.54, 0.43, 0.56]
-    phi2 = [0.41, 0.35, 0.45]
 
     # stress_drop = math.exp(b1[i] + b2[i] * M-Mstar)
     if M <= M2[i]:
@@ -124,14 +134,7 @@ def Afshari_Stewart_2016_Ds(siteprop, faultprop):
     # California
     MuZ1 = np.exp(-7.15 / 4 * np.log((v30 ** 4 + 570.94 ** 4) / (1360 ** 4 + 570.94 ** 4)) - np.log(1000))
 
-    if v30 < 180:
-        Z1pt0 = np.exp(6.745)
-    elif v30 < 500:
-        Z1pt0 = np.exp(6.745 - 1.35 * np.log(v30/180))
-    else:
-        Z1pt0 = np.exp(5.394 - 4.48 * np.log(v30/500))
-
-    delta_z1 = Z1pt0/1000 - MuZ1
+    delta_z1 = Z1p0/1000 - MuZ1
 
     #default value
     # delta_z1 = 0
