@@ -51,21 +51,28 @@ def Zhaoetal_2006_Sa(site, fault, im, periods=None):
 
         T = period
 
-        # interpolate between periods if necessary
-        closest_index = np.argmin(np.abs(period_list - T))
-        closest_period = period_list[closest_index]
-
-        if not np.isclose(closest_period, T):
-            T_low = period_list[T >= period_list][-1]
-            T_hi = period_list[T <= period_list][0]
-
-            zhao_low = calculate_zhao(site, fault, T_low)
-            zhao_high = calculate_zhao(site, fault, T_hi)
-
-            result = interpolate_to_closest(T, T_hi, T_low, zhao_high, zhao_low)
-
+        max_period = period_list[-1]
+        if period > max_period:
+            zhao_max = calculate_zhao(site, fault, max_period)
+            median_max = zhao_max[0]
+            median = median_max * (max_period / period) ** 2
+            result = (median, zhao_max[1])
         else:
-            result = calculate_zhao(site, fault, period)
+            # interpolate between periods if necessary
+            closest_index = np.argmin(np.abs(period_list - T))
+            closest_period = period_list[closest_index]
+
+            if not np.isclose(closest_period, T):
+                T_low = period_list[T >= period_list][-1]
+                T_hi = period_list[T <= period_list][0]
+
+                zhao_low = calculate_zhao(site, fault, T_low)
+                zhao_high = calculate_zhao(site, fault, T_hi)
+
+                result = interpolate_to_closest(T, T_hi, T_low, zhao_high, zhao_low)
+
+            else:
+                result = calculate_zhao(site, fault, period)
         results.append(result)
 
     if im == 'PGA':

@@ -7,9 +7,11 @@ import empirical_factory
 import h5py
 import numpy as np
 import os
+import yaml
 
 IM_LIST = ['PGA', 'PGV', 'CAV', 'AI', 'Ds575', 'Ds595', 'pSA']
 PERIOD = [0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.75, 1.0, 2.0, 3.0, 4.0, 5.0, 7.5, 10.0]
+
 
 def create_fault_parameters(srf_info):
     fault = Fault()
@@ -40,6 +42,7 @@ def create_fault_parameters(srf_info):
         fault.tect_type = TectType.ACTIVE_SHALLOW
     fault.hdepth = attrs['hdepth']
     return fault
+
 
 def read_rrup_file(rrup_file):
     rrups = dict()
@@ -101,6 +104,7 @@ def calculate_empirical():
     parser.add_argument('-rm', '--max_rupture_distance',
                         help="Only calculate empiricals for stations that are within X distance to rupture")
     parser.add_argument('-i', '--identifier', help="run-name for run")
+    parser.add_argument('-c', '--config', help="configuration file to select which model is being used")
     parser.add_argument('output', help="output directory")
 
     args = parser.parse_args()
@@ -108,16 +112,30 @@ def calculate_empirical():
     fault = create_fault_parameters(args.srf_info)
     sites = create_site_parameters(args.rupture_distance, args.stations, args.vs30_file, args.vs30_default, args.max_rupture_distance)
 
+    if args.config is None:
+        dir = os.path.dirname(__file__)
+        config_file = os.path.join(dir, 'model_config.yaml')
+    else:
+        config_file = args.config
+
+    model_dict = yaml.load(open(config_file))
+
     files = {}
     GMM = {}
     for im in IM_LIST:
-        gmm = empirical_factory.determine_gmm(fault, im)
+        gmm = empirical_factory.determine_gmm(fault, im, model_dict)
         GMM[im] = gmm
 
-        filename = '{}_{}_{}.csv'.format(args.identifier, im, gmm._name_)
+        filename = '{}_{}_{}.csv'.format(args.identifier, im, gmm.name)
         filepath = os.path.join(args.output, filename)
         files[im] = open(filepath, 'w')
-        files[im].write('station,component,{},{}_sigma\n'.format(im, im))
+        if im == 'pSA':
+            files[im].write('station,component')
+            for p in PERIOD:
+                files[im].write(',{}_{},{}_{}_sigma'.format(im, p, im, p))
+            files[im].write('\n')
+        else:
+            files[im].write('station,component,{},{}_sigma\n'.format(im, im))
 
     for site in sites:
         for im in IM_LIST:
@@ -127,7 +145,14 @@ def calculate_empirical():
 
 
 def write_data(file, station_name, im, values, period=None):
-    if im != 'pSA':
+    if im == 'pSA':
+        file.write('{},geom'.format(station_name))
+        for value in values:
+            im_value = value[0]
+            im_sigma = value[1][0]
+            file.write(',{},{}'.format(im_value, im_sigma))
+        file.write('\n')
+    else:
         im_value = values[0]
         im_sigma = values[1][0]
         file.write('{},geom,{},{}\n'.format(station_name, im_value, im_sigma))
