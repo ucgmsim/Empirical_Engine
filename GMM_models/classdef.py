@@ -73,7 +73,10 @@ def interpolate_to_closest(T, T_hi, T_low, y_high, y_low):
         x = [np.log(T_low), np.log(T_hi)]
         Y_sa = [np.log(SA_low), np.log(SA_high)]
         SA = np.exp(np.interp(T, x, Y_sa))
-        sigma_SA = np.interp(np.log(T), x, SA_sigma)
+        sigma_total = np.interp(T, x, SA_sigma[:, 0])
+        sigma_inter = np.interp(T, x, SA_sigma[:, 1])
+        sigma_intra = np.interp(T, x, SA_sigma[:, 2])
+        sigma_SA = [sigma_total, sigma_inter, sigma_intra]
     else:  # linear interpolation
         x = [T_low, T_hi]
         Y_sa = [SA_low, SA_high]

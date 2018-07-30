@@ -113,7 +113,7 @@ def calculate_zhao(site, fault, period):
         siteSCIII = 1
     elif site.siteclass == SiteClass.SOFTSOIL:
         siteSCIV = 1
-    h = fault.h
+    h = fault.hdepth
     hc = 15
     R_star = R + c[i] * np.exp(d[i] * M)
     logSA = (a[i] * M + b[i] * R - np.log(R_star) + e[i] * max(min(h, 125), - hc, 0) + faultSR * SR[i] +
@@ -123,7 +123,6 @@ def calculate_zhao(site, fault, period):
     SA = np.exp(logSA) / 981
     sigma_SA = determine_stdev(i, fault.tect_type)
     return SA, sigma_SA
-
 
 
 def determine_stdev(i, tect_type):
