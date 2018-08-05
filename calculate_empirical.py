@@ -16,7 +16,7 @@ PERIOD = [0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.75, 1.0, 2.0, 3.0, 4.0, 5.0, 7.
 
 def create_fault_parameters(srf_info):
     fault = Fault()
-    f = h5py.File(srf_info, 'r')
+    f = h5py.File(srf_info, 'r+')
     attrs = f.attrs
     dip = attrs['dip']
     if np.max(dip) == np.min(dip):
@@ -24,7 +24,7 @@ def create_fault_parameters(srf_info):
     else:
         print("unexpected dip value")
         exit()
-    fault.Mw = attrs['mag']
+    fault.Mw = np.max(attrs['mag'])
     rake = attrs['rake']
     if np.max(rake) == np.min(rake):
         fault.rake = np.min(rake)
@@ -33,7 +33,7 @@ def create_fault_parameters(srf_info):
         exit()
     fault.Mw = attrs['mag']
     if 'dtop' in attrs:
-        fault.ztor = min(attrs['dtop'])
+        fault.ztor = np.min(attrs['dtop'])
     else:
         fault.ztor = attrs['hdepth']
     if 'tect_type' in attrs:
@@ -140,7 +140,7 @@ def calculate_empirical():
         gmm = empirical_factory.determine_gmm(fault, im, model_dict)
         GMM[im] = gmm
 
-        filename = '{}_{}_{}.csv'.format(args.identifier, im, gmm.name)
+        filename = '{}_{}_{}.csv'.format(args.identifier, gmm.name, im)
         filepath = os.path.join(args.output, filename)
         files[im] = open(filepath, 'w')
         if im == 'pSA':
