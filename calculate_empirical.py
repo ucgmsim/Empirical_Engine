@@ -152,7 +152,7 @@ def calculate_empirical():
             files[im].write('station,component,{},{}_sigma\n'.format(im, im))
 
     for site in sites:
-        for im in IM_LIST:
+        for im in args.im:
             values = empirical_factory.compute_gmm(fault, site, GMM[im], im, period)
 
             write_data(files[im], site.name, im, values)
