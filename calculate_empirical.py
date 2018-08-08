@@ -9,6 +9,8 @@ import numpy as np
 import os
 import yaml
 
+from qcore.utils import setup_dir
+
 IM_LIST = ['PGA', 'PGV', 'CAV', 'AI', 'Ds575', 'Ds595', 'pSA']
 EXT_PERIOD = np.logspace(start=np.log10(0.01), stop=np.log10(10.), num=100, base=10)
 PERIOD = [0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.75, 1.0, 2.0, 3.0, 4.0, 5.0, 7.5, 10.0]
@@ -115,11 +117,13 @@ def calculate_empirical():
                         help='Intensity measure(s) separated by a space(if more than one). eg: PGV PGA CAV.')
 
     parser.add_argument('output', help="output directory")
-
+ 
     args = parser.parse_args()
 
     fault = create_fault_parameters(args.srf_info)
     sites = create_site_parameters(args.rupture_distance, args.stations, args.vs30_file, args.vs30_default, args.max_rupture_distance)
+    
+    setup_dir(args.output)
 
     if args.extended_period:
         period = np.unique(np.append(PERIOD, EXT_PERIOD))
