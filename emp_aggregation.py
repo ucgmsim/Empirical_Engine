@@ -3,6 +3,7 @@ import numpy as np
 
 import os
 
+
 def aggregate_data():
 
     parser = argparse.ArgumentParser()
@@ -20,12 +21,14 @@ def aggregate_data():
     header = ['station', 'component']
 
     for im_file in args.im_files:
-        d = np.loadtxt(im_file, dtype=dtype, delimiter=',', skiprows=1)
-        csv_np.append(d)
-
         filename = os.path.basename(im_file)
         im_name = filename.split('_')[-1].split('.')[0]
 
+        if im_name == 'pSA':
+            pass
+
+        d = np.loadtxt(im_file, dtype=dtype, delimiter=',', skiprows=1)
+        csv_np.append(d)
         header += [im_name, im_name + '_sigma']
 
     n_csv = len(csv_np)
@@ -48,7 +51,7 @@ def aggregate_data():
         out_data['f{}'.format(2 * i + 3)] = csv_np[i]['im_sigma']
 
     header_str = ','.join(header)
-    np.savetxt(out_file, out_data, delimiter=',', fmt=out_fmt, header=header_str)
+    np.savetxt(out_file, out_data, delimiter=',', fmt=out_fmt, header=header_str, comments='')
 
 
 if __name__ == '__main__':
