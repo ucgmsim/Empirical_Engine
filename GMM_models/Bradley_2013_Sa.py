@@ -204,7 +204,7 @@ def Bradley_2013_Sa(siteprop, faultprop, im, periods=None):
             sigma_SA = []  # initialize empty list
 
             # now interpolate the low and high values
-            interpolate_to_closest(T, T_high, T_low, brad_high, brad_low)
+            result = interpolate_to_closest(T, T_high, T_low, brad_high, brad_low)
 
         else:
             result = calculate_Bradley(siteprop, faultprop, T)
@@ -222,10 +222,10 @@ def calculate_Bradley(siteprop, faultprop, period):
     Rjb = siteprop.Rjb
     Rx = siteprop.Rx
     Vs30 = siteprop.vs30
-    if siteprop.z1p0 < 0:
+    if siteprop.z1p0 < 0:  # depth to 1.0 km/s Vs horizon
         Z10 = np.exp(28.5 - 3.82 / 8 * np.log(Vs30 ** 8. + 378.7 ** 8.))
     else:
-        Z10 = siteprop.z1p0  # depth to 1.0km/s Vs horizon
+        Z10 = siteprop.z1p0 * 1000  # Convert from km to m
     delta = faultprop.dip  # dip in degrees
     Lambda = faultprop.rake  # rake in degrees			#lambda is a keyword in Python so changed to Lambda
     Ztor = faultprop.ztor

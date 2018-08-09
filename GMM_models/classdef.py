@@ -8,7 +8,6 @@ VS30_DEFAULT = 500
 class Site:  # Class of site properties. initialize all attributes to None
     def __init__(self):
         self.name = None
-        self.period = None  # '(-1),(0),(real variable)' period of vibration =-1->PGV; =0->PGA; >0->SA
         self.Rrup = None  # closest distance coseismic rupture (km)
         self.Rjb = None  # closest horizontal distance coseismic rupture (km)
         self.Rx = None  # distance measured perpendicular to fault strike from surface projection of
@@ -72,10 +71,10 @@ def interpolate_to_closest(T, T_hi, T_low, y_high, y_low):
     if T_low > 0:  # log interpolation
         x = [np.log(T_low), np.log(T_hi)]
         Y_sa = [np.log(SA_low), np.log(SA_high)]
-        SA = np.exp(np.interp(T, x, Y_sa))
-        sigma_total = np.interp(T, x, SA_sigma[:, 0])
-        sigma_inter = np.interp(T, x, SA_sigma[:, 1])
-        sigma_intra = np.interp(T, x, SA_sigma[:, 2])
+        SA = np.exp(np.interp(np.log(T), x, Y_sa))
+        sigma_total = np.interp(np.log(T), x, SA_sigma[:, 0])
+        sigma_inter = np.interp(np.log(T), x, SA_sigma[:, 1])
+        sigma_intra = np.interp(np.log(T), x, SA_sigma[:, 2])
         sigma_SA = [sigma_total, sigma_inter, sigma_intra]
     else:  # linear interpolation
         x = [T_low, T_hi]

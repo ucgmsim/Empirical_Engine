@@ -2,6 +2,8 @@ import argparse
 import numpy as np
 
 import os
+import pandas as pd
+from datetime import datetime
 
 
 def aggregate_data():
@@ -16,42 +18,50 @@ def aggregate_data():
     parser.add_argument('im_files', nargs='+')
     args = parser.parse_args()
 
-    dtype = [('station', '|S7',), ('component', '|S4'), ('im_value', 'f'), ('im_sigma', 'f')]
     csv_np = []
     header = ['station', 'component']
 
+    n_cols = 0
+
     for im_file in args.im_files:
-        filename = os.path.basename(im_file)
-        im_name = filename.split('_')[-1].split('.')[0]
+        d = pd.read_csv(im_file)
 
-        if im_name == 'pSA':
-            pass
-
-        d = np.loadtxt(im_file, dtype=dtype, delimiter=',', skiprows=1)
         csv_np.append(d)
-        header += [im_name, im_name + '_sigma']
+        header = np.append(header, d.keys().values[2:])
+        n_cols += len(d.keys()) - 2
 
     n_csv = len(csv_np)
-    n_stat = csv_np[0].size
+    n_stat = csv_np[0].shape[0]
 
     for i in xrange(len(csv_np)-1):
-        assert(np.array_equiv(csv_np[i]['station'], csv_np[i+1]['station']))
+        # Check if the stations are in the same order for each output file
+        assert(np.array_equiv(csv_np[i].station.values, csv_np[i+1].station.values))
 
-    out_dtype = np.dtype(','.join(['|S7'] + ['|S4'] + ['f'] * n_csv * 2))
-    out_fmt = ','.join(['%s'] + ['%s'] + ['%f'] * n_csv * 2)
+    out_dtype = np.dtype(','.join(['|S7'] + ['|S4'] + ['f'] * n_cols))
+    out_fmt = ','.join(['%s'] + ['%s'] + ['%f'] * n_cols)
 
-    out_fname = '{}_emp_im.csv'.format(args.identifier)
+    out_fname = '{}.csv'.format(args.identifier)
     out_file = os.path.join(args.output_dir, out_fname)
 
     out_data = np.zeros(n_stat, dtype=out_dtype)
-    out_data['f0'] = csv_np[0]['station']
-    out_data['f1'] = csv_np[1]['component']
+    out_data['f0'] = csv_np[0].station.values
+    out_data['f1'] = csv_np[0].component.values
+    col_i = 2
     for i in xrange(n_csv):
-        out_data['f{}'.format(2 * i + 2)] = csv_np[i]['im_value']
-        out_data['f{}'.format(2 * i + 3)] = csv_np[i]['im_sigma']
+        for col in csv_np[i].columns[2:]:
+            out_data['f{}'.format(col_i)] = csv_np[i][col].values
+            col_i += 1
 
     header_str = ','.join(header)
     np.savetxt(out_file, out_data, delimiter=',', fmt=out_fmt, header=header_str, comments='')
+
+    metadata_fname = "{}_empirical.info".format(args.identifier)
+    metadata_path = os.path.join(args.output_dir, metadata_fname)
+    with open(metadata_path, 'w') as f:
+        date = datetime.now().strftime('%Y%m%d_%H%M%S')
+
+        f.write("identifier,rupture,type,date,version\n")
+        f.write("{},{},emp,{},{}".format(args.identifier, args.rupture, date, args.version))
 
 
 if __name__ == '__main__':

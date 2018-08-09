@@ -11,6 +11,17 @@ from GMM_models.CampbellBozorgina_2012_AI import CampbellBozorgina_2012
 from GMM_models import classdef
 import numpy as np
 import yaml
+import os
+
+
+def read_model_dict(config=None):
+    if config is None:
+        dir = os.path.dirname(__file__)
+        config_file = os.path.join(dir, 'model_config.yaml')
+    else:
+        config_file = config
+    model_dict = yaml.load(open(config_file))
+    return model_dict
 
 
 def determine_gmm(fault, im, model_dict):

@@ -11,7 +11,7 @@ Input Variables:
  siteprop      = properties of site (soil etc)
                  siteprop.Rjb -Source-to-site distance (km) (Joyner Boore
                  distance)
-                 siteprop.V30   -'(any real variable)' shear wave velocity(m/s)
+                 siteprop.vs30   -'(any real variable)' shear wave velocity(m/s)
                  siteprop.Zvs -'depth to the 2.5km/s shear wave velocity
                                   horizon (Uses the V30 ~ Z2p5 estimation)
                  siteprop.orientation -'random'
@@ -78,7 +78,7 @@ def CampbellBozorgina_2012(siteprop, faultprop, im_name):
     Ztor = faultprop.ztor
     rake = faultprop.rake
     delta = faultprop.dip
-    V30 = siteprop.V30
+    V30 = siteprop.vs30
     Z_2p5 = siteprop.z2p5
     siteprop.orientation = 'average'
 
@@ -130,10 +130,10 @@ def CampbellBozorgina_2012(siteprop, faultprop, im_name):
 
     if V30 < k1[i]:
         # get A1100
-        siteprop.V30 = 1100
+        siteprop.vs30 = 1100
         A1100 = CampbellBozorgina_2012(siteprop, faultprop, 2)[0]
 
-        siteprop.V30 = V30
+        siteprop.vs30 = V30
         fsite = c10[i] * np.log(V30 / k1[i]) + k2[i] * (np.log(A1100 + c * (V30 / k1[i]) ** n)
                                                         - np.log(A1100 + c))
     else:
