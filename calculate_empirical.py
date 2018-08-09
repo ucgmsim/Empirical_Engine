@@ -87,9 +87,9 @@ def create_site_parameters(rrup_file, stations, vs30_file=None, vs30_default=500
             site = Site()
             site.name = station
             if station in vs30_values:
-                site.V30 = vs30_values[station]
+                site.vs30 = vs30_values[station]
             else:
-                site.V30 = vs30_default
+                site.vs30 = vs30_default
             site.Rrup = rrup
             site.Rjb = rjbs
             site.Rx = rx
@@ -130,13 +130,7 @@ def calculate_empirical():
     else:
         period = PERIOD
 
-    if args.config is None:
-        dir = os.path.dirname(__file__)
-        config_file = os.path.join(dir, 'model_config.yaml')
-    else:
-        config_file = args.config
-
-    model_dict = yaml.load(open(config_file))
+    model_dict = empirical_factory.read_model_dict(args.config)
 
     files = {}
     GMM = {}
