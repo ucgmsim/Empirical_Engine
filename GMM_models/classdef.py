@@ -15,9 +15,9 @@ class Site:  # Class of site properties. initialize all attributes to None
         self.Rtvz = None  # source-to-site distance in the Taupo volcanic zone (TVZ) (km)
         self.vs30measured = None  # yes =True (i.e. from Vs tests); no=False (i.e. estimated from geology)
         self.vs30 = None  # shear wave velocity at 30m depth (m/s)
-        self.z1p0 = None  # depth to the 1.0km/s shear wave velocity horizon (optional, uses default relationship otherwise
-        self.z1p5 = None
-        self.z2p5 = None
+        self.z1p0 = None  # depth (km) to the 1.0km/s shear wave velocity horizon (optional, uses default relationship otherwise)
+        self.z1p5 = None  # (km)
+        self.z2p5 = None  # (km)
         self.siteclass = None
         self.orientation = 'average'
 

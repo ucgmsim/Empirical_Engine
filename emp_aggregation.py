@@ -61,7 +61,7 @@ def aggregate_data():
         date = datetime.now().strftime('%Y%m%d_%H%M%S')
 
         f.write("identifier,rupture,type,date,version\n")
-        f.write("{},{},emp,{},{}".format(args.identifier, args.rupture, date, args.version))
+        f.write("{},{},empirical,{},{}".format(args.identifier, args.rupture, date, args.version))
 
 
 if __name__ == '__main__':
