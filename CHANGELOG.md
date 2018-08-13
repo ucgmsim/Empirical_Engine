@@ -10,6 +10,8 @@ Fixed
 Changed
 
 Added
+Interpolation for Zhao beyond the period of 5.0s
+Config file to select which model is used for each tect_type / im
 
 [18.7.1] - 2018-07-13
 Added

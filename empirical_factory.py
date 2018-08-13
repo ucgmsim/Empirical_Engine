@@ -10,27 +10,33 @@ from GMM_models.AfshariStewart_2016_Ds import Afshari_Stewart_2016_Ds
 from GMM_models.CampbellBozorgina_2012_AI import CampbellBozorgina_2012
 from GMM_models import classdef
 import numpy as np
+import yaml
+import os
 
-def determine_gmm(fault, im):
+
+def read_model_dict(config=None):
+    if config is None:
+        dir = os.path.dirname(__file__)
+        config_file = os.path.join(dir, 'model_config.yaml')
+    else:
+        config_file = config
+    model_dict = yaml.load(open(config_file))
+    return model_dict
+
+
+def determine_gmm(fault, im, model_dict):
     if fault.tect_type is None:
         print "tect-type not found assuming 'ACTIVE_SHALLOW'"
-        tect_type = TectType.ACTIVE_SHALLOW
+        tect_type = TectType.ACTIVE_SHALLOW.name
     else:
-        tect_type = fault.tect_type
+        tect_type = fault.tect_type.name
 
-    if tect_type in [TectType.ACTIVE_SHALLOW, TectType.VOLCANIC]:
-        if im in ['PGA', 'PGV', 'pSA']:
-            return GMM.Br_13
-    elif tect_type in [TectType.SUBDUCTION_SLAB, TectType.SUBDUCTION_INTERFACE]:
-        if im in ['PGA', 'pSA']:
-            return GMM.ZA_06
-    if tect_type is TectType.ACTIVE_SHALLOW:
-        if im in ['Ds575', 'Ds595']:
-            return GMM.AS_16
-        if im in ['CAV', 'AI']:
-            return GMM.CB_12
+    if tect_type in model_dict and im in model_dict[tect_type]:
+        model = model_dict[tect_type][im]
+        return GMM[model]
     else:
         print "No valid empirical model found"
+        return None
 
 
 def compute_gmm(fault, site, gmm, im, period=None):
@@ -108,6 +114,7 @@ def compute_gmm(fault, site, gmm, im, period=None):
 
     return value
 
+
 def determine_siteclass(vs30):
     if vs30 < 200:
         siteclass = SiteClass.SOFTSOIL
@@ -135,21 +142,4 @@ def estimate_z2p5(z1p0=None, z1p5=None):
 
 
 def estimate_z1p0(vs30):
-    return np.exp(28.5 - 3.82 / 8.0 * np.log(vs30 ** 8 + 378.7 ** 8)) / 1000.0 # CY08 estimate in KM
-
-
-def test():
-    fault = Fault()
-    fault.Mw = 7.18
-    fault.Ztor = 0.0
-    fault.dip = 35.0
-    fault.rake = 90.0
-    fault.rupture_type = 'R'
-    fault.faultstyle = 'reverse'
-    fault.h = 15
-
-    print determine_gmm(fault, 'PGA')
-
-
-if __name__ == '__main__':
-    test()
+    return np.exp(28.5 - 3.82 / 8.0 * np.log(vs30 ** 8 + 378.7 ** 8)) / 1000.0  # CY08 estimate in KM

@@ -77,7 +77,7 @@ phi2 = [0.41, 0.35, 0.45]
 def Afshari_Stewart_2016_Ds(siteprop, faultprop, im):
     M = faultprop.Mw
     R = siteprop.Rrup
-    v30 = siteprop.V30
+    v30 = siteprop.vs30
     Z1p0 = siteprop.z1p0
 
     if im == 'Ds575':

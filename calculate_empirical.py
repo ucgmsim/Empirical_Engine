@@ -7,9 +7,12 @@ import empirical_factory
 import h5py
 import numpy as np
 import os
+import yaml
 
 IM_LIST = ['PGA', 'PGV', 'CAV', 'AI', 'Ds575', 'Ds595', 'pSA']
+EXT_PERIOD = np.logspace(start=np.log10(0.01), stop=np.log10(10.), num=100, base=10)
 PERIOD = [0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.75, 1.0, 2.0, 3.0, 4.0, 5.0, 7.5, 10.0]
+
 
 def create_fault_parameters(srf_info):
     fault = Fault()
@@ -21,7 +24,7 @@ def create_fault_parameters(srf_info):
     else:
         print("unexpected dip value")
         exit()
-    fault.Mw = attrs['mag']
+    fault.Mw = np.max(attrs['mag'])
     rake = attrs['rake']
     if np.max(rake) == np.min(rake):
         fault.rake = np.min(rake)
@@ -30,7 +33,7 @@ def create_fault_parameters(srf_info):
         exit()
     fault.Mw = attrs['mag']
     if 'dtop' in attrs:
-        fault.ztor = min(attrs['dtop'])
+        fault.ztor = np.min(attrs['dtop'])
     else:
         fault.ztor = attrs['hdepth']
     if 'tect_type' in attrs:
@@ -40,6 +43,7 @@ def create_fault_parameters(srf_info):
         fault.tect_type = TectType.ACTIVE_SHALLOW
     fault.hdepth = attrs['hdepth']
     return fault
+
 
 def read_rrup_file(rrup_file):
     rrups = dict()
@@ -81,9 +85,9 @@ def create_site_parameters(rrup_file, stations, vs30_file=None, vs30_default=500
             site = Site()
             site.name = station
             if station in vs30_values:
-                site.V30 = vs30_values[station]
+                site.vs30 = vs30_values[station]
             else:
-                site.V30 = vs30_default
+                site.vs30 = vs30_default
             site.Rrup = rrup
             site.Rjb = rjbs
             site.Rx = rx
@@ -101,6 +105,15 @@ def calculate_empirical():
     parser.add_argument('-rm', '--max_rupture_distance',
                         help="Only calculate empiricals for stations that are within X distance to rupture")
     parser.add_argument('-i', '--identifier', help="run-name for run")
+    parser.add_argument('-c', '--config', help="configuration file to select which model is being used")
+    parser.add_argument('-e', '--extended_period', action='store_true',
+                        help="Indicate the use of extended(100) pSA periods")
+
+    parser.add_argument('-p', '--period', nargs='+', default=PERIOD, type=float,
+                        help='pSA period(s) separated by a space. eg: 0.02 0.05 0.1.')
+    parser.add_argument('-m', '--im', nargs='+', default=IM_LIST,
+                        help='Intensity measure(s) separated by a space(if more than one). eg: PGV PGA CAV.')
+
     parser.add_argument('output', help="output directory")
 
     args = parser.parse_args()
@@ -108,29 +121,49 @@ def calculate_empirical():
     fault = create_fault_parameters(args.srf_info)
     sites = create_site_parameters(args.rupture_distance, args.stations, args.vs30_file, args.vs30_default, args.max_rupture_distance)
 
+    if args.extended_period:
+        period = np.unique(np.append(PERIOD, EXT_PERIOD))
+    else:
+        period = PERIOD
+
+    model_dict = empirical_factory.read_model_dict(args.config)
+
     files = {}
     GMM = {}
-    for im in IM_LIST:
-        gmm = empirical_factory.determine_gmm(fault, im)
+    for im in args.im:
+        gmm = empirical_factory.determine_gmm(fault, im, model_dict)
         GMM[im] = gmm
 
-        filename = '{}_{}_{}.csv'.format(args.identifier, im, gmm._name_)
+        filename = '{}_{}_{}.csv'.format(args.identifier, gmm.name, im)
         filepath = os.path.join(args.output, filename)
         files[im] = open(filepath, 'w')
-        files[im].write('station,component,{},{}_sigma\n'.format(im, im))
+        if im == 'pSA':
+            files[im].write('station,component')
+            for p in period:
+                files[im].write(',{}_{},{}_{}_sigma'.format(im, p, im, p))
+            files[im].write('\n')
+        else:
+            files[im].write('station,component,{},{}_sigma\n'.format(im, im))
 
     for site in sites:
-        for im in IM_LIST:
-            values = empirical_factory.compute_gmm(fault, site, GMM[im], im, PERIOD)
+        for im in args.im:
+            values = empirical_factory.compute_gmm(fault, site, GMM[im], im, period)
 
-            write_data(files[im], site.name, im, values, PERIOD)
+            write_data(files[im], site.name, im, values)
 
 
-def write_data(file, station_name, im, values, period=None):
-    if im != 'pSA':
+def write_data(fp, station_name, im, values):
+    if im == 'pSA':
+        fp.write('{},geom'.format(station_name))
+        for value in values:
+            im_value = value[0]
+            im_sigma = value[1][0]
+            fp.write(',{},{}'.format(im_value, im_sigma))
+        fp.write('\n')
+    else:
         im_value = values[0]
         im_sigma = values[1][0]
-        file.write('{},geom,{},{}\n'.format(station_name, im_value, im_sigma))
+        fp.write('{},geom,{},{}\n'.format(station_name, im_value, im_sigma))
 
 
 if __name__ == '__main__':
