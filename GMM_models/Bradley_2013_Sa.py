@@ -176,9 +176,9 @@ def Bradley_2013_Sa(siteprop, faultprop, im, periods=None):
     # declare a whole bunch of coefficients
     ##################
 
-    if im is 'PGA':
+    if im == 'PGA':
         periods = [0]
-    if im is 'PGV':
+    if im == 'PGV':
         periods = [-1]
 
     results = []
