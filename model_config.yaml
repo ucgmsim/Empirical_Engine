@@ -19,21 +19,21 @@ VOLCANIC:
   PGV: Br_13
   PGA: Br_13
   pSA: Br_13
-  CAV: CB_12 # These are only for shallow crustal in liu of a more appropriate model
-  AI: CB_12 # These are only for shallow crustal in liu of a more appropriate model
-  Ds575: AS_16 # These are only for shallow crustal in liu of a more appropriate model
-  Ds595: AS_16 # These are only for shallow crustal in liu of a more appropriate model
+  CAV: CB_12 # These are only for shallow crustal in lieu of a more appropriate model
+  AI: CB_12 # These are only for shallow crustal in lieu of a more appropriate model
+  Ds575: AS_16 # These are only for shallow crustal in lieu of a more appropriate model
+  Ds595: AS_16 # These are only for shallow crustal in lieu of a more appropriate model
 SUBDUCTION_SLAB:
   PGA: ZA_06
   pSA: ZA_06
-  CAV: CB_12 # These are only for shallow crustal in liu of a more appropriate model
-  AI: CB_12 # These are only for shallow crustal in liu of a more appropriate model
-  Ds575: AS_16 # These are only for shallow crustal in liu of a more appropriate model
-  Ds595: AS_16 # These are only for shallow crustal in liu of a more appropriate model
+  CAV: CB_12 # These are only for shallow crustal in lieu of a more appropriate model
+  AI: CB_12 # These are only for shallow crustal in lieu of a more appropriate model
+  Ds575: AS_16 # These are only for shallow crustal in lieu of a more appropriate model
+  Ds595: AS_16 # These are only for shallow crustal in lieu of a more appropriate model
 SUBDUCTION_INTERFACE:
   PGA: ZA_06
   pSA: ZA_06
-  CAV: CB_12 # These are only for shallow crustal in liu of a more appropriate model
-  AI: CB_12 # These are only for shallow crustal in liu of a more appropriate model
-  Ds575: AS_16 # These are only for shallow crustal in liu of a more appropriate model
-  Ds595: AS_16 # These are only for shallow crustal in liu of a more appropriate model
+  CAV: CB_12 # These are only for shallow crustal in lieu of a more appropriate model
+  AI: CB_12 # These are only for shallow crustal in lieu of a more appropriate model
+  Ds575: AS_16 # These are only for shallow crustal in lieu of a more appropriate model
+  Ds595: AS_16 # These are only for shallow crustal in lieu of a more appropriate model
