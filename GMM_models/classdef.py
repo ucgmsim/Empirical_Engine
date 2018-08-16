@@ -11,7 +11,7 @@ class Site:  # Class of site properties. initialize all attributes to None
         self.Rrup = None  # closest distance coseismic rupture (km)
         self.Rjb = None  # closest horizontal distance coseismic rupture (km)
         self.Rx = None  # distance measured perpendicular to fault strike from surface projection of
-                        #  updip edge of the fault rupture (+ve in downdip dir) (km)
+#                       # updip edge of the fault rupture (+ve in downdip dir) (km)
         self.Rtvz = None  # source-to-site distance in the Taupo volcanic zone (TVZ) (km)
         self.vs30measured = None  # yes =True (i.e. from Vs tests); no=False (i.e. estimated from geology)
         self.vs30 = None  # shear wave velocity at 30m depth (m/s)
@@ -85,3 +85,18 @@ def interpolate_to_closest(T, T_hi, T_low, y_high, y_low):
         sigma_intra = np.interp(T, x, SA_sigma[:, 2])
         sigma_SA = [sigma_total, sigma_inter, sigma_intra]
     return SA, sigma_SA
+
+
+# CB08 estimate of Z2p5
+def estimate_z2p5(z1p0=None, z1p5=None):
+    if z1p5 is not None:
+        return 0.636 + 1.549 * z1p5
+    elif z1p0 is not None:
+        return 0.519 + 3.595 * z1p0
+    else:
+        print 'no z2p5 able to be estimated'
+        exit()
+
+
+def estimate_z1p0(vs30):
+    return np.exp(28.5 - 3.82 / 8.0 * np.log(vs30 ** 8 + 378.7 ** 8)) / 1000.0  # CY08 estimate in KM
