@@ -48,10 +48,10 @@ def compute_gmm(fault, site, gmm, im, period=None):
         exit()
 
     if site.z1p0 is None:
-        site.z1p0 = estimate_z1p0(site.vs30)
+        site.z1p0 = classdef.estimate_z1p0(site.vs30)
 
     if site.z2p5 is None:
-        site.z2p5 = estimate_z2p5(z1p0=site.z1p0, z1p5=site.z1p5)
+        site.z2p5 = classdef.estimate_z2p5(z1p0=site.z1p0, z1p5=site.z1p5)
 
     if site.vs30measured is None:
         site.vs30measured = False  # assume not measured unless set
@@ -130,16 +130,3 @@ def determine_siteclass(vs30):
     return siteclass
 
 
-# CB08 estimate of Z2p5
-def estimate_z2p5(z1p0=None, z1p5=None):
-    if z1p5 is not None:
-        return 0.636 + 1.549 * z1p5
-    elif z1p0 is not None:
-        return 0.519 + 3.595 * z1p0
-    else:
-        print 'no z2p5 able to be estimated'
-        exit()
-
-
-def estimate_z1p0(vs30):
-    return np.exp(28.5 - 3.82 / 8.0 * np.log(vs30 ** 8 + 378.7 ** 8)) / 1000.0  # CY08 estimate in KM
