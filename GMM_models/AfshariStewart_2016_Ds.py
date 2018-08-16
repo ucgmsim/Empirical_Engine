@@ -134,7 +134,7 @@ def Afshari_Stewart_2016_Ds(siteprop, faultprop, im):
     # California
     MuZ1 = np.exp(-7.15 / 4 * np.log((v30 ** 4 + 570.94 ** 4) / (1360 ** 4 + 570.94 ** 4)) - np.log(1000))
 
-    delta_z1 = Z1p0/1000 - MuZ1
+    delta_z1 = Z1p0 - MuZ1
 
     #default value
     # delta_z1 = 0
