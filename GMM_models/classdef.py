@@ -2,7 +2,7 @@ from enum import Enum
 import numpy as np
 
 
-VS30_DEFAULT = 500
+VS30_DEFAULT = 250
 
 
 class Site:  # Class of site properties. initialize all attributes to None

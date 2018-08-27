@@ -19,7 +19,7 @@ positional arguments:
 optional arguments:
   -h, --help            show this help message and exit
   --vs30_file VS30_FILE, -v VS30_FILE
-                        vs30 file. Default value is 500 if station/file not
+                        vs30 file. Default value is 250 if station/file not
                         present
   --vs30_default VS30_DEFAULT
                         Sets the default value for the vs30
