@@ -99,7 +99,7 @@ def create_site_parameters(rrup_file, stations, vs30_file=None, vs30_default=500
 
 def calculate_empirical():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--vs30_file', '-v', help="vs30 file. Default value is 500 if station/file not present")
+    parser.add_argument('--vs30_file', '-v', help="vs30 file. Default value is 250 if station/file not present")
     parser.add_argument('--vs30_default', default=classdef.VS30_DEFAULT, help="Sets the default value for the vs30")
     parser.add_argument('-r', '--rupture_distance', help="Path to the rupture distance csv file")
     parser.add_argument('-srf', '--srf_info', help="Path to srf-info file")
