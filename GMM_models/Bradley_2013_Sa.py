@@ -196,13 +196,12 @@ def Bradley_2013_Sa(siteprop, faultprop, im, periods=None):
             # find the period values above and below
             T_low = period_list[np.max(find(np.array(period_list) < T))]
             T_high = period_list[np.min(find(np.array(period_list) > T))]
-
+            
             # recursively call this function for the periods above and below
             brad_low = calculate_Bradley(siteprop, faultprop, T_low)
             brad_high = calculate_Bradley(siteprop, faultprop, T_high)
-
             sigma_SA = []  # initialize empty list
-
+      
             # now interpolate the low and high values
             result = interpolate_to_closest(T, T_high, T_low, brad_high, brad_low)
 
@@ -260,7 +259,6 @@ def calculate_Bradley(siteprop, faultprop, period):
     term1 = c1[i]
     # Modification 2: Ztor maximum depth
     term2 = (c1a[i] * frv + c1b[i] * fnm + c7[i] * (np.min((Ztor, c8[i])) - 4.))  # modification of Ztor limit
-
     term5 = c2 * (M - 6.)
 
     term6 = ((c2 - c3[i]) / cn[i]) * np.log(1. + np.exp(cn[i] * (cm[i] - M)))
@@ -295,7 +293,7 @@ def calculate_Bradley(siteprop, faultprop, period):
 
     term13 = phi5[i] * (1. - 1. / np.cosh(phi6[i] * np.max((0, Z10 - phi7[i])))) + phi8[i] / np.cosh(
         0.15 * np.max((0, Z10 - 15)))
-
+    
     # Compute median
     Sa = np.exp(np.log(Sa1130) + term11 + term12 + term13)
 
