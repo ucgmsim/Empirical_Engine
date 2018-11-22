@@ -1,3 +1,4 @@
+#!/usr/bin/env python2
 import argparse
 from GMM_models.classdef import Site
 from GMM_models.classdef import Fault
