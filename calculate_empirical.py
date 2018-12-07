@@ -1,23 +1,33 @@
 #!/usr/bin/env python2
+"""Script to calculate IMs for empirical models.
+
+Produces one .csv for each IM containing all specified sites.
+"""
+import os
 import argparse
+import h5py
+import numpy as np
+import pandas as pd
+
+import empirical_factory
+
 from GMM_models.classdef import Site
 from GMM_models.classdef import Fault
 from GMM_models.classdef import TectType
 from GMM_models import classdef
-import empirical_factory
-import h5py
-import numpy as np
-import os
-import yaml
 
 from qcore.utils import setup_dir
+from qcore.im import order_im_cols_df
 
 IM_LIST = ['PGA', 'PGV', 'CAV', 'AI', 'Ds575', 'Ds595', 'pSA']
-EXT_PERIOD = np.logspace(start=np.log10(0.01), stop=np.log10(10.), num=100, base=10)
-PERIOD = [0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.75, 1.0, 2.0, 3.0, 4.0, 5.0, 7.5, 10.0]
+EXT_PERIOD = np.logspace(start=np.log10(0.01), stop=np.log10(10.), num=100,
+                         base=10)
+PERIOD = [0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.75, 1.0, 2.0, 3.0, 4.0, 5.0,
+          7.5, 10.0]
 
 
 def create_fault_parameters(srf_info):
+    """Create fault parameters"""
     fault = Fault()
     f = h5py.File(srf_info, 'r')
     attrs = f.attrs
@@ -42,13 +52,14 @@ def create_fault_parameters(srf_info):
     if 'tect_type' in attrs:
         fault.tect_type = TectType[attrs['tect_type']]
     else:
-        print "tect_type not found assuming 'ACTIVE_SHALLOW'"
+        print("tect_type not found assuming 'ACTIVE_SHALLOW'")
         fault.tect_type = TectType.ACTIVE_SHALLOW
     fault.hdepth = attrs['hdepth']
     return fault
 
 
 def read_rrup_file(rrup_file):
+    """Read rupture(?) file"""
     rrups = dict()
     with open(rrup_file) as f:
         f.next()
@@ -66,6 +77,7 @@ def read_rrup_file(rrup_file):
 
 
 def read_vs30_file(vs30_file):
+    """Read vs30 file"""
     values = dict()
     with open(vs30_file) as f:
         for line in f:
@@ -74,7 +86,9 @@ def read_vs30_file(vs30_file):
     return values
 
 
-def create_site_parameters(rrup_file, stations, vs30_file=None, vs30_default=500, max_distance=None):
+def create_site_parameters(rrup_file, vs30_file, stations=None,
+                           vs30_default=500, max_distance=None):
+    """Create site parameters"""
     rrups = read_rrup_file(rrup_file)
     vs30_values = read_vs30_file(vs30_file)
     sites = list()
@@ -99,30 +113,50 @@ def create_site_parameters(rrup_file, stations, vs30_file=None, vs30_default=500
 
 
 def calculate_empirical():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--vs30_file', '-v', help="vs30 file. Default value is 250 if station/file not present")
-    parser.add_argument('--vs30_default', default=classdef.VS30_DEFAULT, help="Sets the default value for the vs30")
-    parser.add_argument('-r', '--rupture_distance', help="Path to the rupture distance csv file")
-    parser.add_argument('-srf', '--srf_info', help="Path to srf-info file")
-    parser.add_argument('-s', '--stations', nargs='+', help="List of stations to calculate empiricals for")
+    """Calculate empirical intensity measures"""
+    parser = argparse.ArgumentParser(
+        description="Script to calculate IMs for empirical models."
+                    "Produces one .csv for each IM containing "
+                    "all specified sites.")
+
+    parser.add_argument('--vs30_file', '-v', required=True,
+                        help="vs30 file. Default value is 250 if"
+                             " station/file not present")
+    parser.add_argument('-r', '--rupture_distance', required=True,
+                        help="Path to the rupture distance csv file")
+    parser.add_argument('-srf', '--srf_info', help="Path to srf-info file",
+                        required=True)
+    parser.add_argument('--vs30_default', default=classdef.VS30_DEFAULT,
+                        help="Sets the default value for the vs30")
+    parser.add_argument('-s', '--stations', nargs='+',
+                        help="List of stations to calculate empiricals for")
     parser.add_argument('-rm', '--max_rupture_distance',
-                        help="Only calculate empiricals for stations that are within X distance to rupture")
+                        help="Only calculate empiricals for stations "
+                             "that are within X distance to rupture")
     parser.add_argument('-i', '--identifier', help="run-name for run")
-    parser.add_argument('-c', '--config', help="configuration file to select which model is being used")
+    parser.add_argument('-c', '--config',
+                        help="configuration file to "
+                             "select which model is being used")
     parser.add_argument('-e', '--extended_period', action='store_true',
                         help="Indicate the use of extended(100) pSA periods")
 
     parser.add_argument('-p', '--period', nargs='+', default=PERIOD, type=float,
-                        help='pSA period(s) separated by a space. eg: 0.02 0.05 0.1.')
+                        help='pSA period(s) separated by a '
+                             'space. eg: 0.02 0.05 0.1.')
     parser.add_argument('-m', '--im', nargs='+', default=IM_LIST,
-                        help='Intensity measure(s) separated by a space(if more than one). eg: PGV PGA CAV.')
+                        help='Intensity measure(s) separated by a '
+                             'space(if more than one). eg: PGV PGA CAV.')
 
     parser.add_argument('output', help="output directory")
  
     args = parser.parse_args()
 
+    # Fault & Site parameters
     fault = create_fault_parameters(args.srf_info)
-    sites = create_site_parameters(args.rupture_distance, args.stations, args.vs30_file, args.vs30_default, args.max_rupture_distance)
+    sites = create_site_parameters(args.rupture_distance, args.vs30_file,
+                                   stations=args.stations,
+                                   vs30_default=args.vs30_default,
+                                   max_distance=args.max_rupture_distance)
     
     setup_dir(args.output)
 
@@ -132,43 +166,42 @@ def calculate_empirical():
         period = PERIOD
 
     model_dict = empirical_factory.read_model_dict(args.config)
-
-    files = {}
-    GMM = {}
+    station_names = [site.name for site in
+                     sites] if args.stations is None else args.stations
     for im in args.im:
-        gmm = empirical_factory.determine_gmm(fault, im, model_dict)
-        GMM[im] = gmm
+        cur_gmm = empirical_factory.determine_gmm(fault, im, model_dict)
 
-        filename = '{}_{}_{}.csv'.format(args.identifier, gmm.name, im)
-        filepath = os.path.join(args.output, filename)
-        files[im] = open(filepath, 'w')
+        # File & column names
+        cur_filename = '{}_{}_{}.csv'.format(args.identifier, cur_gmm.name, im)
+        cur_cols = []
         if im == 'pSA':
-            files[im].write('station,component')
             for p in period:
-                files[im].write(',{}_{},{}_{}_sigma'.format(im, p, im, p))
-            files[im].write('\n')
+                cur_cols.append('{}_{}'.format(im, p))
+                cur_cols.append('{}_{}_sigma'.format(im, p))
         else:
-            files[im].write('station,component,{},{}_sigma\n'.format(im, im))
+            cur_cols.append(im)
+            cur_cols.append('{}_sigma'.format(im))
 
-    for site in sites:
-        for im in args.im:
-            values = empirical_factory.compute_gmm(fault, site, GMM[im], im, period)
+        # Get & save the data
+        cur_data = np.zeros((len(sites), len(cur_cols)), dtype=np.float)
+        for ix, site in enumerate(sites):
+            values = empirical_factory.compute_gmm(fault, site, cur_gmm, im,
+                                                   period)
+            if im == 'pSA':
+                cur_data[ix, :] = np.ravel(
+                    [[value_tuple[0], value_tuple[1][0]] for value_tuple in
+                     values])
+            else:
+                cur_data[ix, :] = [values[0], values[1][0]]
 
-            write_data(files[im], site.name, im, values)
+        df = pd.DataFrame(columns=cur_cols, data=cur_data)
+        df['station'] = station_names
+        df['component'] = 'geom'
 
+        # Correct column order
+        df = order_im_cols_df(df)
 
-def write_data(fp, station_name, im, values):
-    if im == 'pSA':
-        fp.write('{},geom'.format(station_name))
-        for value in values:
-            im_value = value[0]
-            im_sigma = value[1][0]
-            fp.write(',{},{}'.format(im_value, im_sigma))
-        fp.write('\n')
-    else:
-        im_value = values[0]
-        im_sigma = values[1][0]
-        fp.write('{},geom,{},{}\n'.format(station_name, im_value, im_sigma))
+        df.to_csv(os.path.join(args.output, cur_filename), index=False)
 
 
 if __name__ == '__main__':
