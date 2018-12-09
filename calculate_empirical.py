@@ -25,6 +25,10 @@ EXT_PERIOD = np.logspace(start=np.log10(0.01), stop=np.log10(10.), num=100,
 PERIOD = [0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.75, 1.0, 2.0, 3.0, 4.0, 5.0,
           7.5, 10.0]
 
+PSA_IM_NAME = 'pSA'
+STATION_COL_NAME = 'station'
+COMPONENT_COL_NAME = 'component'
+
 
 def create_fault_parameters(srf_info):
     """Create fault parameters"""
@@ -174,7 +178,7 @@ def calculate_empirical():
         # File & column names
         cur_filename = '{}_{}_{}.csv'.format(args.identifier, cur_gmm.name, im)
         cur_cols = []
-        if im == 'pSA':
+        if im == PSA_IM_NAME:
             for p in period:
                 cur_cols.append('{}_{}'.format(im, p))
                 cur_cols.append('{}_{}_sigma'.format(im, p))
@@ -187,7 +191,7 @@ def calculate_empirical():
         for ix, site in enumerate(sites):
             values = empirical_factory.compute_gmm(fault, site, cur_gmm, im,
                                                    period)
-            if im == 'pSA':
+            if im == PSA_IM_NAME:
                 cur_data[ix, :] = np.ravel(
                     [[value_tuple[0], value_tuple[1][0]] for value_tuple in
                      values])
@@ -195,8 +199,8 @@ def calculate_empirical():
                 cur_data[ix, :] = [values[0], values[1][0]]
 
         df = pd.DataFrame(columns=cur_cols, data=cur_data)
-        df['station'] = station_names
-        df['component'] = 'geom'
+        df[STATION_COL_NAME] = station_names
+        df[COMPONENT_COL_NAME] = 'geom'
 
         # Correct column order
         df = order_im_cols_df(df)
