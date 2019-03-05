@@ -66,7 +66,7 @@ def read_rrup_file(rrup_file):
     """Read rupture(?) file"""
     rrups = dict()
     with open(rrup_file) as f:
-        f.next()
+        next(f)
         for line in f:
             station, __, __, rrup, rjbs, rx = line.rstrip().split(',')
             rrup = float(rrup)
@@ -99,7 +99,7 @@ def create_site_parameters(rrup_file, vs30_file, stations=None,
     if max_distance is None:
         max_distance = float("inf")
     if stations is None:
-        stations = rrups.keys()
+        stations = list(rrups.keys())
     for station in stations:
         rrup, rjbs, rx = rrups[station]
         if rrup < max_distance:

@@ -1,6 +1,6 @@
 import numpy as np
 import copy
-import classdef
+from .classdef import estimate_z1p0,estimate_z2p5 
 
 """
 Provides the attenuation relation for AI in units of cm/s
@@ -134,8 +134,8 @@ def CampbellBozorgina_2012(siteprop, faultprop, im_name):
         # get A1100
         rock_site = copy.deepcopy(siteprop)
         rock_site.vs30 = 1100
-        rock_site.z1p0 = classdef.estimate_z1p0(rock_site.vs30)
-        rock_site.z2p5 = classdef.estimate_z2p5(rock_site.z1p0)
+        rock_site.z1p0 = estimate_z1p0(rock_site.vs30)
+        rock_site.z2p5 = estimate_z2p5(rock_site.z1p0)
         A1100 = CampbellBozorgina_2012(rock_site, faultprop, 2)[0]
 
         fsite = c10[i] * np.log(V30 / k1[i]) + k2[i] * (np.log(A1100 + c * (V30 / k1[i]) ** n)

@@ -1,8 +1,8 @@
 import numpy as np
-from classdef import TectType
-from classdef import FaultStyle
-from classdef import SiteClass
-from classdef import interpolate_to_closest
+from .classdef import TectType
+from .classdef import FaultStyle
+from .classdef import SiteClass
+from .classdef import interpolate_to_closest
 
 period_list = np.array([0.0, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 1.00, 1.25, 1.50,
                         2.00, 2.50, 3.00, 4.00, 5.00])
@@ -141,6 +141,6 @@ def get_tau(tect_type):
     elif tect_type == TectType.SUBDUCTION_SLAB:
         tau = tau_s
     else:
-        print "TectType is unset assuming SHALLOW CRUSTAL"
+        print("TectType is unset assuming SHALLOW CRUSTAL")
         tau = tau_c
     return tau

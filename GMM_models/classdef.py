@@ -94,7 +94,7 @@ def estimate_z2p5(z1p0=None, z1p5=None):
     elif z1p0 is not None:
         return 0.519 + 3.595 * z1p0
     else:
-        print 'no z2p5 able to be estimated'
+        print('no z2p5 able to be estimated')
         exit()
 
 

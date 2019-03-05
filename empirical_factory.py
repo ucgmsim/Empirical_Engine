@@ -26,7 +26,7 @@ def read_model_dict(config=None):
 
 def determine_gmm(fault, im, model_dict):
     if fault.tect_type is None:
-        print "tect-type not found assuming 'ACTIVE_SHALLOW'"
+        print("tect-type not found assuming 'ACTIVE_SHALLOW'")
         tect_type = TectType.ACTIVE_SHALLOW.name
     else:
         tect_type = fault.tect_type.name
@@ -35,7 +35,7 @@ def determine_gmm(fault, im, model_dict):
         model = model_dict[tect_type][im]
         return GMM[model]
     else:
-        print "No valid empirical model found"
+        print("No valid empirical model found")
         return None
 
 
@@ -44,7 +44,7 @@ def compute_gmm(fault, site, gmm, im, period=None):
         site.vs30 = classdef.VS30_DEFAULT
 
     if site.Rrup is None:
-        print "Rrup is a required parameter"
+        print("Rrup is a required parameter")
         exit()
 
     if site.z1p0 is None:
@@ -69,19 +69,19 @@ def compute_gmm(fault, site, gmm, im, period=None):
         site.Rx = -site.Rjb  # incorrect assumption but keeping for legacy reasons
 
     if fault.Mw is None:
-        print "Moment magnitude is a required parameter"
+        print("Moment magnitude is a required parameter")
         exit()
 
     if fault.rake is None and GMM in [GMM.Br_13, GMM.CB_12]:
-        print "rake is a required parameter for Br_13 and CB_12"
+        print("rake is a required parameter for Br_13 and CB_12")
         exit()
 
     if fault.dip is None and GMM in [GMM.Br_13, GMM.CB_12]:
-        print "dip is a required parameter for Br_13 and CB_12"
+        print("dip is a required parameter for Br_13 and CB_12")
         exit()
 
     if fault.ztor is None and GMM in [GMM.Br_13, GMM.CB_12]:
-        print "ztor is a required parameter for Br_13 and CB_12"
+        print("ztor is a required parameter for Br_13 and CB_12")
         exit()
 
     if fault.rupture_type is None:
@@ -98,7 +98,7 @@ def compute_gmm(fault, site, gmm, im, period=None):
         fault.tect_type = TectType.ACTIVE_SHALLOW
 
     if fault.hdepth is None and GMM == GMM.ZA_06:
-        print "hypocentre depth is a required parameter for ZA06"
+        print("hypocentre depth is a required parameter for ZA06")
         exit()
 
     value = None
