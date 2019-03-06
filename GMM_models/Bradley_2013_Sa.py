@@ -65,7 +65,7 @@ Issues:
 """
 import numpy as np
 from matplotlib.mlab import find
-from classdef import interpolate_to_closest
+from .classdef import interpolate_to_closest
 
 period_list = [-1, 0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.075, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.75, 1, 1.5, 2, 3, 4, 5,
                7.5, 10]
