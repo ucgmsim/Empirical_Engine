@@ -4,7 +4,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="Empirical_Engine",
+    name="empirical_engine",
     version="1.0.0",
     author="Quakecore",
     description="Package for empirical calculations",
