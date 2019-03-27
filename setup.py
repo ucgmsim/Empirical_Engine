@@ -4,7 +4,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="empirical_engine",
+    name="empirical",
     version="1.0.0",
     author="Quakecore",
     description="Package for empirical calculations",
@@ -12,4 +12,8 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     packages=setuptools.find_packages(),
+    scripts=[
+        "empirical/scripts/calculate_empirical.py",
+        "empirical/scripts/emp_aggregation.py"
+    ],
 )
