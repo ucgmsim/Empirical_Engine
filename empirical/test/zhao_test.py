@@ -4,7 +4,7 @@ import sys
 sys.path.append('../..')
 
 from empirical.GMM_models.zhou_2006 import Zhaoetal_2006_Sa
-from empirical.GMM_models.classdef import Site, Fault, TectType, SiteClass
+from empirical.util.classdef import Site, Fault, TectType, SiteClass
 
 rrups = [10, 70, 200]
 siteclasses = [SiteClass.SOFTSOIL, SiteClass.MEDIUMSOIL, SiteClass.HARDSOIL, SiteClass.ROCK, SiteClass.HARDROCK]

@@ -1,12 +1,9 @@
-from empirical.GMM_models.classdef import TectType
-from empirical.GMM_models.classdef import GMM
-from empirical.GMM_models.classdef import SiteClass
-from empirical.GMM_models.classdef import FaultStyle
+from empirical.util import classdef
+from empirical.util.classdef import TectType, GMM, SiteClass, FaultStyle
 from empirical.GMM_models.Bradley_2013_Sa import Bradley_2013_Sa
 from empirical.GMM_models.zhou_2006 import Zhaoetal_2006_Sa
 from empirical.GMM_models.AfshariStewart_2016_Ds import Afshari_Stewart_2016_Ds
 from empirical.GMM_models.CampbellBozorgina_2012_AI import CampbellBozorgina_2012
-from empirical.GMM_models import classdef
 import numpy as np
 import yaml
 import os
