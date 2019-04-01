@@ -3,8 +3,8 @@ import sys
 
 sys.path.append('../..')
 
-from GMM_models.zhou_2006 import Zhaoetal_2006_Sa
-from GMM_models.classdef import Site, Fault, TectType, SiteClass
+from empirical.GMM_models.zhou_2006 import Zhaoetal_2006_Sa
+from empirical.GMM_models.classdef import Site, Fault, TectType, SiteClass
 
 rrups = [10, 70, 200]
 siteclasses = [SiteClass.SOFTSOIL, SiteClass.MEDIUMSOIL, SiteClass.HARDSOIL, SiteClass.ROCK, SiteClass.HARDROCK]
@@ -18,7 +18,7 @@ fault.Mw = 7.2
 fault.faultstyle = 'interface'
 fault.h = 10
 
-print "period, rrup, siteclass, tect_type, mean, std_total"
+print("period, rrup, siteclass, tect_type, mean, std_total")
 for tect_type in tect_types:
     for siteclass in siteclasses:
         for rrup in rrups:
@@ -28,5 +28,5 @@ for tect_type in tect_types:
             results = Zhaoetal_2006_Sa(site, fault, 'pSA', period)
             for result, p in zip(results, period):
                 mean, std = result
-                print p, rrup, siteclass, tect_type, mean, std[0]
-        print ""
+                print(p, rrup, siteclass, tect_type, mean, std[0])
+        print("")

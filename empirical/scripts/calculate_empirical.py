@@ -9,12 +9,12 @@ import h5py
 import numpy as np
 import pandas as pd
 
-import empirical_factory
+from empirical.util import empirical_factory
 
-from GMM_models.classdef import Site
-from GMM_models.classdef import Fault
-from GMM_models.classdef import TectType
-from GMM_models import classdef
+from empirical.GMM_models.classdef import Site
+from empirical.GMM_models.classdef import Fault
+from empirical.GMM_models.classdef import TectType
+from empirical.GMM_models import classdef
 
 from qcore.utils import setup_dir
 from qcore.im import order_im_cols_df
