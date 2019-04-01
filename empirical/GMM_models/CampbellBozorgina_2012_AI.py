@@ -1,6 +1,6 @@
 import numpy as np
 import copy
-from empirical.GMM_models.classdef import estimate_z1p0,estimate_z2p5
+from empirical.util.classdef import estimate_z1p0,estimate_z2p5
 
 """
 Provides the attenuation relation for AI in units of cm/s

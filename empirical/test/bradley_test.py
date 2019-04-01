@@ -5,7 +5,7 @@ sys.path.append('../..')
 from empirical.GMM_models.Bradley_2013_Sa import Bradley_2013_Sa
 from im_processing.computations.GMPE_models.Bradley_2010_Sa import Bradley_2010_Sa
 
-from empirical.GMM_models.classdef import Site, Fault, TectType, SiteClass
+from empirical.util.classdef import Site, Fault, TectType, SiteClass
 
 rrups = [10, 70, 200]
 siteclasses = [SiteClass.SOFTSOIL, SiteClass.MEDIUMSOIL, SiteClass.HARDSOIL, SiteClass.ROCK, SiteClass.HARDROCK]
