@@ -37,32 +37,33 @@ def determine_gmm(fault, im, model_dict):
 def compute_gmm(fault, site, gmm, im, period=None):
     if site.vs30 is None:
         site.vs30 = classdef.VS30_DEFAULT
-
+       # print("compute_gmm, site.vs30", site.vs30)
     if site.Rrup is None:
         print("Rrup is a required parameter")
         exit()
 
     if site.z1p0 is None:
         site.z1p0 = classdef.estimate_z1p0(site.vs30)
+        # print("compute_gmm, site.z1p0", site.z1p0)
 
     if site.z2p5 is None:
         site.z2p5 = classdef.estimate_z2p5(z1p0=site.z1p0, z1p5=site.z1p5)
-
+        #print("compute_gmm, site.z2p5", site.z2p5)
     if site.vs30measured is None:
         site.vs30measured = False  # assume not measured unless set
-
+        #print("compute_gmm, site.vs30merausre", site.vs30measured)
     if site.siteclass is None:
         site.siteclass = determine_siteclass(site.vs30)
-
+       # print("compute_gmm, site.siteclass", site.siteclass)
     if site.Rtvz is None:
         site.Rtvz = 0
-
+        #print("compute_gmm, site.rtvz", site.rtvz)
     if site.Rjb is None:
         site.Rjb = np.sqrt(site.Rrup ** 2 - fault.ztor ** 2)
-
+        #print("compute_gmm, site.rjb", site.rjb)
     if site.Rx is None:
         site.Rx = -site.Rjb  # incorrect assumption but keeping for legacy reasons
-
+       # print("compute_gmm, site.rx", site.rx)
     if fault.Mw is None:
         print("Moment magnitude is a required parameter")
         exit()
@@ -88,9 +89,10 @@ def compute_gmm(fault, site, gmm, im, period=None):
             fault.rupture_type = FaultStyle.STRIKESLIP
         else:
             fault.rupture_type = FaultStyle.UNKNOWN
-
+        #print("Fault rupture type", fault.rupture_type)
     if fault.tect_type is None:
         fault.tect_type = TectType.ACTIVE_SHALLOW
+        #print("Fault tech type", fault.tect_type)
 
     if fault.hdepth is None and GMM == GMM.ZA_06:
         print("hypocentre depth is a required parameter for ZA06")
@@ -106,7 +108,8 @@ def compute_gmm(fault, site, gmm, im, period=None):
         value = CampbellBozorgina_2012(site, fault, im)
     elif gmm is GMM.ZA_06:
         value = Zhaoetal_2006_Sa(site, fault, im, period)
-
+    # print("new site",vars(site))
+    # print("new fault",vars(fault))
     return value
 
 

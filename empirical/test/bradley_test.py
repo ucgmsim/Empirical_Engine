@@ -3,9 +3,10 @@ import sys
 sys.path.append('../..')
 
 from empirical.GMM_models.Bradley_2013_Sa import Bradley_2013_Sa
+from empirical.util.empirical_factory import compute_gmm
 from im_processing.computations.GMPE_models.Bradley_2010_Sa import Bradley_2010_Sa
 
-from empirical.util.classdef import Site, Fault, TectType, SiteClass
+from empirical.util.classdef import Site, Fault, TectType, SiteClass, GMM
 
 rrups = [10, 70, 200]
 siteclasses = [SiteClass.SOFTSOIL, SiteClass.MEDIUMSOIL, SiteClass.HARDSOIL, SiteClass.ROCK, SiteClass.HARDROCK]
@@ -30,15 +31,19 @@ site.V30 = 500
 site.V30measured = None
 site.Rx = -1
 site.Rtvz = 50
-site.Z1pt0 = None
 
 for rrup in rrups:
     site.Rrup = rrup
-    print("rrup:", rrup)
-    results = Bradley_2013_Sa(site, fault, 'pSA', period)
+    results = compute_gmm(fault, site, GMM.Br_13, 'pSA', period)
     for r in results:
-        print(r)
-    print('--')
+        print("new", r)
+    print('-'*90)
+
+print("*"*90)
+for rrup in rrups:
+    site.Rrup = rrup
+    site.Z1pt0 = site.z1p0
     for p in period:
         site.period = p
-        print(Bradley_2010_Sa(site, fault))
+        print("old",Bradley_2010_Sa(site, fault))
+    print("-"*90)
