@@ -44,20 +44,21 @@ benchmark = '/home/melody/Downloads/Zhao_Test_Cases_2.xlsx'
 df = pd.read_excel(benchmark)
 
 for index, row in df.iterrows():
+    if row.name == 194:
+        fault.hdepth = 10
     if not row.isnull().any():
         fault.tect_type = tect_types[row['tect_type']]
         site.Rrup = float(row['rrup'])
         site.siteclass = siteclasses[row['siteclass']]
         results = compute_gmm(fault, site, GMM.ZA_06, 'pSA', [row['period']])
-        for result, p in zip(results, [row['period']]):
-            mean, std = result
+        for mean, std in results:
             if "{:.4f}".format(mean)!="{:.4f}".format(row['mean']):
-                print(p, site.Rrup, site.siteclass, fault.tect_type, "{:.4f}".format(mean), "{:.4f}".format(row['mean']))
+                print(row['period'], site.Rrup, site.siteclass, fault.tect_type, "{:.4f}".format(mean), "{:.4f}".format(row['mean']))
             if "{:.4f}".format(std[0])!="{:.4f}".format(row['std_total']):
-                print(p, site.Rrup, site.siteclass, fault.tect_type,"{:.4f}".format(std[0]), "{:.4f}".format(row['std_total']))
+                print(row['period'], site.Rrup, site.siteclass, fault.tect_type,"{:.4f}".format(std[0]), "{:.4f}".format(row['std_total']))
 
-# H=10!
-fault.tect_type=TectType.SUBDUCTION_SLAB
-site.Rrup = float(10)
-site.siteclass = SiteClass.SOFTSOIL
-print(compute_gmm(fault, site, GMM.ZA_06, 'pSA', [0]))
+# # H=10!
+# fault.tect_type=TectType.SUBDUCTION_SLAB
+# site.Rrup = float(10)
+# site.siteclass = SiteClass.SOFTSOIL
+# print(compute_gmm(fault, site, GMM.ZA_06, 'pSA', [0]))
