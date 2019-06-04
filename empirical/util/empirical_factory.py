@@ -9,17 +9,37 @@ import yaml
 import os
 
 
+import os
+import pickle
+import inspect
+TEST_DATA_SAVE_DIR = '/home/melody/Empirical_Engine/pickled/bradley_2013_sa/rrup200'
+INPUT_DIR = 'input'
+OUTPUT_DIR = 'output'
+
+
 def read_model_dict(config=None):
+    name = "read_model_dict"
+    with open(os.path.join(TEST_DATA_SAVE_DIR, INPUT_DIR, name + '_{}.P'.format(config)), 'wb') as save_file:
+        pickle.dump(config, save_file)
     if config is None:
         dir = os.path.dirname(__file__)
         config_file = os.path.join(dir, 'model_config.yaml')
     else:
         config_file = config
     model_dict = yaml.load(open(config_file))
+    with open(os.path.join(TEST_DATA_SAVE_DIR, OUTPUT_DIR, name + '_ret_val.P'), 'wb') as save_file:
+        pickle.dump(model_dict, save_file)
     return model_dict
 
 
 def determine_gmm(fault, im, model_dict):
+    frame = inspect.currentframe()
+    args, _, _, values = inspect.getargvalues(frame)
+    func_name = inspect.getframeinfo(frame)[2]
+    for arg in args:
+        with open(os.path.join(TEST_DATA_SAVE_DIR, INPUT_DIR, func_name + '_{}.P'.format(arg)), 'wb') as save_file:
+            pickle.dump(values[arg], save_file)
+
     if fault.tect_type is None:
         print("tect-type not found assuming 'ACTIVE_SHALLOW'")
         tect_type = TectType.ACTIVE_SHALLOW.name
@@ -28,13 +48,23 @@ def determine_gmm(fault, im, model_dict):
 
     if tect_type in model_dict and im in model_dict[tect_type]:
         model = model_dict[tect_type][im]
+        with open(os.path.join(TEST_DATA_SAVE_DIR, OUTPUT_DIR, func_name + '_ret_val.P'), 'wb') as save_file:
+            pickle.dump(GMM[model], save_file)
         return GMM[model]
     else:
         print("No valid empirical model found")
+        with open(os.path.join(TEST_DATA_SAVE_DIR, OUTPUT_DIR, func_name + '_ret_val.P'), 'wb') as save_file:
+            pickle.dump(None, save_file)
         return None
 
 
 def compute_gmm(fault, site, gmm, im, period=None):
+    frame = inspect.currentframe()
+    args, _, _, values = inspect.getargvalues(frame)
+    func_name = inspect.getframeinfo(frame)[2]
+    for arg in args:
+        with open(os.path.join(TEST_DATA_SAVE_DIR, INPUT_DIR, func_name + '_{}.P'.format(arg)), 'wb') as save_file:
+            pickle.dump(values[arg], save_file)
     if site.vs30 is None:
         site.vs30 = classdef.VS30_DEFAULT
        # print("compute_gmm, site.vs30", site.vs30)
@@ -110,10 +140,15 @@ def compute_gmm(fault, site, gmm, im, period=None):
         value = Zhaoetal_2006_Sa(site, fault, im, period)
     # print("new site",vars(site))
     # print("new fault",vars(fault))
+    with open(os.path.join(TEST_DATA_SAVE_DIR, OUTPUT_DIR, func_name + '_ret_val.P'), 'wb') as save_file:
+        pickle.dump(value, save_file)
     return value
 
 
 def determine_siteclass(vs30):
+    name = "determine_siteclass"
+    with open(os.path.join(TEST_DATA_SAVE_DIR, INPUT_DIR, '{}_vs30.P'.format(name)), 'wb') as save_file:
+        pickle.dump(vs30, save_file)
     if vs30 < 200:
         siteclass = SiteClass.SOFTSOIL
     elif vs30 < 300:
@@ -124,7 +159,8 @@ def determine_siteclass(vs30):
         siteclass = SiteClass.ROCK
     else:
         siteclass = SiteClass.HARDROCK
-
+    with open(os.path.join(TEST_DATA_SAVE_DIR, OUTPUT_DIR, '{}_ret_val.P'.format(siteclass)), 'wb') as save_file:
+        pickle.dump(siteclass, save_file)
     return siteclass
 
 

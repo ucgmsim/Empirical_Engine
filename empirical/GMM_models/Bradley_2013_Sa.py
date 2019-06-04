@@ -67,6 +67,14 @@ import numpy as np
 from matplotlib.mlab import find
 from empirical.util.classdef import interpolate_to_closest
 
+import os
+import pickle
+
+TEST_DATA_SAVE_DIR = '/home/melody/Empirical_Engine/pickled/bradley_2013_sa/rrup200'
+INPUT_DIR = 'input'
+OUTPUT_DIR = 'output'
+import inspect
+
 period_list = [-1, 0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.075, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.75, 1, 1.5, 2, 3, 4, 5,
                7.5, 10]
 
@@ -175,6 +183,12 @@ sigma3 = [0.7504, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.7999, 0.79
 def Bradley_2013_Sa(siteprop, faultprop, im, periods=None):
     # declare a whole bunch of coefficients
     ##################
+    frame = inspect.currentframe()
+    args, _, _, values = inspect.getargvalues(frame)
+    func_name = inspect.getframeinfo(frame)[2]
+    for arg in args:
+        with open(os.path.join(TEST_DATA_SAVE_DIR, INPUT_DIR, func_name + '_{}.P'.format(arg)), 'wb') as save_file:
+            pickle.dump(values[arg], save_file)
 
     if im == 'PGA':
         periods = [0]
@@ -211,11 +225,19 @@ def Bradley_2013_Sa(siteprop, faultprop, im, periods=None):
 
     if im in ['PGA', 'PGV']:
         results = results[0]
-
+    with open(os.path.join(TEST_DATA_SAVE_DIR, OUTPUT_DIR, func_name + '_ret_val.P'), 'wb') as save_file:
+        pickle.dump(results, save_file)
     return results
 
 
 def calculate_Bradley(siteprop, faultprop, period):
+    frame = inspect.currentframe()
+    args, _, _, values = inspect.getargvalues(frame)
+    func_name = inspect.getframeinfo(frame)[2]
+    for arg in args:
+        with open(os.path.join(TEST_DATA_SAVE_DIR, INPUT_DIR, func_name + '_{}.P'.format(arg)), 'wb') as save_file:
+            pickle.dump(values[arg], save_file)
+
     M = faultprop.Mw
     Rrup = siteprop.Rrup
     Rjb = siteprop.Rjb
@@ -305,10 +327,19 @@ def calculate_Bradley(siteprop, faultprop, period):
 
     # Compute standard deviation
     sigma_SA = compute_stdev(f_inferred, f_measured, M, Sa1130, Vs30, i)
+    with open(os.path.join(TEST_DATA_SAVE_DIR, OUTPUT_DIR, func_name + '_ret_val.P'), 'wb') as save_file:
+        pickle.dump((Sa, sigma_SA), save_file)
     return Sa, sigma_SA
 
 
 def compute_stdev(Finferred, Fmeasured, M, Sa1130, Vs30, i):
+    frame = inspect.currentframe()
+    args, _, _, values = inspect.getargvalues(frame)
+    func_name = inspect.getframeinfo(frame)[2]
+    for arg in args:
+        with open(os.path.join(TEST_DATA_SAVE_DIR, INPUT_DIR, func_name + '_{}.P'.format(arg)), 'wb') as save_file:
+            pickle.dump(values[arg], save_file)
+
     #print("compute_stdev, finferred, Fmeasured, M, Sa1130, Vs30, i",Finferred, Fmeasured, M, Sa1130, Vs30, i)
     b = phi2[i] * (np.exp(phi3[i] * (np.min((Vs30, 1130.)) - 360.)) - np.exp(phi3[i] * (1130. - 360.)))
     c = phi4[i]
@@ -323,4 +354,6 @@ def compute_stdev(Finferred, Fmeasured, M, Sa1130, Vs30, i):
     sigma_intra = sigma  # 2
     sigma_SA = [sigma_total, sigma_inter, sigma_intra]
     #print(sigma_SA)
+    with open(os.path.join(TEST_DATA_SAVE_DIR, OUTPUT_DIR, func_name + '_ret_val.P'), 'wb') as save_file:
+        pickle.dump(sigma_SA, save_file)
     return sigma_SA

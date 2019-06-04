@@ -1,3 +1,10 @@
+import os
+import pickle
+import inspect
+TEST_DATA_SAVE_DIR = '/home/melody/Empirical_Engine/pickled/bradley_2013_sa/rrup200'
+INPUT_DIR = 'input'
+OUTPUT_DIR = 'output'
+
 from enum import Enum
 import numpy as np
 
@@ -65,6 +72,13 @@ class FaultStyle(Enum):
 
 
 def interpolate_to_closest(T, T_hi, T_low, y_high, y_low):
+    frame = inspect.currentframe()
+    args, _, _, values = inspect.getargvalues(frame)
+    func_name = inspect.getframeinfo(frame)[2]
+    for arg in args:
+        with open(os.path.join(TEST_DATA_SAVE_DIR, INPUT_DIR, func_name + '_{}.P'.format(arg)), 'wb') as save_file:
+            pickle.dump(values[arg], save_file)
+
     [SA_low, sigma_SA_low] = y_low
     [SA_high, sigma_SA_high] = y_high
     SA_sigma = np.array([sigma_SA_low, sigma_SA_high])
@@ -84,14 +98,28 @@ def interpolate_to_closest(T, T_hi, T_low, y_high, y_low):
         sigma_inter = np.interp(T, x, SA_sigma[:, 1])
         sigma_intra = np.interp(T, x, SA_sigma[:, 2])
         sigma_SA = [sigma_total, sigma_inter, sigma_intra]
+
+    with open(os.path.join(TEST_DATA_SAVE_DIR, OUTPUT_DIR, func_name + '_ret_val.P'), 'wb') as save_file:
+        pickle.dump((SA, sigma_SA), save_file)
+
     return SA, sigma_SA
 
 
 # CB08 estimate of Z2p5
 def estimate_z2p5(z1p0=None, z1p5=None):
+    frame = inspect.currentframe()
+    args, _, _, values = inspect.getargvalues(frame)
+    func_name = inspect.getframeinfo(frame)[2]
+    for arg in args:
+        with open(os.path.join(TEST_DATA_SAVE_DIR, INPUT_DIR, func_name + '_{}.P'.format(arg)), 'wb') as save_file:
+            pickle.dump(values[arg], save_file)
     if z1p5 is not None:
+        with open(os.path.join(TEST_DATA_SAVE_DIR, OUTPUT_DIR, func_name + '_ret_val.P'), 'wb') as save_file:
+            pickle.dump(0.636 + 1.549 * z1p5, save_file)
         return 0.636 + 1.549 * z1p5
     elif z1p0 is not None:
+        with open(os.path.join(TEST_DATA_SAVE_DIR, OUTPUT_DIR, func_name + '_ret_val.P'), 'wb') as save_file:
+            pickle.dump(0.519 + 3.595 * z1p0, save_file)
         return 0.519 + 3.595 * z1p0
     else:
         print('no z2p5 able to be estimated')
@@ -99,4 +127,9 @@ def estimate_z2p5(z1p0=None, z1p5=None):
 
 
 def estimate_z1p0(vs30):
+    func_name = 'estimate_z1p0'
+    with open(os.path.join(TEST_DATA_SAVE_DIR, INPUT_DIR, func_name + '_{}.P'.format(vs30)), 'wb') as save_file:
+        pickle.dump(vs30, save_file)
+    with open(os.path.join(TEST_DATA_SAVE_DIR, OUTPUT_DIR, func_name + '_ret_val.P'), 'wb') as save_file:
+        pickle.dump(np.exp(28.5 - 3.82 / 8.0 * np.log(vs30 ** 8 + 378.7 ** 8)) / 1000.0, save_file)
     return np.exp(28.5 - 3.82 / 8.0 * np.log(vs30 ** 8 + 378.7 ** 8)) / 1000.0  # CY08 estimate in KM
