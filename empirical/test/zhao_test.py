@@ -42,7 +42,8 @@ import pandas as pd
 benchmark = '/home/melody/Downloads/Zhao_Test_Cases_2.xlsx'
 
 df = pd.read_excel(benchmark)
-
+# resultss = []
+# import pickle
 for index, row in df.iterrows():
     if row.name == 194:
         fault.hdepth = 10
@@ -51,11 +52,16 @@ for index, row in df.iterrows():
         site.Rrup = float(row['rrup'])
         site.siteclass = siteclasses[row['siteclass']]
         results = compute_gmm(fault, site, GMM.ZA_06, 'pSA', [row['period']])
-        for mean, std in results:
-            if "{:.4f}".format(mean)!="{:.4f}".format(row['mean']):
-                print(row['period'], site.Rrup, site.siteclass, fault.tect_type, "{:.4f}".format(mean), "{:.4f}".format(row['mean']))
-            if "{:.4f}".format(std[0])!="{:.4f}".format(row['std_total']):
-                print(row['period'], site.Rrup, site.siteclass, fault.tect_type,"{:.4f}".format(std[0]), "{:.4f}".format(row['std_total']))
+        print("results", results)
+#         resultss.append(results)
+# with open('/home/melody/Empirical_Engine/pickled/zhao_2006/output/zhao_2006_ret_val.P', 'wb') as f:
+#     pickle.dump(resultss, f)
+        # for mean, std in results:
+        #
+        #     if "{:.4f}".format(mean)!="{:.4f}".format(row['mean']):
+        #         print(row['period'], site.Rrup, site.siteclass, fault.tect_type, "{:.4f}".format(mean), "{:.4f}".format(row['mean']))
+        #     if "{:.4f}".format(std[0])!="{:.4f}".format(row['std_total']):
+        #         print(row['period'], site.Rrup, site.siteclass, fault.tect_type,"{:.4f}".format(std[0]), "{:.4f}".format(row['std_total']))
 
 # # H=10!
 # fault.tect_type=TectType.SUBDUCTION_SLAB

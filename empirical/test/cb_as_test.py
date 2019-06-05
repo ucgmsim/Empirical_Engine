@@ -27,8 +27,12 @@ RRUP = [10, 70, 200]
 CB_M = [4.0, 5.4, 7.8]
 CB_IMS = ['CAV', 'AI']
 
+import pickle
+
+
 for im in CB_IMS:
     print(im)
+    all = []
     for rrup in RRUP:
         site.Rrup = rrup
         for mag in CB_M:
@@ -36,51 +40,52 @@ for im in CB_IMS:
             results = compute_gmm(fault, site, GMM.CB_12, im)
             print(results)
             print('\n')
-
-
-# TEST FOR AS
-import matplotlib
-matplotlib.use('agg')
-import matplotlib.pyplot as plt
-
-AS_M = [5, 6.25, 7.5]
-AS_IMS = ['Ds575', 'Ds595', 'Ds2080']
-PHI1 = [0.54, 0.43, 0.56]
-PHI2 = [0.41, 0.35, 0.45]
-d = {}
-for mag in AS_M:
-    fault.Mw = mag
-    d[mag] = {}
-    for im in AS_IMS:
-        #print(im)
-        d[mag][im] = []
-        for rrup in RRUP:
-            site.Rrup = rrup
-            results = compute_gmm(fault, site, GMM.AS_16, im)
-            d[mag][im].append(results)
-            print(results)
-            print('\n')
-print(d)
-
-
-# path duration vs rrup
-for mag in AS_M:
-    for im in AS_IMS:
-        path_durations = [result[0] for result in d[mag][im]]
-        print("path durations", path_durations)
-        plt.plot(RRUP, path_durations)
-    plt.legend(AS_IMS)
-    print(mag)
-    plt.savefig('/home/melody/astest_pathduration_rrup_mag{}.png'.format(mag))
-    plt.clf()
-
-
-# phi vs magnitude
-for im in AS_IMS:
-    phis = [d[mag][im][RRUP[0]][-1][-1] for mag in AS_M]
-    print("rrup, phis",RRUP[0], phis)
-    plt.plot(AS_M, phis)
-plt.legend(AS_IMS)
-plt.savefig('/home/melody/astest_phi_mag.png')
-
-
+            all.append(results)
+    with open('/home/melody/Empirical_Engine/pickled/cb_2012/output/cb_2012_{}_ret_val.P'.format(im), 'wb') as f:
+        pickle.dump(all, f)
+# # TEST FOR AS
+# import matplotlib
+# matplotlib.use('agg')
+# import matplotlib.pyplot as plt
+#
+# AS_M = [5, 6.25, 7.5]
+# AS_IMS = ['Ds575', 'Ds595', 'Ds2080']
+# PHI1 = [0.54, 0.43, 0.56]
+# PHI2 = [0.41, 0.35, 0.45]
+# d = {}
+# for mag in AS_M:
+#     fault.Mw = mag
+#     d[mag] = {}
+#     for im in AS_IMS:
+#         #print(im)
+#         d[mag][im] = []
+#         for rrup in RRUP:
+#             site.Rrup = rrup
+#             results = compute_gmm(fault, site, GMM.AS_16, im)
+#             d[mag][im].append(results)
+#             print(results)
+#             print('\n')
+# print(d)
+#
+#
+# # path duration vs rrup
+# for mag in AS_M:
+#     for im in AS_IMS:
+#         path_durations = [result[0] for result in d[mag][im]]
+#         print("path durations", path_durations)
+#         plt.plot(RRUP, path_durations)
+#     plt.legend(AS_IMS)
+#     print(mag)
+#     plt.savefig('/home/melody/astest_pathduration_rrup_mag{}.png'.format(mag))
+#     plt.clf()
+#
+#
+# # phi vs magnitude
+# for im in AS_IMS:
+#     phis = [d[mag][im][RRUP[0]][-1][-1] for mag in AS_M]
+#     print("rrup, phis",RRUP[0], phis)
+#     plt.plot(AS_M, phis)
+# plt.legend(AS_IMS)
+# plt.savefig('/home/melody/astest_phi_mag.png')
+#
+#

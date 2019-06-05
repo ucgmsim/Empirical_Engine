@@ -32,18 +32,24 @@ site.V30measured = None
 site.Rx = -1
 site.Rtvz = 50
 
+import pickle
+all = []
 for rrup in rrups:
     site.Rrup = rrup
     results = compute_gmm(fault, site, GMM.Br_13, 'pSA', period)
-    for r in results:
-        print("new", r)
-    print('-'*90)
-
-print("*"*90)
-for rrup in rrups:
-    site.Rrup = rrup
-    site.Z1pt0 = site.z1p0
-    for p in period:
-        site.period = p
-        print("old",Bradley_2010_Sa(site, fault))
-    print("-"*90)
+    all.append(results)
+with open('/home/melody/Empirical_Engine/pickled/bradley_2013_sa/output/Bradley_2013_Sa_ret_val.P', 'wb') as f:
+    pickle.dump(all, f)
+#     for r in results:
+#         print("new", r)
+#     print('-'*90)
+#
+#
+# print("*"*90)
+# for rrup in rrups:
+#     site.Rrup = rrup
+#     site.Z1pt0 = site.z1p0
+#     for p in period:
+#         site.period = p
+#         print("old",Bradley_2010_Sa(site, fault))
+#     print("-"*90)
