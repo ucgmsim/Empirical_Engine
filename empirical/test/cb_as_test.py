@@ -21,7 +21,7 @@ site.Rx = -1
 site.Rtvz = 50
 site.z2p5 = 0.9186718412435146
 
-RRUP = [0, 10, 70, 200, 250]
+RRUP = [10, 70, 200]
 
 # TEST FOR CB
 CB_M = [4.0, 5.4, 7.8]
@@ -43,7 +43,7 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as plt
 
-AS_M = [3, 5, 6.25, 7.5, 9]
+AS_M = [5, 6.25, 7.5]
 AS_IMS = ['Ds575', 'Ds595', 'Ds2080']
 PHI1 = [0.54, 0.43, 0.56]
 PHI2 = [0.41, 0.35, 0.45]
