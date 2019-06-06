@@ -30,44 +30,44 @@ CB_IMS = ['CAV', 'AI']
 import pickle
 
 
-for im in CB_IMS:
-    print(im)
-    all = []
-    for rrup in RRUP:
-        site.Rrup = rrup
-        for mag in CB_M:
-            fault.Mw = mag
-            results = compute_gmm(fault, site, GMM.CB_12, im)
-            print(results)
-            print('\n')
-            all.append(results)
-    with open('/home/melody/Empirical_Engine/pickled/cb_2012/output/cb_2012_{}_ret_val.P'.format(im), 'wb') as f:
-        pickle.dump(all, f)
-# # TEST FOR AS
+# for im in CB_IMS:
+#     print(im)
+#     for mag in CB_M:
+#         fault.Mw = mag
+#         for rrup in RRUP:
+#             site.Rrup = rrup
+#             results = compute_gmm(fault, site, GMM.CB_12, im)
+#             print("rrup, mag", rrup, mag, results)
+#
+#             with open('/home/melody/Empirical_Engine/pickled/cb_2012/output/cb_2012_ret_val_rrup_{}_mag_{}_{}.P'.format(rrup, mag, im), 'wb') as f:
+#                 pickle.dump(results, f)
+# TEST FOR AS
 # import matplotlib
 # matplotlib.use('agg')
 # import matplotlib.pyplot as plt
-#
-# AS_M = [5, 6.25, 7.5]
-# AS_IMS = ['Ds575', 'Ds595', 'Ds2080']
-# PHI1 = [0.54, 0.43, 0.56]
-# PHI2 = [0.41, 0.35, 0.45]
-# d = {}
-# for mag in AS_M:
-#     fault.Mw = mag
-#     d[mag] = {}
-#     for im in AS_IMS:
-#         #print(im)
-#         d[mag][im] = []
-#         for rrup in RRUP:
-#             site.Rrup = rrup
-#             results = compute_gmm(fault, site, GMM.AS_16, im)
-#             d[mag][im].append(results)
-#             print(results)
-#             print('\n')
+
+AS_M = [5, 6.25, 7.5]
+AS_IMS = ['Ds575', 'Ds595', 'Ds2080']
+PHI1 = [0.54, 0.43, 0.56]
+PHI2 = [0.41, 0.35, 0.45]
+d = {}
+for mag in AS_M:
+    fault.Mw = mag
+    d[mag] = {}
+    for im in AS_IMS:
+        d[mag][im] = []
+        for rrup in RRUP:
+            site.Rrup = rrup
+            results = compute_gmm(fault, site, GMM.AS_16, im)
+            with open('/home/melody/Empirical_Engine/pickled/as_2016/output/as_2016_ret_val_rrup_{}_mag_{}_{}.P'.format(
+                    rrup, mag, im), 'wb') as f:
+                pickle.dump(results, f)
+            d[mag][im].append(results)
+            print(results)
+            print('\n')
+
 # print(d)
-#
-#
+
 # # path duration vs rrup
 # for mag in AS_M:
 #     for im in AS_IMS:
@@ -88,4 +88,4 @@ for im in CB_IMS:
 # plt.legend(AS_IMS)
 # plt.savefig('/home/melody/astest_phi_mag.png')
 #
-#
+

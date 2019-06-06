@@ -1,24 +1,15 @@
-from empirical.util import empirical_factory
-from empirical.util.classdef import Site, Fault, TectType, SiteClass, GMM
+import os
 import pytest
 import pickle
 
-import os
-from empirical.util.classdef import Site, Fault, TectType, SiteClass, GMM
-import glob
+from empirical.util import empirical_factory
+from empirical.util.classdef import Site, Fault, GMM
 
+IM = 'pSA'
 RRUPS = [10, 70, 200]
+PERIODS = [0, 0.01, 0.40370172586, 0.5, 3.0, 8.6974900]
 
-TEST_DATA_SAVE_DIR = '/home/melody/Empirical_Engine/pickled/bradley_2013_sa/'
-INPUT = "input"
-OUTPUT = "output"
-TEST_INPUT = os.path.join(TEST_DATA_SAVE_DIR, INPUT)
-TEST_OUTPUT = os.path.join(TEST_DATA_SAVE_DIR, OUTPUT)
-
-with open(os.path.join(TEST_OUTPUT, 'Bradley_2013_Sa_ret_val.P'), 'rb') as f:
-    EXPECTED_RESULTS = pickle.load(f)
-
-TEST_PARAMS = list(zip(RRUPS, EXPECTED_RESULTS))
+BENCHMARK_DIR = '/home/melody/Empirical_Engine/pickled/bradley_2013_sa/output'
 
 FAULT = Fault()
 FAULT.Mw = 10.5
@@ -36,13 +27,14 @@ SITE.V30measured = None
 SITE.Rx = -1
 SITE.Rtvz = 50
 
-PERIODS = [0, 0.01, 0.40370172586, 0.5, 3.0, 8.6974900]
-IM = 'pSA'
 
-
-@pytest.mark.parametrize("test_rrup, expected_results",TEST_PARAMS)
-def test_Bradley_2013_Sa(test_rrup, expected_results):
+@pytest.mark.parametrize("test_rrup", RRUPS)
+def test_Bradley_2013_Sa(test_rrup):
     SITE.Rrup = test_rrup
     test_results = empirical_factory.compute_gmm(FAULT, SITE, GMM.Br_13, IM, PERIODS)
+
+    with open(os.path.join(BENCHMARK_DIR, 'Bradley_2013_Sa_ret_val_rrup_{}.P'.format(test_rrup)), 'rb') as f:
+        expected_results = pickle.load(f)
+
     assert test_results == expected_results
 
