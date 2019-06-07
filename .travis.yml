@@ -18,7 +18,7 @@ install:
   - pip install --no-deps ./qcore/
 
 script:
-  - cd /home/travis/build/ucgmsim/Empirical_Engine/Empirical_Engine/
-  - pytest --black --ignore=test
+  - cd /home/travis/build/ucgmsim/Empirical_Engine/empirical/
+#  - pytest --black
   - cd ./test
   - pytest

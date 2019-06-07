@@ -10,12 +10,12 @@ from empirical.util.classdef import Site, Fault, GMM
 RRUPS = [10, 70, 200]
 
 AS_M = [5, 6.25, 7.5]
-AS_IMS = ['Ds575', 'Ds595', 'Ds2080']
+AS_IMS = ["Ds575", "Ds595", "Ds2080"]
 
 TEST_PARAMS = [(rrup, mag, im) for rrup in RRUPS for mag in AS_M for im in AS_IMS]
 
 FAULT = Fault()
-FAULT.faultstyle = 'SHALLOWCRUSTAL'
+FAULT.faultstyle = "SHALLOWCRUSTAL"
 FAULT.ztor = 0
 FAULT.Ztor = 0
 FAULT.rake = 180
@@ -37,7 +37,14 @@ def test_as_2016(set_up, test_rrup, test_mag, test_im):
     SITE.Rrup = test_rrup
     test_results = compute_gmm(FAULT, SITE, GMM.AS_16, test_im)
 
-    with open(os.path.join(set_up, 'output', 'as_2016_ret_val_rrup_{}_mag_{}_{}.P'.format(test_rrup, test_mag, test_im)), 'rb') as f:
+    with open(
+        os.path.join(
+            set_up,
+            "output",
+            "as_2016_ret_val_rrup_{}_mag_{}_{}.P".format(test_rrup, test_mag, test_im),
+        ),
+        "rb",
+    ) as f:
         expected_results = pickle.load(f)
 
     assert test_results == expected_results

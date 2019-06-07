@@ -9,6 +9,7 @@ FOLDERS = [
     )
 ]
 
+
 @pytest.yield_fixture(scope="session", autouse=True)
 def set_up(request):
     data_locations = testing.test_set_up(FOLDERS)
