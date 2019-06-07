@@ -18,7 +18,6 @@ install:
   - pip install --no-deps ./qcore/
 
 script:
-  - cd /home/travis/build/ucgmsim/Empirical_Engine/
-  - pytest --black
-  - cd ./test
-  - pytest
+  - export PYTHONPATH=$PYTHONPATH:/home/travis/build/ucgmsim/Empirical_Engine
+  - cd /home/travis/build/ucgmsim/Empirical_Engine/empirical/test
+  - pytest -vs
