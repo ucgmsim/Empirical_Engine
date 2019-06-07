@@ -19,6 +19,6 @@ install:
 
 script:
   - cd /home/travis/build/ucgmsim/Empirical_Engine/empirical/
-#  - pytest --black
+  - pytest --black
   - cd ./test
   - pytest
