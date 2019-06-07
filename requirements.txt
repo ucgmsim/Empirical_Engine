@@ -4,4 +4,4 @@ numpy
 numba
 pandas
 PyYAML
-matplotlib=2.0.2
+matplotlib==2.0.2
