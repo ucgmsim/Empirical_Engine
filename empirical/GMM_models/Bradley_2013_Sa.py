@@ -296,12 +296,6 @@ def calculate_Bradley(siteprop, faultprop, period):
     
     # Compute median
     Sa = np.exp(np.log(Sa1130) + term11 + term12 + term13)
-    # print("new Sa", Sa)
-    # print("z10", Z10)
-    # print("term11", term11)
-    # print("term12", term12)
-    # print("term13", term13)
-    # print("Sa1130", Sa1130)
 
     # Compute standard deviation
     sigma_SA = compute_stdev(f_inferred, f_measured, M, Sa1130, Vs30, i)
@@ -309,7 +303,6 @@ def calculate_Bradley(siteprop, faultprop, period):
 
 
 def compute_stdev(Finferred, Fmeasured, M, Sa1130, Vs30, i):
-    #print("compute_stdev, finferred, Fmeasured, M, Sa1130, Vs30, i",Finferred, Fmeasured, M, Sa1130, Vs30, i)
     b = phi2[i] * (np.exp(phi3[i] * (np.min((Vs30, 1130.)) - 360.)) - np.exp(phi3[i] * (1130. - 360.)))
     c = phi4[i]
     NL0 = b * Sa1130 / (Sa1130 + c)
@@ -317,10 +310,9 @@ def compute_stdev(Finferred, Fmeasured, M, Sa1130, Vs30, i):
              np.sqrt(sigma3[i] * Finferred + 0.7 * Fmeasured + (1. + NL0) ** 2))
     tau = tau1[i] + (tau2[i] - tau1[i]) / 2. * (np.min((np.max((M, 5.)), 7.)) - 5.)
     # outputs
-
     sigma_total = np.sqrt((1. + NL0) ** 2 * tau ** 2 + sigma ** 2)  # 0
     sigma_inter = (1. + NL0) * tau  # 1
     sigma_intra = sigma  # 2
     sigma_SA = [sigma_total, sigma_inter, sigma_intra]
-    #print(sigma_SA)
+
     return sigma_SA
