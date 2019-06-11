@@ -310,9 +310,9 @@ def compute_stdev(Finferred, Fmeasured, M, Sa1130, Vs30, i):
              np.sqrt(sigma3[i] * Finferred + 0.7 * Fmeasured + (1. + NL0) ** 2))
     tau = tau1[i] + (tau2[i] - tau1[i]) / 2. * (np.min((np.max((M, 5.)), 7.)) - 5.)
     # outputs
-
     sigma_total = np.sqrt((1. + NL0) ** 2 * tau ** 2 + sigma ** 2)  # 0
     sigma_inter = (1. + NL0) * tau  # 1
     sigma_intra = sigma  # 2
     sigma_SA = [sigma_total, sigma_inter, sigma_intra]
+
     return sigma_SA

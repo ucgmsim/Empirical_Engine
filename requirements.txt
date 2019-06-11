@@ -1,0 +1,8 @@
+pytest>=3.5.0
+pytest-black
+numpy
+numba
+pandas
+PyYAML
+matplotlib==2.0.2
+xlrd>=1.0.0

@@ -1,0 +1,23 @@
+language: python
+python:
+  - "3.6"
+dist: xenial
+before_install:
+  - REMOTESOURCE=http://seistech.nz/static/public/testing/Empirical_Engine
+  - cd /home/travis/build/ucgmsim/
+  - git clone https://github.com/ucgmsim/qcore.git
+  - mkdir /home/travis/build/ucgmsim/Empirical_Engine/sample0
+  - cd /home/travis/build/ucgmsim/Empirical_Engine/sample0
+  - wget $REMOTESOURCE/Empirical_Engine.zip
+
+install:
+  - unzip Empirical_Engine.zip
+  - cd /home/travis/build/ucgmsim/Empirical_Engine
+  - pip install -r requirements.txt
+  - cd /home/travis/build/ucgmsim/
+  - pip install --no-deps ./qcore/
+
+script:
+  - export PYTHONPATH=$PYTHONPATH:/home/travis/build/ucgmsim/Empirical_Engine
+  - cd /home/travis/build/ucgmsim/Empirical_Engine/empirical/test
+  - pytest -vs
