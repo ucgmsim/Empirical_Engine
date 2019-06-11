@@ -17,14 +17,12 @@ TEST_PARAMS = [(rrup, mag, im) for rrup in RRUPS for mag in AS_M for im in AS_IM
 FAULT = Fault()
 FAULT.faultstyle = "SHALLOWCRUSTAL"
 FAULT.ztor = 0
-FAULT.Ztor = 0
 FAULT.rake = 180
 FAULT.dip = 45
 
 SITE = Site()
 SITE.Rjb = 10
 SITE.vs30 = 500
-SITE.V30 = 500
 SITE.V30measured = None
 SITE.Rx = -1
 SITE.Rtvz = 50
