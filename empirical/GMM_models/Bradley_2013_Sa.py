@@ -67,8 +67,8 @@ import numpy as np
 from matplotlib.mlab import find
 from empirical.util.classdef import interpolate_to_closest
 
-period_list = [-1, 0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.075, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.75, 1, 1.5, 2, 3, 4, 5,
-               7.5, 10]
+period_list = np.array([-1, 0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.075, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.75, 1, 1.5, 2, 3, 4, 5,
+               7.5, 10])
 
 c1 = [2.3132, -1.1985, -1.1958, -1.1756, -1.0909, -0.9793, -0.8549, -0.6008, -0.4700, -0.4139, -0.5237, -0.6678,
       -0.8277, -1.1284, -1.3926, -1.8664, -2.1935, -2.6883, -3.1040, -3.7085, -4.1486, -4.4881, -5.0891, -5.5530]
@@ -189,13 +189,13 @@ def Bradley_2013_Sa(siteprop, faultprop, im, periods=None):
 
         tol = 0.0001  # tolerance to the recorded period values before we interpolate
 
-        closestIndex = int(np.argmin(np.abs(np.array(period_list) - T)))
+        closestIndex = int(np.argmin(np.abs(period_list - T)))
         closestPeriod = period_list[closestIndex]
         if not np.isclose(closestPeriod, T):  # interpolate between periods if neccesary
 
             # find the period values above and below
-            T_low = period_list[np.max(find(np.array(period_list) < T))]
-            T_high = period_list[np.min(find(np.array(period_list) > T))]
+            T_low = period_list[T >= period_list][-1]
+            T_high = period_list[T <= period_list][0]
             
             # recursively call this function for the periods above and below
             brad_low = calculate_Bradley(siteprop, faultprop, T_low)
@@ -234,7 +234,7 @@ def calculate_Bradley(siteprop, faultprop, period):
     fnm = (Lambda >= -120) & (Lambda <= -60)  # fnm: 1 for lambda between -120 and -60, 0 otherwise
     HW = Rx >= 0
 
-    closest_index = int(np.argmin(np.abs(np.array(period_list) - period)))
+    closest_index = int(np.argmin(np.abs(period_list - period)))
 
     f_inferred = None
     f_measured = None
