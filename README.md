@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/ucgmsim/Empirical_Engine.svg?branch=master)](https://travis-ci.org/ucgmsim/Empirical_Engine)
+
 # Empirical_Engine
 Contains codes to calculate Empirical IMs
 
