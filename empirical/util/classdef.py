@@ -10,16 +10,24 @@ class Site:  # Class of site properties. initialize all attributes to None
         self.name = None
         self.Rrup = None  # closest distance coseismic rupture (km)
         self.Rjb = None  # closest horizontal distance coseismic rupture (km)
-        self.Rx = None  # distance measured perpendicular to fault strike from surface projection of
-#                       # updip edge of the fault rupture (+ve in downdip dir) (km)
-        self.Rtvz = None  # source-to-site distance in the Taupo volcanic zone (TVZ) (km)
-        self.vs30measured = None  # yes =True (i.e. from Vs tests); no=False (i.e. estimated from geology)
+        self.Rx = (
+            None
+        )  # distance measured perpendicular to fault strike from surface projection of
+        #                       # updip edge of the fault rupture (+ve in downdip dir) (km)
+        self.Rtvz = (
+            None
+        )  # source-to-site distance in the Taupo volcanic zone (TVZ) (km)
+        self.vs30measured = (
+            None
+        )  # yes =True (i.e. from Vs tests); no=False (i.e. estimated from geology)
         self.vs30 = None  # shear wave velocity at 30m depth (m/s)
-        self.z1p0 = None  # depth (km) to the 1.0km/s shear wave velocity horizon (optional, uses default relationship otherwise)
+        self.z1p0 = (
+            None
+        )  # depth (km) to the 1.0km/s shear wave velocity horizon (optional, uses default relationship otherwise)
         self.z1p5 = None  # (km)
         self.z2p5 = None  # (km)
         self.siteclass = None
-        self.orientation = 'average'
+        self.orientation = "average"
 
 
 class Fault:  # Class of fault properties. initialize all attributes to None
@@ -28,7 +36,9 @@ class Fault:  # Class of fault properties. initialize all attributes to None
         self.rake = None  # rake angle (degrees)
         self.dip = None  # dip angle (degrees)
         self.ztor = None  # depth to top of coseismic rupture (km)
-        self.rupture_type = None  # Valid values are: N, R, SS and None which correlate to Normal, Reverse, Strike-Slip and Unknown
+        self.rupture_type = (
+            None
+        )  # Valid values are: N, R, SS and None which correlate to Normal, Reverse, Strike-Slip and Unknown
         self.tect_type = None
         self.faultstyle = None
         self.hdepth = None
@@ -94,9 +104,11 @@ def estimate_z2p5(z1p0=None, z1p5=None):
     elif z1p0 is not None:
         return 0.519 + 3.595 * z1p0
     else:
-        print('no z2p5 able to be estimated')
+        print("no z2p5 able to be estimated")
         exit()
 
 
 def estimate_z1p0(vs30):
-    return np.exp(28.5 - 3.82 / 8.0 * np.log(vs30 ** 8 + 378.7 ** 8)) / 1000.0  # CY08 estimate in KM
+    return (
+        np.exp(28.5 - 3.82 / 8.0 * np.log(vs30 ** 8 + 378.7 ** 8)) / 1000.0
+    )  # CY08 estimate in KM

@@ -14,6 +14,6 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     scripts=[
         "empirical/scripts/calculate_empirical.py",
-        "empirical/scripts/emp_aggregation.py"
+        "empirical/scripts/emp_aggregation.py",
     ],
 )
