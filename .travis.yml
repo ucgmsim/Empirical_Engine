@@ -3,7 +3,7 @@ python:
   - "3.6"
 dist: xenial
 before_install:
-  - REMOTESOURCE=https://qc-s3-autotest.s3-ap-southeast-2.amazonaws.com/testing/Empirical_Engine
+  - REMOTESOURCE=https://qc-s3-autotest.s3-ap-southeast-2.amazonaws.com/testing/Empirical_Engine/Empirical_Engine.zip
   - cd /home/travis/build/ucgmsim/
   - git clone https://github.com/ucgmsim/qcore.git
   - mkdir /home/travis/build/ucgmsim/Empirical_Engine/sample0
