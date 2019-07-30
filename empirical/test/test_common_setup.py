@@ -5,7 +5,7 @@ from qcore import testing
 FOLDERS = [
     (
         "Empirical_Engine",
-        "http://seistech.nz/static/public/testing/Empirical_Engine/Empirical_Engine.zip",
+        "https://qc-s3-autotest.s3-ap-southeast-2.amazonaws.com/testing/Empirical_Engine/Empirical_Engine.zip",
     )
 ]
 
