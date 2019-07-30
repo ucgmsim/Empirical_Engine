@@ -1,0 +1,41 @@
+#select a empirical model for the tect-type and intensity measure
+# current valid options are:
+# Br_13 -- Bradley 2013
+# ZA_06 -- Zhao 2006
+# CB_12 -- Campbell  Bozorgina 2012
+# AS_16 -- Afshari Stewart 2016
+
+# Options for each model are listed to the right
+ACTIVE_SHALLOW:
+  PGV: Br_13
+  PGA: Br_13 # ZA_06 or BR_13
+  pSA: Br_13 # ZA_06 or BR_13
+  CAV: CB_12
+  AI: CB_12
+  Ds575: AS_16
+  Ds595: AS_16
+  Ds2080: AS_16
+VOLCANIC:
+  PGV: Br_13
+  PGA: Br_13
+  pSA: Br_13
+  CAV: CB_12 # These are only for shallow crustal in lieu of a more appropriate model
+  AI: CB_12 # These are only for shallow crustal in lieu of a more appropriate model
+  Ds575: AS_16 # These are only for shallow crustal in lieu of a more appropriate model
+  Ds595: AS_16 # These are only for shallow crustal in lieu of a more appropriate model
+SUBDUCTION_SLAB:
+  PGV: Br_13
+  PGA: ZA_06
+  pSA: ZA_06
+  CAV: CB_12 # These are only for shallow crustal in lieu of a more appropriate model
+  AI: CB_12 # These are only for shallow crustal in lieu of a more appropriate model
+  Ds575: AS_16 # These are only for shallow crustal in lieu of a more appropriate model
+  Ds595: AS_16 # These are only for shallow crustal in lieu of a more appropriate model
+SUBDUCTION_INTERFACE:
+  PGV: Br_13
+  PGA: ZA_06
+  pSA: ZA_06
+  CAV: CB_12 # These are only for shallow crustal in lieu of a more appropriate model
+  AI: CB_12 # These are only for shallow crustal in lieu of a more appropriate model
+  Ds575: AS_16 # These are only for shallow crustal in lieu of a more appropriate model
+  Ds595: AS_16 # These are only for shallow crustal in lieu of a more appropriate model
