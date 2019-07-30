@@ -176,9 +176,9 @@ def Bradley_2013_Sa(siteprop, faultprop, im, periods=None):
     # declare a whole bunch of coefficients
     ##################
 
-    if im == 'PGA':
+    if im == "PGA":
         periods = [0]
-    if im == 'PGV':
+    if im == "PGV":
         periods = [-1]
 
     results = []
@@ -196,12 +196,12 @@ def Bradley_2013_Sa(siteprop, faultprop, im, periods=None):
             # find the period values above and below
             T_low = period_list[T >= period_list][-1]
             T_high = period_list[T <= period_list][0]
-            
+
             # recursively call this function for the periods above and below
             brad_low = calculate_Bradley(siteprop, faultprop, T_low)
             brad_high = calculate_Bradley(siteprop, faultprop, T_high)
             sigma_SA = []  # initialize empty list
-      
+
             # now interpolate the low and high values
             result = interpolate_to_closest(T, T_high, T_low, brad_high, brad_low)
 
@@ -209,7 +209,7 @@ def Bradley_2013_Sa(siteprop, faultprop, im, periods=None):
             result = calculate_Bradley(siteprop, faultprop, T)
         results.append(result)
 
-    if im in ['PGA', 'PGV']:
+    if im in ["PGA", "PGV"]:
         results = results[0]
 
     return results
@@ -222,16 +222,22 @@ def calculate_Bradley(siteprop, faultprop, period):
     Rx = siteprop.Rx
     Vs30 = siteprop.vs30
     if siteprop.z1p0 < 0:  # depth to 1.0 km/s Vs horizon
-        Z10 = np.exp(28.5 - 3.82 / 8 * np.log(Vs30 ** 8. + 378.7 ** 8.))
+        Z10 = np.exp(28.5 - 3.82 / 8 * np.log(Vs30 ** 8.0 + 378.7 ** 8.0))
     else:
         Z10 = siteprop.z1p0 * 1000  # Convert from km to m
     delta = faultprop.dip  # dip in degrees
-    Lambda = faultprop.rake  # rake in degrees			#lambda is a keyword in Python so changed to Lambda
+    Lambda = (
+        faultprop.rake
+    )  # rake in degrees			#lambda is a keyword in Python so changed to Lambda
     Ztor = faultprop.ztor
     Rtvz = siteprop.Rtvz
     deltar = delta * np.pi / 180.0
-    frv = (Lambda >= 30) & (Lambda <= 150)  # frv: 1 for lambda between 30 and 150, 0 otherwise
-    fnm = (Lambda >= -120) & (Lambda <= -60)  # fnm: 1 for lambda between -120 and -60, 0 otherwise
+    frv = (Lambda >= 30) & (
+        Lambda <= 150
+    )  # frv: 1 for lambda between 30 and 150, 0 otherwise
+    fnm = (Lambda >= -120) & (
+        Lambda <= -60
+    )  # fnm: 1 for lambda between -120 and -60, 0 otherwise
     HW = Rx >= 0
 
     closest_index = int(np.argmin(np.abs(period_list - period)))
@@ -258,21 +264,30 @@ def calculate_Bradley(siteprop, faultprop, period):
     # calculate terms in the median computation
     term1 = c1[i]
     # Modification 2: Ztor maximum depth
-    term2 = (c1a[i] * frv + c1b[i] * fnm + c7[i] * (np.min((Ztor, c8[i])) - 4.))  # modification of Ztor limit
-    term5 = c2 * (M - 6.)
+    term2 = (
+        c1a[i] * frv + c1b[i] * fnm + c7[i] * (np.min((Ztor, c8[i])) - 4.0)
+    )  # modification of Ztor limit
+    term5 = c2 * (M - 6.0)
 
-    term6 = ((c2 - c3[i]) / cn[i]) * np.log(1. + np.exp(cn[i] * (cm[i] - M)))
+    term6 = ((c2 - c3[i]) / cn[i]) * np.log(1.0 + np.exp(cn[i] * (cm[i] - M)))
 
     term7 = c4 * np.log(Rrup + c5[i] * np.cosh(c6[i] * np.max((M - chm, 0))))
 
     term8 = (c4a - c4) * np.log(np.sqrt(Rrup ** 2 + (crb) ** 2))
 
     # Modification 3: Rtvz attenuation
-    term9 = (cy1[i] + cy2[i] / np.cosh(np.max((M - cy3, 0)))) * (
-            1. + ctvz[i] * Rtvz / Rrup) * Rrup  # modified term including Rtvz anelastic attenuation
+    term9 = (
+        (cy1[i] + cy2[i] / np.cosh(np.max((M - cy3, 0))))
+        * (1.0 + ctvz[i] * Rtvz / Rrup)
+        * Rrup
+    )  # modified term including Rtvz anelastic attenuation
 
-    term10 = c9[i] * HW * np.tanh(Rx * np.cos(deltar) ** 2 / c9a[i]) * (
-            1. - np.sqrt(Rjb ** 2 + Ztor ** 2) / (Rrup + 0.001))
+    term10 = (
+        c9[i]
+        * HW
+        * np.tanh(Rx * np.cos(deltar) ** 2 / c9a[i])
+        * (1.0 - np.sqrt(Rjb ** 2 + Ztor ** 2) / (Rrup + 0.001))
+    )
 
     # reference Sa on rock (Vs=1130m/s)
     Sa1130 = np.exp(term1 + term2 + term5 + term6 + term7 + term8 + term9 + term10)
@@ -281,19 +296,27 @@ def calculate_Bradley(siteprop, faultprop, period):
     if period == 0:
         v1 = 1800
     elif period == -1:
-        v1 = np.min((np.max((1130. * (1. / 0.75) ** (-0.11), 1130.)), 1800.))
+        v1 = np.min((np.max((1130.0 * (1.0 / 0.75) ** (-0.11), 1130.0)), 1800.0))
     else:
-        v1 = np.min((np.max((1130. * (period / 0.75) ** (-0.11), 1130.)), 1800.))
+        v1 = np.min((np.max((1130.0 * (period / 0.75) ** (-0.11), 1130.0)), 1800.0))
 
-    term11 = phi1[i] * np.log(np.min((Vs30, v1)) / 1130.)  # modified site term accounting for Vs=1800m/s
+    term11 = phi1[i] * np.log(
+        np.min((Vs30, v1)) / 1130.0
+    )  # modified site term accounting for Vs=1800m/s
 
-    term12 = phi2[i] * (
-            np.exp(phi3[i] * (np.min((Vs30, 1130.)) - 360.)) - np.exp(phi3[i] * (1130. - 360.))) * np.log(
-        (Sa1130 + phi4[i]) / phi4[i])
+    term12 = (
+        phi2[i]
+        * (
+            np.exp(phi3[i] * (np.min((Vs30, 1130.0)) - 360.0))
+            - np.exp(phi3[i] * (1130.0 - 360.0))
+        )
+        * np.log((Sa1130 + phi4[i]) / phi4[i])
+    )
 
-    term13 = phi5[i] * (1. - 1. / np.cosh(phi6[i] * np.max((0, Z10 - phi7[i])))) + phi8[i] / np.cosh(
-        0.15 * np.max((0, Z10 - 15)))
-    
+    term13 = phi5[i] * (
+        1.0 - 1.0 / np.cosh(phi6[i] * np.max((0, Z10 - phi7[i])))
+    ) + phi8[i] / np.cosh(0.15 * np.max((0, Z10 - 15)))
+
     # Compute median
     Sa = np.exp(np.log(Sa1130) + term11 + term12 + term13)
 
@@ -303,15 +326,20 @@ def calculate_Bradley(siteprop, faultprop, period):
 
 
 def compute_stdev(Finferred, Fmeasured, M, Sa1130, Vs30, i):
-    b = phi2[i] * (np.exp(phi3[i] * (np.min((Vs30, 1130.)) - 360.)) - np.exp(phi3[i] * (1130. - 360.)))
+    b = phi2[i] * (
+        np.exp(phi3[i] * (np.min((Vs30, 1130.0)) - 360.0))
+        - np.exp(phi3[i] * (1130.0 - 360.0))
+    )
     c = phi4[i]
     NL0 = b * Sa1130 / (Sa1130 + c)
-    sigma = ((sigma1[i] + (sigma2[i] - sigma1[i]) / 2. * (np.min((np.max((M, 5.)), 7.)) - 5.)) *
-             np.sqrt(sigma3[i] * Finferred + 0.7 * Fmeasured + (1. + NL0) ** 2))
-    tau = tau1[i] + (tau2[i] - tau1[i]) / 2. * (np.min((np.max((M, 5.)), 7.)) - 5.)
+    sigma = (
+        sigma1[i]
+        + (sigma2[i] - sigma1[i]) / 2.0 * (np.min((np.max((M, 5.0)), 7.0)) - 5.0)
+    ) * np.sqrt(sigma3[i] * Finferred + 0.7 * Fmeasured + (1.0 + NL0) ** 2)
+    tau = tau1[i] + (tau2[i] - tau1[i]) / 2.0 * (np.min((np.max((M, 5.0)), 7.0)) - 5.0)
     # outputs
-    sigma_total = np.sqrt((1. + NL0) ** 2 * tau ** 2 + sigma ** 2)  # 0
-    sigma_inter = (1. + NL0) * tau  # 1
+    sigma_total = np.sqrt((1.0 + NL0) ** 2 * tau ** 2 + sigma ** 2)  # 0
+    sigma_inter = (1.0 + NL0) * tau  # 1
     sigma_intra = sigma  # 2
     sigma_SA = [sigma_total, sigma_inter, sigma_intra]
 

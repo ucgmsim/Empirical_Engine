@@ -3,7 +3,7 @@ python:
   - "3.6"
 dist: xenial
 before_install:
-  - REMOTESOURCE=http://seistech.nz/static/public/testing/Empirical_Engine
+  - REMOTESOURCE=https://qc-s3-autotest.s3-ap-southeast-2.amazonaws.com/testing/Empirical_Engine
   - cd /home/travis/build/ucgmsim/
   - git clone https://github.com/ucgmsim/qcore.git
   - mkdir /home/travis/build/ucgmsim/Empirical_Engine/sample0
@@ -19,5 +19,7 @@ install:
 
 script:
   - export PYTHONPATH=$PYTHONPATH:/home/travis/build/ucgmsim/Empirical_Engine
-  - cd /home/travis/build/ucgmsim/Empirical_Engine/empirical/test
+  - cd /home/travis/build/ucgmsim/Empirical_Engine/empirical
+  - pytest --black --ignore=test --ignore=GMM_models
+  - cd test
   - pytest -vs
