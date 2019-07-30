@@ -24,7 +24,7 @@ VOLCANIC:
   Ds575: AS_16 # These are only for shallow crustal in lieu of a more appropriate model
   Ds595: AS_16 # These are only for shallow crustal in lieu of a more appropriate model
 SUBDUCTION_SLAB:
-  PGV: Br_13
+  PGV: Br_13 # These are only for shallow crustal in lieu of a more appropriate model
   PGA: ZA_06
   pSA: ZA_06
   CAV: CB_12 # These are only for shallow crustal in lieu of a more appropriate model
@@ -32,7 +32,7 @@ SUBDUCTION_SLAB:
   Ds575: AS_16 # These are only for shallow crustal in lieu of a more appropriate model
   Ds595: AS_16 # These are only for shallow crustal in lieu of a more appropriate model
 SUBDUCTION_INTERFACE:
-  PGV: Br_13
+  PGV: Br_13 # These are only for shallow crustal in lieu of a more appropriate model
   PGA: ZA_06
   pSA: ZA_06
   CAV: CB_12 # These are only for shallow crustal in lieu of a more appropriate model
