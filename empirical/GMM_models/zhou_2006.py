@@ -1,6 +1,11 @@
 import numpy as np
 
-from empirical.util.classdef import TectType, FaultStyle, SiteClass, interpolate_to_closest
+from empirical.util.classdef import (
+    TectType,
+    FaultStyle,
+    SiteClass,
+    interpolate_to_closest,
+)
 
 period_list = np.array([0.0, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 1.00, 1.25, 1.50,
                         2.00, 2.50, 3.00, 4.00, 5.00])
@@ -41,7 +46,7 @@ tau_c = [0.303, 0.326, 0.342, 0.331, 0.312, 0.298, 0.300, 0.346, 0.338, 0.349, 0
 
 def Zhaoetal_2006_Sa(site, fault, im, periods=None):
 
-    if im is 'PGA':
+    if im is "PGA":
         periods = [0]
 
     results = []
@@ -73,7 +78,7 @@ def Zhaoetal_2006_Sa(site, fault, im, periods=None):
                 result = calculate_zhao(site, fault, period)
         results.append(result)
 
-    if im == 'PGA':
+    if im == "PGA":
         results = results[0]
 
     return results
@@ -89,7 +94,10 @@ def calculate_zhao(site, fault, period):
     faultSI = 0
     faultSS = 0
     faultSSL = 0
-    if fault.tect_type == TectType.ACTIVE_SHALLOW and fault.faultstyle == FaultStyle.REVERSE:
+    if (
+        fault.tect_type == TectType.ACTIVE_SHALLOW
+        and fault.faultstyle == FaultStyle.REVERSE
+    ):
         faultSR = 1
     elif fault.tect_type == TectType.SUBDUCTION_INTERFACE:
         faultSI = 1
@@ -114,9 +122,21 @@ def calculate_zhao(site, fault, period):
     h = fault.hdepth
     hc = 15
     R_star = R + c[i] * np.exp(d[i] * M)
-    logSA = (a[i] * M + b[i] * R - np.log(R_star) + e[i] * max(min(h, 125), - hc, 0) + faultSR * SR[i] +
-             faultSI * SI[i] + faultSS * SS[i] + faultSSL * SSL[i] * np.log(R) + siterock * CH[i] + siteSCI * C1[i] +
-             siteSCII * C2[i] + siteSCIII * C3[i] + siteSCIV * C4[i])
+    logSA = (
+        a[i] * M
+        + b[i] * R
+        - np.log(R_star)
+        + e[i] * max(min(h, 125), -hc, 0)
+        + faultSR * SR[i]
+        + faultSI * SI[i]
+        + faultSS * SS[i]
+        + faultSSL * SSL[i] * np.log(R)
+        + siterock * CH[i]
+        + siteSCI * C1[i]
+        + siteSCII * C2[i]
+        + siteSCIII * C3[i]
+        + siteSCIV * C4[i]
+    )
     # convert to median in g
     SA = np.exp(logSA) / 981
     sigma_SA = determine_stdev(i, fault.tect_type)

@@ -1,6 +1,6 @@
 import numpy as np
 import copy
-from empirical.util.classdef import estimate_z1p0,estimate_z2p5
+from empirical.util.classdef import estimate_z1p0, estimate_z2p5
 
 """
 Provides the attenuation relation for AI in units of cm/s
@@ -39,9 +39,9 @@ Output Variables:
 
 
 def CampbellBozorgina_2012(siteprop, faultprop, im_name):
-    if im_name == 'AI':
+    if im_name == "AI":
         i = 0
-    elif im_name == 'CAV':
+    elif im_name == "CAV":
         i = 1
     else:
         i = im_name
@@ -82,7 +82,7 @@ def CampbellBozorgina_2012(siteprop, faultprop, im_name):
     delta = faultprop.dip
     V30 = siteprop.vs30
     Z_2p5 = siteprop.z2p5
-    siteprop.orientation = 'average'
+    siteprop.orientation = "average"
 
     # Magnitude dependence
     if M <= 5.5:
@@ -112,7 +112,9 @@ def CampbellBozorgina_2012(siteprop, faultprop, im_name):
         fhngr = 1
     else:
         if Ztor < 1:
-            fhngr = (max(Rrup, np.sqrt(Rjb ** 2 + 1)) - Rjb) / max(Rrup, np.sqrt(Rjb ** 2 + 1))
+            fhngr = (max(Rrup, np.sqrt(Rjb ** 2 + 1)) - Rjb) / max(
+                Rrup, np.sqrt(Rjb ** 2 + 1)
+            )
         else:
             fhngr = (Rrup - Rjb) / Rrup
 
@@ -120,7 +122,7 @@ def CampbellBozorgina_2012(siteprop, faultprop, im_name):
         fhngm = 0.0
     else:
         if M < 6.5:
-            fhngm = 2.0 * (M-6)
+            fhngm = 2.0 * (M - 6)
         else:
             fhngm = 1.0
 
@@ -138,14 +140,15 @@ def CampbellBozorgina_2012(siteprop, faultprop, im_name):
         rock_site.z2p5 = estimate_z2p5(rock_site.z1p0)
         A1100 = CampbellBozorgina_2012(rock_site, faultprop, 2)[0]
 
-        fsite = c10[i] * np.log(V30 / k1[i]) + k2[i] * (np.log(A1100 + c * (V30 / k1[i]) ** n)
-                                                        - np.log(A1100 + c))
+        fsite = c10[i] * np.log(V30 / k1[i]) + k2[i] * (
+            np.log(A1100 + c * (V30 / k1[i]) ** n) - np.log(A1100 + c)
+        )
     else:
         fsite = (c10[i] + k2[i] * n) * np.log(min(V30, 1100.0) / k1[i])
 
     # Sediment effects
     if Z_2p5 < 1:
-        fsed = c11[i] * (Z_2p5-1)
+        fsed = c11[i] * (Z_2p5 - 1)
     elif Z_2p5 <= 3:
         fsed = 0.0
     else:
@@ -156,17 +159,23 @@ def CampbellBozorgina_2012(siteprop, faultprop, im_name):
 
     # Standard deviation computations
     if V30 < k1[i]:
-        alpha1 = k2[i] * A1100 * ((A1100 + c * (V30 / k1[i]) ** n) ** (-1)
-                                  - (A1100 + c) ** (-1))
+        alpha1 = (
+            k2[i]
+            * A1100
+            * ((A1100 + c * (V30 / k1[i]) ** n) ** (-1) - (A1100 + c) ** (-1))
+        )
     else:
         alpha1 = 0
 
-    sigma = np.sqrt((slny[i] ** 2 - sAF[i] ** 2) + sAF[i] ** 2 + alpha1 ** 2
-                    * slny[1] ** 2 + 2 * alpha1 * rho[i]
-                    * np.sqrt(slny[i] ** 2 - sAF[i] ** 2) * slny[1])
+    sigma = np.sqrt(
+        (slny[i] ** 2 - sAF[i] ** 2)
+        + sAF[i] ** 2
+        + alpha1 ** 2 * slny[1] ** 2
+        + 2 * alpha1 * rho[i] * np.sqrt(slny[i] ** 2 - sAF[i] ** 2) * slny[1]
+    )
 
     sigma_IM = [None] * 3
-    if siteprop.orientation == 'random':  # random/arbitrary component
+    if siteprop.orientation == "random":  # random/arbitrary component
         sigma_IM[0] = np.sqrt(tlny[i] ** 2 + sigma ** 2 + sigmac[i] ** 2)
         sigma_IM[1] = tlny[i]
         sigma_IM[2] = np.sqrt(sigma ** 2 + sigmac[i] ** 2)

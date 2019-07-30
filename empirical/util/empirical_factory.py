@@ -12,7 +12,7 @@ import os
 def read_model_dict(config=None):
     if config is None:
         dir = os.path.dirname(__file__)
-        config_file = os.path.join(dir, 'model_config.yaml')
+        config_file = os.path.join(dir, "model_config.yaml")
     else:
         config_file = config
     model_dict = yaml.load(open(config_file))
@@ -123,5 +123,3 @@ def determine_siteclass(vs30):
         siteclass = SiteClass.HARDROCK
 
     return siteclass
-
-
