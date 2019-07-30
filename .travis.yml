@@ -20,6 +20,6 @@ install:
 script:
   - export PYTHONPATH=$PYTHONPATH:/home/travis/build/ucgmsim/Empirical_Engine
   - cd /home/travis/build/ucgmsim/Empirical_Engine/empirical
-  - pytest --black --ignore=test
+  - pytest --black --ignore=test --ignore=GMM_models
   - cd test
   - pytest -vs
