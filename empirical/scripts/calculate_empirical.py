@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 """Script to calculate IMs for empirical models.
 
 Produces one .csv for each IM containing all specified sites.
