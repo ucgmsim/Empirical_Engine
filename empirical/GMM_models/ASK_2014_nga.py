@@ -22,9 +22,9 @@ def ASK_2014_nga(
     Input Variables
     mag     = Moment Magnitude
     T     = Period (sec); Use Period = -1 for PGV computation
-                    Use 1000 for output the array of Sa with original period
+                    Use None for output the array of Sa with original period
                     (no interpolation)
-    crjb  = Centroid crjb, assumed to be 999.9 here -> assume no aftershock
+    crjb  = Centroid crjb, hardcoded to assume no aftershock
     rrup   = Closest distance (km) to the ruptured plane
     rjb   = Joyner-Boore distance (km); closest distance (km) to surface
           projection of rupture plane
@@ -50,7 +50,7 @@ def ASK_2014_nga(
     vs30          = shear wave velocity averaged over top 30 m in m/s
                   = ref: 1130
     f_vs30         = True for measured vs30 
-                  = False for vs30 inferred from geology
+                  = False for vs30 inferred from geology or Japan
 
     Output Variables
     Sa: Median spectral acceleration prediction
@@ -117,117 +117,66 @@ def ASK_2014_nga(
                 / 1000
             )
 
-    if T == 1000:
+    def sa_sigma(period_i):
+        """
+        Return Sa and sigma for given period index.
+        """
+        return ASK_2014_sub_1(
+            mag,
+            period_i,
+            rrup,
+            rjb,
+            rx,
+            ry0,
+            ztor,
+            delta,
+            f_rv,
+            f_nm,
+            f_as,
+            f_hw,
+            w,
+            z10,
+            vs30,
+            f_vs30,
+            region,
+        )
+
+    if T is None:
         # compute Sa and sigma with pre-defined periods
-        period1 = periods[:-2]
-        Sa = np.zeros(len(period1))
-        sigma = np.zeros(len(period1))
-        for ip in range(len(period1)):
-            Sa[ip], sigma[ip] = ASK_2014_sub_1(
-                mag,
-                ip,
-                rrup,
-                rjb,
-                rx,
-                ry0,
-                ztor,
-                delta,
-                f_rv,
-                f_nm,
-                f_as,
-                f_hw,
-                w,
-                z10,
-                vs30,
-                f_vs30,
-                region,
-            )
-    else:
-        # compute Sa and sigma with user-defined period
-        try:
-            T[0]
-        except TypeError:
-            T = [T]
-        Sa = np.zeros(len(T))
-        sigma = np.zeros(len(T))
-        period1 = T
-        for i in range(len(T)):
-            Ti = T[i]
-            if not np.isclose(periods, Ti, atol=0.0001).any():
-                # user defined period requires interpolation
-                ip_high = np.argmin(periods < Ti)
-                ip_low = ip_high - 1
-                T_low = periods[ip_low]
-                T_high = periods[ip_high]
+        periods_out = periods[:-2]
+        Sa = np.zeros(len(periods_out))
+        sigma = np.zeros(len(periods_out))
+        for ip in range(len(periods_out)):
+            Sa[ip], sigma[ip] = sa_sigma(ip)
+        return Sa, sigma, periods_out
 
-                Sa_low, sigma_low = ASK_2014_sub_1(
-                    mag,
-                    ip_low,
-                    rrup,
-                    rjb,
-                    rx,
-                    ry0,
-                    ztor,
-                    delta,
-                    f_rv,
-                    f_nm,
-                    f_as,
-                    f_hw,
-                    w,
-                    z10,
-                    vs30,
-                    f_vs30,
-                    region,
-                )
-                Sa_high, sigma_high = ASK_2014_sub_1(
-                    mag,
-                    ip_high,
-                    rrup,
-                    rjb,
-                    rx,
-                    ry0,
-                    ztor,
-                    delta,
-                    f_rv,
-                    f_nm,
-                    f_as,
-                    f_hw,
-                    w,
-                    z10,
-                    vs30,
-                    f_vs30,
-                    region,
-                )
-                x = math.log(T_low), math.log(T_high)
-                Y_sa = math.log(Sa_low), math.log(Sa_high)
-                Y_sigma = np.array([sigma_low, sigma_high]).T
-                Sa[i] = math.exp(np.interp(math.log(Ti), x, Y_sa))
-                sigma[i] = np.interp(math.log(Ti), x, Y_sigma)
-            else:
-                ip_T = np.argmin(np.abs(periods - Ti))
-                Sa[i], sigma[i] = ASK_2014_sub_1(
-                    mag,
-                    ip_T,
-                    rrup,
-                    rjb,
-                    rx,
-                    ry0,
-                    ztor,
-                    delta,
-                    f_rv,
-                    f_nm,
-                    f_as,
-                    f_hw,
-                    w,
-                    z10,
-                    vs30,
-                    f_vs30,
-                    region,
-                )
+    # compute Sa and sigma with user-defined period
+    try:
+        T[0]
+    except TypeError:
+        T = [T]
+    Sa = np.zeros(len(T))
+    sigma = np.zeros(len(T))
+    for i, Ti in enumerate(T):
+        if not np.isclose(periods, Ti, atol=0.0001).any():
+            # user defined period requires interpolation
+            ip_high = np.argmin(periods < Ti)
+            ip_low = ip_high - 1
 
-    if len(Sa) == 1:
-        return Sa[0], sigma[0], period1[0]
-    return Sa, sigma, period1
+            Sa_low, sigma_low = sa_sigma(ip_low)
+            Sa_high, sigma_high = sa_sigma(ip_high)
+            x = math.log(periods[ip_low]), math.log(periods[ip_high])
+            Y_sa = math.log(Sa_low), math.log(Sa_high)
+            Y_sigma = np.array([sigma_low, sigma_high]).T
+            Sa[i] = math.exp(np.interp(math.log(Ti), x, Y_sa))
+            sigma[i] = np.interp(math.log(Ti), x, Y_sigma)
+        else:
+            ip_T = np.argmin(np.abs(periods - Ti))
+            Sa[i], sigma[i] = sa_sigma(ip_T)
+
+    if not i:
+        return Sa[0], sigma[0]
+    return Sa, sigma
 
 
 def ASK_2014_sub_1(
@@ -1425,7 +1374,7 @@ def ASK_2014_sub_1(
     m2 = 5
     crjb = None
 
-    # Term f1 - Basic form
+    # f1 - basic form
     if mag > 5:
         c4m = c4[ip]
     elif 4 < mag <= 5:
@@ -1462,69 +1411,59 @@ def ASK_2014_sub_1(
             + a17[ip] * rrup
         )
 
-    # term f4 - Hanging wall model
-    r1 = w * math.cos(math.radians(delta))
-    r2 = 3 * r1
-    Ry1 = rx * math.tan(math.radians(20))
-    h1 = 0.25
-    h2 = 1.5
-    h3 = -0.75
+    # term f4 - hanging wall model
+    def hanging_wall():
+        if not f_hw:
+            return 0
+    
+        r1 = w * math.cos(math.radians(delta))
+        r2 = 3 * r1
+        t1 = (90 - max(30, delta)) / 45
+        a2hw = 0.2
 
-    if delta > 30:
-        t1 = (90 - delta) / 45
-    else:
-        t1 = 60 / 45
-
-    a2hw = 0.2
-
-    if mag > 6.5:
-        t2 = 1 + a2hw * (mag - 6.5)
-    elif mag > 5.5:
-        t2 = 1 + a2hw * (mag - 6.5) - (1 - a2hw) * (mag - 6.5) ** 2
-    else:
-        t2 = 0
-
-    if rx <= r1:
-        t3 = h1 + h2 * (rx / r1) + h3 * (rx / r1) ** 2
-    elif rx < r2:
-        t3 = 1 - (rx - r1) / (r2 - r1)
-    else:
-        t3 = 0
-
-    if ztor < 10:
-        t4 = 1 - ztor ** 2 / 100
-    else:
-        t4 = 0
-
-    if ry0 == 999 or ry0 == 0:
-        if rjb == 0:
-            t5 = 1
-        elif rjb < 30:
-            t5 = 1 - rjb / 30
+        if mag > 6.5:
+            t2 = 1 + a2hw * (mag - 6.5)
+        elif mag > 5.5:
+            t2 = 1 + a2hw * (mag - 6.5) - (1 - a2hw) * (mag - 6.5) ** 2
         else:
-            t5 = 0
-    else:
-        if ry0 - Ry1 <= 0:
-            t5 = 1
-        elif ry0 - Ry1 < 5:
-            t5 = 1 - (ry0 - Ry1) / 5
+            t2 = 0
+
+        if rx <= r1:
+            # h1 = 0.25; h2 = 1.5; h3 = -0.75
+            t3 = 0.25 + 1.5 * (rx / r1) - 0.75 * (rx / r1) ** 2
+        elif rx < r2:
+            t3 = 1 - (rx - r1) / (r2 - r1)
         else:
-            t5 = 0
+            t3 = 0
 
-    if f_hw == 1:
-        f4 = a13[ip] * t1 * t2 * t3 * t4 * t5
-    else:
-        f4 = 0
+        t4 = 1 - ztor ** 2 / 100 if ztor < 10 else 0
 
-    # Term f6 - Depth to top rupture model
+        if ry0 == 999 or ry0 == 0:
+            if rjb == 0:
+                t5 = 1
+            elif rjb < 30:
+                t5 = 1 - rjb / 30
+            else:
+                t5 = 0
+        else:
+            Ry1 = rx * math.tan(math.radians(20))
+            if ry0 - Ry1 <= 0:
+                t5 = 1
+            elif ry0 - Ry1 < 5:
+                t5 = 1 - (ry0 - Ry1) / 5
+            else:
+                t5 = 0
 
+        return a13[ip] * t1 * t2 * t3 * t4 * t5
+
+    f4 = hanging_wall()
+
+    # f6 - depth to top rupture model
+    f6 = a15[ip]
     if ztor < 20:
-        f6 = a15[ip] * ztor / 20
-    else:
-        f6 = a15[ip]
+        f6 *= ztor / 20
 
-    # Term: f7 and f8 - Style of Faulting
-
+    # f7 and f8 - style of faulting
     if mag > 5:
         f7 = a11[ip]
         f8 = a12[ip]
@@ -1532,6 +1471,7 @@ def ASK_2014_sub_1(
         f7 = a11[ip] * (mag - 4)
         f8 = a12[ip] * (mag - 4)
     else:
+        # mag < 4
         f7 = 0
         f8 = 0
 
@@ -1542,86 +1482,77 @@ def ASK_2014_sub_1(
     else:
         V1 = 800
 
-    if vs30 < V1:
-        vs30s = vs30
+    vs30s = min(V1, vs30)
+    vs30star1180 = min(V1, 1180)
+
+    # regional terms
+    if region == 2:
+        # Japan
+        if vs30 < 150:
+            y1 = a36[ip]
+            y2 = a36[ip]
+            x1 = 50
+            x2 = 150
+        elif vs30 < 250:
+            y1 = a36[ip]
+            y2 = a37[ip]
+            x1 = 150
+            x2 = 250
+        elif vs30 < 350:
+            y1 = a37[ip]
+            y2 = a38[ip]
+            x1 = 250
+            x2 = 350
+        elif vs30 < 450:
+            y1 = a38[ip]
+            y2 = a39[ip]
+            x1 = 350
+            x2 = 450
+        elif vs30 < 600:
+            y1 = a39[ip]
+            y2 = a40[ip]
+            x1 = 450
+            x2 = 600
+        elif vs30 < 850:
+            y1 = a40[ip]
+            y2 = a41[ip]
+            x1 = 600
+            x2 = 850
+        elif vs30 < 1150:
+            y1 = a41[ip]
+            y2 = a42[ip]
+            x1 = 850
+            x2 = 1150
+        else:
+            y1 = a42[ip]
+            y2 = a42[ip]
+            x1 = 1150
+            x2 = 3000
+        f13vs30 = y1 + (y2 - y1) / (x2 - x1) * (vs30 - x1)
+        regional = f13vs30 + a29[ip] * rrup
+        regional_1180 = regional
+    elif region == 6:
+        # Taiwan
+        f12vs30 = a31[ip] * math.log(vs30s / Vlin[ip])
+        f12vs30_1180 = a31[ip] * math.log(vs30star1180 / Vlin[ip])
+        regional = f12vs30 + a25[ip] * rrup
+        regional_1180 = f12vs30_1180 + a25[ip] * rrup
+    elif region == 3:
+        # China
+        regional = a28[ip] * rrup
+        regional_1180 = regional
     else:
-        vs30s = V1
+        # rest of the world
+        regional = 0
+        regional_1180 = 0
 
-    if 1180 >= V1:
-        vs30star1180 = V1
-    else:
-        vs30star1180 = 1180
-
-    # term  Regional:
-    f_tw = int(region == 6)
-    f_cn = int(region == 3)
-    f_jp = int(region == 2)
-
-    # Japan term f13vs30
-    if vs30 < 150:
-        y1 = a36[ip]
-        y2 = a36[ip]
-        x1 = 50
-        x2 = 150
-    elif vs30 < 250:
-        y1 = a36[ip]
-        y2 = a37[ip]
-        x1 = 150
-        x2 = 250
-    elif vs30 < 350:
-        y1 = a37[ip]
-        y2 = a38[ip]
-        x1 = 250
-        x2 = 350
-    elif vs30 < 450:
-        y1 = a38[ip]
-        y2 = a39[ip]
-        x1 = 350
-        x2 = 450
-    elif vs30 < 600:
-        y1 = a39[ip]
-        y2 = a40[ip]
-        x1 = 450
-        x2 = 600
-    elif vs30 < 850:
-        y1 = a40[ip]
-        y2 = a41[ip]
-        x1 = 600
-        x2 = 850
-    elif vs30 < 1150:
-        y1 = a41[ip]
-        y2 = a42[ip]
-        x1 = 850
-        x2 = 1150
-    else:
-        y1 = a42[ip]
-        y2 = a42[ip]
-        x1 = 1150
-        x2 = 3000
-    f13vs30 = y1 + (y2 - y1) / (x2 - x1) * (vs30 - x1)
-
-    # Taiwan terms
-    f12vs30 = a31[ip] * math.log(vs30s / Vlin[ip])
-    f12vs30_1180 = a31[ip] * math.log(vs30star1180 / Vlin[ip])
-
-    Regional = (
-        f_tw * (f12vs30 + a25[ip] * rrup)
-        + f_cn * (a28[ip] * rrup)
-        + f_jp * (f13vs30 + a29[ip] * rrup)
-    )
-    Regional_1180 = (
-        f_tw * (f12vs30_1180 + a25[ip] * rrup)
-        + f_cn * (a28[ip] * rrup)
-        + f_jp * (f13vs30 + a29[ip] * rrup)
-    )
-
-    # Term f5 - site response model
+    # f5 - site response model
 
     # Sa 1180
     f5_1180 = (a10[ip] + b[ip] * n[ip]) * math.log(vs30star1180 / Vlin[ip])
 
     Sa1180 = math.exp(
-        f1 + f6 + f_rv * f7 + f_nm * f8 + f_hw * f4 + f5_1180 + Regional_1180
+        f1 + f6 + f_rv * f7 + f_nm * f8 + f_hw * f4 + f5_1180 + regional_1180
     )
 
     if vs30 >= Vlin[ip]:
@@ -1633,7 +1564,7 @@ def ASK_2014_sub_1(
             + b[ip] * math.log(Sa1180 + c[ip] * (vs30s / Vlin[ip]) ** n[ip])
         )
 
-    # Term f10 - soil depth model
+    # f10 - soil depth model
 
     if region == 2:
         # Japan
@@ -1684,7 +1615,7 @@ def ASK_2014_sub_1(
         (z10 + 0.01) / (Z1ref + 0.01)
     )
 
-    # f11 - Aftershock scaling
+    # f11 - aftershock scaling
     if crjb is None or crjb >= 15 or f_as == 0:
         f11 = 0
     elif crjb <= 5:
@@ -1693,44 +1624,39 @@ def ASK_2014_sub_1(
         f11 = a14[ip] * (1 - (crjb - 5) / 10)
 
     # Sa
-
-    lnSa = f1 + f6 + f_rv * f7 + f_nm * f8 + f_hw * f4 + f_as * f11 + f5 + f10 + Regional
-
+    lnSa = f1 + f6 + f_rv * f7 + f_nm * f8 + f_hw * f4 + f_as * f11 + f5 + f10 + regional
     Sa = np.exp(lnSa)
 
     # Standard deviation
 
-    if f_vs30:
-        # measured
-        s1 = s1_m
-        s2 = s2_m
-
-    if mag < 4:
-        phi_AL = s1[ip]
-    elif mag <= 6:
-        phi_AL = s1[ip] + (s2[ip] - s1[ip]) / 2 * (mag - 4)
-    else:
-        phi_AL = s2[ip]
-
-    if mag < 5:
-        tau_AL = s3[ip]
-    elif mag <= 7:
-        tau_AL = s3[ip] + (s4[ip] - s3[ip]) / 2 * (mag - 5)
-    else:
-        tau_AL = s4[ip]
-    tau_B = tau_AL
-
-    if f_jp == 1:
+    if region == 2:
+        # Japan
         if rrup < 30:
             phi_AL = s5_JP[ip]
         elif rrup <= 80:
             phi_AL = s5_JP[ip] + (s6_JP[ip] - s5_JP[ip]) / 50 * (rrup - 30)
         else:
             phi_AL = s6_JP[ip]
-
+    else:
+        if f_vs30:
+            # measured
+            s1 = s1_m
+            s2 = s2_m
+        if mag < 4:
+            phi_AL = s1[ip]
+        elif mag <= 6:
+            phi_AL = s1[ip] + (s2[ip] - s1[ip]) / 2 * (mag - 4)
+        else:
+            phi_AL = s2[ip]
     phi_amp = 0.4
-
     phi_B = math.sqrt(phi_AL ** 2 - phi_amp ** 2)
+
+    if mag < 5:
+        tau_B = s3[ip]
+    elif mag <= 7:
+        tau_B = s3[ip] + (s4[ip] - s3[ip]) / 2 * (mag - 5)
+    else:
+        tau_B = s4[ip]
 
     if vs30 >= Vlin[ip]:
         dln = 0
@@ -1740,12 +1666,8 @@ def ASK_2014_sub_1(
         )
 
     phi = math.sqrt(phi_B ** 2 * (1 + dln) ** 2 + phi_amp ** 2)
-
     tau = tau_B * (1 + dln)
 
     sigma = math.sqrt(phi ** 2 + tau ** 2)
 
     return Sa, sigma
-
-
-print(ASK_2014_nga(7.5, 0.03, 183.34, 134.4, 100.3, 122.551, 20, 20))
