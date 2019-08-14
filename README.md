@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.org/ucgmsim/Empirical_Engine.svg?branch=master)](https://travis-ci.org/ucgmsim/Empirical_Engine)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 # Empirical_Engine
 Contains codes to calculate Empirical IMs
