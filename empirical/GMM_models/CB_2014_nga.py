@@ -147,7 +147,7 @@ def CB_2014_nga(
 
         for ipT in range(len(periods_out)):
             Sa[ipT], sigma[ipT] = sa_sigma(ipT)
-            PGA = sa_sigma(22)[0]
+            PGA = sa_sigma(PGAi)[0]
             if Sa[ipT] < PGA and periods_out[ipT] < 0.25:
                 Sa[ipT] = PGA
         return Sa, sigma, periods_out
