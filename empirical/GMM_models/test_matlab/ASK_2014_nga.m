@@ -66,7 +66,7 @@ if Ztor == 999
 end
 
 if W == 999
-    W = min(18/sin(degtorad(delta)),10^(-1.75+0.45*M));
+    W = min(18/sin(deg2rad(delta)),10^(-1.75+0.45*M));
 end
 
 if Z10 == 999
@@ -183,9 +183,9 @@ else
 end
 
 %% term f4 - Hanging wall model
-R1 = W * cos(degtorad(delta));
+R1 = W * cos(deg2rad(delta));
 R2 = 3 * R1;
-Ry1 = Rx * tan(degtorad(20));
+Ry1 = Rx * tan(deg2rad(20));
 h1 = 0.25;
 h2 = 1.5;
 h3 = -0.75;
