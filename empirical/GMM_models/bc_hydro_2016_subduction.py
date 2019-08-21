@@ -81,7 +81,6 @@ def bc_hydro_2016_subduction(T, M, R, F_faba, Vs30, F_event, Zh):
             np.log([1e-10, 0.3, 0.5, 1.0, 2.0, 3.0, 1e10]),
             [0.2, 0.2, 0.1, 0.0, -0.1, -0.2, -0.2],
         )
-        print(deltaC1)
         deltaC1[0] = 0.2
 
     Vs_star = min(Vs30, 1000)
