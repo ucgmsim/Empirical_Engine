@@ -119,8 +119,8 @@ def CY_2014_nga(
             x = math.log(periods[ip_low]), math.log(periods[ip_high])
             Y_sa = math.log(Sa_low), math.log(Sa_high)
             Y_sigma = np.array([sigma_low, sigma_high]).T
-            Sa[i] = math.exp(np.interp(math.log[Ti], x, Y_sa))
-            sigma[i] = np.interp(math.log[Ti], x, Y_sigma)
+            Sa[i] = math.exp(np.interp(math.log(Ti), x, Y_sa))
+            sigma[i] = np.interp(math.log(Ti), x, Y_sigma)
             if Sa[i] < PGA and Ti <= 0.3:
                 Sa[i] = PGA
         else:
