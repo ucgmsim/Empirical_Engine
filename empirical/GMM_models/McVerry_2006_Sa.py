@@ -13,8 +13,8 @@ def McVerry_2006_Sa(siteprop, faultprop):
 
     Inputvariables
     siteprop
-       Rrup -- Shortest distance from source to site (km) (i.e. Rrup)
-       T   -- period of vibration to compute attenuation for
+       Rrup  -- Shortest distance from source to site (km) (i.e. Rrup)
+       period-- period of vibration to compute attenuation for
               uses linear interpolation between actual parameter values
        siteclass - 'A','B','C','D','E'; as per NZS1170.5
        rvol-- length in km of the part of the source to site distance in volcanic
@@ -437,17 +437,3 @@ def McVerry_2006_Sa(siteprop, faultprop):
     # output
     sigma_SA = np.sqrt(sig_intra ** 2 + Tau[i] ** 2), sig_intra, Tau[i]
     return Sa, sigma_SA
-
-
-class siteprop:
-    siteclass = "C"
-    rvol = 3.24
-    period = 2.2
-    Rrup = 130.02
-
-class faultprop:
-    Hc = 100.3
-    faultstyle = "strikeslip"
-    Mw = 4.2
-
-print(McVerry_2006_Sa(siteprop, faultprop))
