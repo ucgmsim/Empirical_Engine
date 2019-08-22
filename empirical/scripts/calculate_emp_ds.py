@@ -20,47 +20,6 @@ from qcore.utils import setup_dir
 PRINT_FREQUENCY = 100
 MAX_RJB = 200
 
-def write_data(
-    output_file: str,
-    rrup_df: pd.DataFrame,
-    stations: List[str] = None,
-    faults: List[str] = None,
-):
-    """Writes the data to the output file as a .h5 file
-    If stations and/or faults is specified then only those stations and/or faults are written.
-    """
-    # Filtering
-    if stations is not None:
-        stations_both = np.intersect1d(rrup_df.index.values, stations)
-        rrup_df = rrup_df.loc[stations_both, :]
-    if faults is not None:
-        faults_both = np.intersect1d(rrup_df.columns.values, faults)
-        rrup_df = rrup_df.loc[:, faults_both]
-
-    # Create the output file, will fail if the file already exists
-    with h5py.File(output_file, "w") as f:
-        # Save the faults and stations
-        print("Writing fault and stations data...")
-        f.create_dataset("faults", data=rrup_df.columns.values.astype("S"))
-        f.create_dataset("stations", data=rrup_df.index.values.astype("S"))
-
-        # Save the data per station (as that is how it will be retrieved)
-        print("Writing data per station...")
-        for ix, (name, row) in enumerate(rrup_df.iterrows()):
-            fault_ind = np.flatnonzero(~row.isna())
-            data = np.core.records.fromarrays(
-                (fault_ind, row.iloc[fault_ind].values.values),
-                dtype=np.dtype([("fault_ix", np.int16), ("rrup", np.float32)]),
-            )
-            f.create_dataset(str(ix), data=data)
-
-            if ix + 1 % PRINT_FREQUENCY == 0:
-                print(
-                    "Stations completed {}/{}".format(
-                        ix + 1, rrup_df.index.values.shape[0]
-                    )
-                )
-
 
 def read_background_txt(background_file):
     return pd.read_csv(background_file, skiprows=5,
@@ -75,16 +34,26 @@ def calculate_ds(background_file, ll_file, vs30_file):
     fault_list = [create_rupture_name(row.source_lon, row.source_lat, mag, row.source_depth, row.tect_type) for __, row in background_data.iterrows() for mag in get_mw_range(row.M_min, row.M_cutoff, row.n_mags) ]
 
     station_df = formats.load_station_ll_vs30(ll_file, vs30_file)
-
+    print(len(station_df), n_faults, len(station_df) * n_faults)
     init_data = np.full((len(station_df), n_faults), np.nan, dtype=np.float32)
+    init_data2 = np.full((len(station_df), n_faults), np.nan, dtype=np.float32)
     rrup_df = pd.DataFrame(init_data, index=station_df.index.values, columns=fault_list)
-
-    for index, station in station_df.iterrows():
-        rrup_df, im_df = calculate_ds_site(background_data, station.lat, station.lon, station.vs30)
+    rjb_df = pd.DataFrame(init_data2, index=station_df.index.values, columns=fault_list)
 
 
-def calculate_ds_site(background_data, lat, lon, vs30):
-    rrup_dict = {}
+    with pd.HDFStore('/home/jam335/scratch/seistech/emp_ds.imdb') as im_store:
+        for index, station in station_df.iterrows():
+            site_im_df = calculate_ds_site(rrup_df, rjb_df, background_data, station.lat, station.lon, station.vs30, station.name)
+            im_store['IM_params/site_{}'.format(station.name)] = site_im_df
+
+    rrup_df.to_sparse()
+    with pd.HDFStore('/home/jam335/scratch/seistech/emp_ds_ss.db') as rrup_store:
+        rrup_store['rrup'] = rrup_df
+        rrup_store['rjb'] = rjb_df
+    pass
+
+
+def calculate_ds_site(rrup_df, rjb_df, background_data, lat, lon, vs30, site_name):
     im_df = pd.DataFrame()
 
 
@@ -97,6 +66,7 @@ def calculate_ds_site(background_data, lat, lon, vs30):
 
     im = 'pSA'
     period = [5.0]
+    full_im_name = "pSA_5.0"
 
     for index, row in background_data.iterrows():
         if index % PRINT_FREQUENCY == 0:
@@ -114,10 +84,14 @@ def calculate_ds_site(background_data, lat, lon, vs30):
             for mag in get_mw_range(row.M_min, row.M_cutoff, row.n_mags):
                 fault.Mw = mag
                 name = create_rupture_name(row.source_lon, row.source_lat, mag, row.source_depth, row.tect_type)
+                rrup_df[name][site_name] = site.Rrup
+                rjb_df[name][site_name] = site.Rjb
                 value = empirical_factory.compute_gmm(fault, site, GMM, im, period)
                 mean = np.log(value[0][0])
                 stdev = value[0][1][0]
-                print(name, mean, stdev)
+                im_df = im_df.append({'fault': name, im + '_mean': mean, im + '_sigma': stdev}, ignore_index=True)
+                # print(name, mean, stdev)
+    return im_df
 
 
 def create_rupture_name(lon, lat, mag, depth, tect_type):
