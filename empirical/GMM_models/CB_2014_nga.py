@@ -95,10 +95,13 @@ def CB_2014_nga(
             Ztori = max(2.704 - 1.226 * max(M - 5.849, 0), 0) ** 2
         else:
             Ztori = max(2.673 - 1.136 * max(M - 4.970, 0), 0) ** 2
-        W = min(
-            math.sqrt(10 ** ((M - 4.07) / 0.98)),
-            (Zbot - Ztori) / math.sin(math.pi / 180 * delta),
-        )
+        try:
+            W = min(
+                math.sqrt(10 ** ((M - 4.07) / 0.98)),
+                (Zbot - Ztori) / math.sin(math.pi / 180 * delta),
+            )
+        except ZeroDivisionError:
+            W = math.sqrt(10 ** ((M - 4.07) / 0.98))
         Zhyp = 9
 
     elif Zhyp is None:
@@ -112,7 +115,11 @@ def CB_2014_nga(
 
         # depth to bottom of rupture plane
         Zbor = Ztori + W * math.sin(math.pi / 180 * delta)
-        d_Z = math.exp(min(fdZM + fdZD, math.log(0.9 * (Zbor - Ztori))))
+        try:
+            d_Z = math.exp(min(fdZM + fdZD, math.log(0.9 * (Zbor - Ztori))))
+        except ValueError:
+            # Zbor == Ztori
+            d_Z = 0
         Zhyp = d_Z + Ztori
 
     def sa_sigma(period_i):
