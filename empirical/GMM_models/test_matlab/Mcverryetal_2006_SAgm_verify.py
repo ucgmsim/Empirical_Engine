@@ -2,49 +2,39 @@
 
 import numpy as np
 
-import sys
-sys.path.append('..')
-from McVerry_2006_Sa import McVerry_2006_Sa
+from empirical.GMM_models.McVerry_2006_Sa import McVerry_2006_Sa
+from empirical.util.classdef import Fault, FaultStyle, Site, SiteClass
 
 # compare with Matlab version
 
 periods = [-1.0, 0.078, 0.14, 0.18, 0.3, 0.4, 0.5, 0.75, 1, 1.5, 2, 3]
 mags = [4.8, 6, 10]
 rrups = [0, 30, 800]
-siteclasses = ['A', 'B', 'C', 'D', 'E']
-faultstyles = ["normal", "reverse", "oblique", "strikeslip", "interface", "slab"]
+faultstyles = [FaultStyle.NORMAL, FaultStyle.REVERSE, FaultStyle.OBLIQUE, FaultStyle.STRIKESLIP, FaultStyle.INTERFACE, FaultStyle.SLAB]
 rvols = [82.24, 2.244]
 hcs = [4.422, 39.24]
 
 answers = np.fromfile('mv2006.f32', dtype=np.float32)
 a = 0
 
-class siteprop:
-    period = None
-    siteclass = None
-    Rrup = None
-    rvol = None
-class faultprop:
-    Mw = None
-    faultstyle = None
-    Hc = None
+site = Site()
+fault = Fault()
 
 for p in periods:
-    siteprop.period = p
     for m in mags:
-        faultprop.Mw = m
-        for s in siteclasses:
-            siteprop.siteclass = s
+        fault.Mw = m
+        for s in SiteClass:
+            site.siteclass = s
             for r in rrups:
-                siteprop.Rrup = r
+                site.Rrup = r
                 for f in faultstyles:
-                    faultprop.faultstyle = f
+                    fault.faultstyle = f
                     for v in rvols:
-                        siteprop.rvol = v
+                        site.rvol = v
                         for h in hcs:
-                            faultprop.Hc = h
+                            fault.hdepth = h
 
-                            sa, sigma = McVerry_2006_Sa(siteprop, faultprop)
+                            sa, sigma = McVerry_2006_Sa(site, fault, period=p)
                             assert np.isclose(sa, answers[a])
                             assert np.isclose(sigma, answers[a + 1:a + 4]).all()
                             a += 4

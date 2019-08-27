@@ -1,9 +1,10 @@
 from empirical.util import classdef
 from empirical.util.classdef import TectType, GMM, SiteClass, FaultStyle
-from empirical.GMM_models.Bradley_2013_Sa import Bradley_2013_Sa
-from empirical.GMM_models.zhou_2006 import Zhaoetal_2006_Sa
 from empirical.GMM_models.AfshariStewart_2016_Ds import Afshari_Stewart_2016_Ds
+from empirical.GMM_models.Bradley_2013_Sa import Bradley_2013_Sa
+from empirical.GMM_models.BSSA_2014_nga import BSSA_2014_nga
 from empirical.GMM_models.CampbellBozorgina_2012_AI import CampbellBozorgina_2012
+from empirical.GMM_models.zhou_2006 import Zhaoetal_2006_Sa
 import numpy as np
 import yaml
 import os
@@ -38,8 +39,8 @@ def compute_gmm(fault, site, gmm, im, period=None):
     if site.vs30 is None:
         site.vs30 = classdef.VS30_DEFAULT
 
-    if site.Rrup is None:
-        print("Rrup is a required parameter")
+    if site.Rrup is None and gmm not in [GMM.BSSA_14]:
+        print("Rrup is a required parameter for", gmm.name)
         exit()
 
     if site.z1p0 is None:
@@ -67,15 +68,15 @@ def compute_gmm(fault, site, gmm, im, period=None):
         print("Moment magnitude is a required parameter")
         exit()
 
-    if fault.rake is None and GMM in [GMM.Br_13, GMM.CB_12]:
+    if fault.rake is None and gmm in [GMM.Br_13, GMM.CB_12]:
         print("rake is a required parameter for Br_13 and CB_12")
         exit()
 
-    if fault.dip is None and GMM in [GMM.Br_13, GMM.CB_12]:
+    if fault.dip is None and gmm in [GMM.Br_13, GMM.CB_12]:
         print("dip is a required parameter for Br_13 and CB_12")
         exit()
 
-    if fault.ztor is None and GMM in [GMM.Br_13, GMM.CB_12]:
+    if fault.ztor is None and gmm in [GMM.Br_13, GMM.CB_12]:
         print("ztor is a required parameter for Br_13 and CB_12")
         exit()
 
@@ -92,36 +93,34 @@ def compute_gmm(fault, site, gmm, im, period=None):
     if fault.tect_type is None:
         fault.tect_type = TectType.ACTIVE_SHALLOW
 
-    if fault.hdepth is None and GMM == GMM.ZA_06:
-        print("hypocentre depth is a required parameter for ZA06")
+    if fault.hdepth is None and gmm in [GMM.ZA_06, GMM.MV_06]:
+        print("hypocentre depth is a required parameter for", gmm.name)
         exit()
 
-    value = None
-
-    if gmm is GMM.Br_13:
-        value = Bradley_2013_Sa(site, fault, im, period)
-    elif gmm is GMM.AS_16:
-        value = Afshari_Stewart_2016_Ds(site, fault, im)
+    if gmm is GMM.AS_16:
+        return Afshari_Stewart_2016_Ds(site, fault, im)
+    elif gmm is GMM.Br_13:
+        return Bradley_2013_Sa(site, fault, im, period)
+    elif gmm is GMM.BSSA_14:
+        return BSSA_2014_nga(site, fault, im, period)
     elif gmm is GMM.CB_12:
-        value = CampbellBozorgina_2012(site, fault, im)
+        return CampbellBozorgina_2012(site, fault, im)
+    elif gmm is GMM.MV_06:
+        return McVerry_2006_Sa(site, fault, im, period)
     elif gmm is GMM.ZA_06:
-        value = Zhaoetal_2006_Sa(site, fault, im, period)
-
-    return value
+        return Zhaoetal_2006_Sa(site, fault, im, period)
+    else:
+        raise ValueError("Invalid GMM")
 
 
 def determine_siteclass(vs30):
     if vs30 < 200:
-        siteclass = SiteClass.SOFTSOIL
+        return SiteClass.SOFTSOIL
     elif vs30 < 300:
-        siteclass = SiteClass.MEDIUMSOIL
+        return SiteClass.MEDIUMSOIL
     elif vs30 < 600:
-        siteclass = SiteClass.HARDSOIL
+        return SiteClass.HARDSOIL
     elif vs30 < 1100:
-        siteclass = SiteClass.ROCK
+        return SiteClass.ROCK
     else:
-        siteclass = SiteClass.HARDROCK
-
-    return siteclass
-
-
+        return SiteClass.HARDROCK

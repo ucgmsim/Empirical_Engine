@@ -20,6 +20,8 @@ class Site:  # Class of site properties. initialize all attributes to None
         self.z2p5 = None  # (km)
         self.siteclass = None
         self.orientation = 'average'
+        self.rvol = 0 # length in km of the part of the source to site distance in volcanic zone
+
 
 
 class Fault:  # Class of fault properties. initialize all attributes to None
@@ -46,14 +48,21 @@ class GMM(Enum):
     Br_13 = 2
     AS_16 = 3
     CB_12 = 4
+    BSSA_14 = 5
+    MV_06 = 6
+    ASK_14 = 7
+    BC_16 = 8
+    CB_14 = 9
+    CY_14 = 10
 
 
 class SiteClass(Enum):
-    HARDROCK = 1
-    ROCK = 2
-    HARDSOIL = 3
-    MEDIUMSOIL = 4
-    SOFTSOIL = 5
+    # as per NZS1170.5
+    HARDROCK = "A"
+    ROCK = "B"
+    HARDSOIL = "C"
+    MEDIUMSOIL = "D"
+    SOFTSOIL = "E"
 
 
 class FaultStyle(Enum):
@@ -62,6 +71,8 @@ class FaultStyle(Enum):
     STRIKESLIP = 3
     OBLIQUE = 4
     UNKNOWN = 5
+    SLAB = 6
+    INTERFACE = 7
 
 
 def interpolate_to_closest(T, T_hi, T_low, y_high, y_low):
