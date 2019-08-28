@@ -114,9 +114,13 @@ def bc_hydro_2016_subduction(siteprop, faultprop, period):
             f_dep[i] = 0
 
         if f_slab:
-            f_faba[i] = (theta7[i] + theta8[i] * math.log(max(R, 85) / 40)) * siteprop.backarc
+            f_faba[i] = (
+                theta7[i] + theta8[i] * math.log(max(R, 85) / 40)
+            ) * siteprop.backarc
         else:
-            f_faba[i] = (theta15[i] + theta16[i] * math.log(max(R, 100) / 40)) * siteprop.backarc
+            f_faba[i] = (
+                theta15[i] + theta16[i] * math.log(max(R, 100) / 40)
+            ) * siteprop.backarc
 
         if i == 0:
             PGA1000 = math.exp(

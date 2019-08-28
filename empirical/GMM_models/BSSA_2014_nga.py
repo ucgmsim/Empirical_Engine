@@ -3,6 +3,8 @@ import math
 
 import numpy as np
 
+from empirical.util.classdef import FaultStyle
+
 # fmt: off
 periods = np.array([-1, 0, 0.01, 0.02, 0.03, 0.05, 0.075, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.75, 1, 1.5, 2, 3, 4, 5, 7.5, 10])
 deltac3 = {
@@ -13,7 +15,7 @@ deltac3 = {
 # fmt: on
 
 
-def BSSA_2014_nga(M, T, Rjb, fault_type, region=0, z1=None, vs30=500):
+def BSSA_2014_nga(siteprop, faultprop, im="pSA", period=None, region=0):
     """
     coded by Yue Hua
                 Stanford University
@@ -33,60 +35,65 @@ def BSSA_2014_nga(M, T, Rjb, fault_type, region=0, z1=None, vs30=500):
     (IMs) for shallow crustal earthquakes in active tectonic regions.
 
     Input Variables
-    M = Moment Magnitude
-    T = Period (sec); Use Period = -1 for PGV computation
+    siteprop.Rjb  = Joyner-Boore distance (km)
+    siteprop.z1p0 = Basin depth (km); depth from the groundsurface to the
+                    1km/s shear-wave horizon.
+                    None if unknown
+    siteprop.vs30 = shear wave velocity averaged over top 30 m in m/s
+
+    faultprop.Mw         = Moment Magnitude
+    faultprop.faultstyle = UNKNOWN, STRIKESLIP, NORMAL or REVERSE
+
+    period = Period (sec); Use Period = -1 for PGV computation
                     Use None to output the array of median with original periods
                     (no interpolation)
-    Rjb = Joyner-Boore distance (km)
-    fault_type    = 0 for unspecified fault
-                = 1 for strike-slip fault
-                = 2 for normal fault
-                = 3 for reverse fault
-    region        = 0 for global (incl. Taiwan)
+
+    region      = 0 for global (incl. Taiwan)
                 = 1 for California
                 = 2 for Japan
                 = 3 for China or Turkey
                 = 4 for Italy
-    z1            = Basin depth (km); depth from the groundsurface to the
-                    1km/s shear-wave horizon.
-                = None if unknown
-    vs30          = shear wave velocity averaged over top 30 m in m/s
 
     Output Variables
     median        = Median amplitude prediction
 
     sigma         = NATURAL LOG standard deviation 
     """
+    M = faultprop.Mw
+    z1 = siteprop.z1p0
+    vs30 = siteprop.vs30
+    if im == "PGV":
+        period = -1
 
-    if T is None:
+    if period is None:
         # compute median and sigma with pre-defined periods
         periods_out = periods[2:]
         median = np.zeros(len(periods_out))
         sigma = np.zeros(len(periods_out))
         for ip in range(2, len(periods)):
             median[ip - 2], sigma[ip - 2] = BSSA_2014_sub(
-                M, ip, Rjb, fault_type, region, z1, vs30
+                M, ip, siteprop.Rjb, faultprop.faultstyle, region, z1, vs30
             )
         return median, sigma, periods_out
 
     # compute median and sigma with user-defined period
     try:
-        T[0]
+        period[0]
     except TypeError:
-        T = [T]
-    median = np.zeros(len(T))
-    sigma = np.zeros(len(T))
-    for i, Ti in enumerate(T):
+        period = [period]
+    median = np.zeros(len(period))
+    sigma = np.zeros(len(period))
+    for i, Ti in enumerate(period):
         if not np.isclose(periods, Ti, atol=0.0001).any():
             # user defined period requires interpolation
             ip_high = np.argmin(periods < Ti)
             ip_low = ip_high - 1
 
             Sa_low, sigma_low = BSSA_2014_sub(
-                M, ip_low, Rjb, fault_type, region, z1, vs30
+                M, ip_low, siteprop.Rjb, faultprop.faultstyle, region, z1, vs30
             )
             Sa_high, sigma_high = BSSA_2014_sub(
-                M, ip_high, Rjb, fault_type, region, z1, vs30
+                M, ip_high, siteprop.Rjb, faultprop.faultstyle, region, z1, vs30
             )
             x = math.log(periods[ip_low]), math.log(periods[ip_high])
             Y_sa = math.log(Sa_low), math.log(Sa_high)
@@ -96,7 +103,7 @@ def BSSA_2014_nga(M, T, Rjb, fault_type, region=0, z1=None, vs30=500):
         else:
             ip_T = np.argmin(np.abs(periods - Ti))
             median[i], sigma[i] = BSSA_2014_sub(
-                M, ip_T, Rjb, fault_type, region, z1, vs30
+                M, ip_T, siteprop.Rjb, faultprop.faultstyle, region, z1, vs30
             )
 
     if not i:
@@ -143,7 +150,12 @@ def BSSA_2014_sub(M, ip, Rjb, ftype, region, z1, vs30):
     # fmt: on
 
     # source (event function); unspecified, strike-slip, normal, reverse
-    F_E = {0: e0[ip], 1: e1[ip], 2: e2[ip], 3: e3[ip]}[ftype]
+    F_E = {
+        FaultStyle.UNKNOWN: e0[ip],
+        FaultStyle.STRIKESLIP: e1[ip],
+        FaultStyle.NORMAL: e2[ip],
+        FaultStyle.REVERSE: e3[ip],
+    }[ftype]
     if M <= mh[ip]:
         F_E += e4[ip] * (M - mh[ip]) + e5[ip] * (M - mh[ip]) ** 2
     else:

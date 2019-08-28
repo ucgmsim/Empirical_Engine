@@ -118,9 +118,12 @@ def McVerry_2006_Sa(siteprop, faultprop, im=None, period=None):
 
     if not CS:
         CN = -1 if faultprop.faultstyle is FaultStyle.NORMAL else 0
-        CR = {FaultStyle.NORMAL: 0, FaultStyle.REVERSE: 1, FaultStyle.OBLIQUE: 0.5, FaultStyle.STRIKESLIP: 0}[
-            faultprop.faultstyle
-        ]
+        CR = {
+            FaultStyle.NORMAL: 0,
+            FaultStyle.REVERSE: 1,
+            FaultStyle.OBLIQUE: 0.5,
+            FaultStyle.STRIKESLIP: 0,
+        }[faultprop.faultstyle]
 
         def cpe(p):
             """
