@@ -3,8 +3,10 @@ import math
 
 import numpy as np
 
+from empirical.util.classdef import TectType
 
-def bc_hydro_2016_subduction(T, M, R, F_faba, Vs30, F_event, Zh):
+
+def bc_hydro_2016_subduction(siteprop, faultprop, period):
     """
     % Created by Reagan Chandramohan, circa 2017
     % modified by Jack Baker, 2/27/2019, to limit hypocentral depths to 120 km
@@ -19,17 +21,16 @@ def bc_hydro_2016_subduction(T, M, R, F_faba, Vs30, F_event, Zh):
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % INPUT
     %
-    % T       = vector of periods (s)
-    % M       = Moment magnitude
-    % R       = Interface: Closest distance to rupture (km)
-    %         = Intraslab: Distance to hypocenter (km)
-    % F_faba  = 0 for forearc or unknown sites
-    %         = 1 for backarc sites
-    % Vs30    = Average shear wave velocity over the top 30 m of the soil
-    %           profile
-    % F_event = 0 for interface events
-    %         = 1 for intraslab events
-    % Zh      = Hypocentral depth (km) (required only for intraslab events)
+    % siteprop.Rrup = Interface: Closest distance to rupture (km)
+    %                 Intraslab: Distance to hypocenter (km)
+    % siteprop.backarc = False for forearc or unknown sites
+    %                    True for backarc sites
+    % siteprop.vs30 = Average shear wave velocity over the top 30 m of the soil
+    %                 profile
+    % faultprop.Mw  = Moment magnitude
+    % faultprop.tect_type = SUBDUCTION_INTERFACE or SUBDUCTION_SLAB only
+    % faultprop.hdepth = Hypocentral depth (km) (only for intraslab events)
+    % period  = period
     %
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % OUTPUT
@@ -39,7 +40,7 @@ def bc_hydro_2016_subduction(T, M, R, F_faba, Vs30, F_event, Zh):
     """
 
     # fmt: off
-    period = np.array([0.000, 0.020, 0.050, 0.075, 0.100, 0.150, 0.200, 0.250, 0.300, 0.400, 0.500, 0.600, 0.750, 1.000, 1.500, 2.000, 2.500, 3.000, 4.000, 5.000, 6.000, 7.500, 10.000])
+    periods = np.array([0.000, 0.020, 0.050, 0.075, 0.100, 0.150, 0.200, 0.250, 0.300, 0.400, 0.500, 0.600, 0.750, 1.000, 1.500, 2.000, 2.500, 3.000, 4.000, 5.000, 6.000, 7.500, 10.000])
     Vlin = [865.1, 865.1, 1053.5, 1085.7, 1032.5, 877.6, 748.2, 654.3, 587.1, 503.0, 456.6, 430.3, 410.5, 400.0, 400.0, 400.0, 400.0, 400.0, 400.0, 400.0, 400.0, 400.0, 400.0]
     b = [-1.186, -1.186, -1.346, -1.471, -1.624, -1.931, -2.188, -2.381, -2.518, -2.657, -2.669, -2.599, -2.401, -1.955, -1.025, -0.299, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000]
     n = 1.18
@@ -67,34 +68,37 @@ def bc_hydro_2016_subduction(T, M, R, F_faba, Vs30, F_event, Zh):
     sigma_ss = 0.6
     # fmt: on
 
-    base = np.zeros(len(period))
-    f_mag = np.zeros(len(period))
-    f_dep = np.zeros(len(period))
-    f_faba = np.zeros(len(period))
-    f_site = np.zeros(len(period))
+    M = faultprop.Mw
+    R = siteprop.Rrup
+    f_slab = faultprop.tect_type == TectType.SUBDUCTION_SLAB
+    base = np.zeros(len(periods))
+    f_mag = np.zeros(len(periods))
+    f_dep = np.zeros(len(periods))
+    f_faba = np.zeros(len(periods))
+    f_site = np.zeros(len(periods))
 
-    if F_event:
-        deltaC1 = -0.3 * np.ones(len(period))
+    if f_slab:
+        deltaC1 = -0.3 * np.ones(len(periods))
     else:
         deltaC1 = np.interp(
-            np.log(period),
+            np.log(periods),
             np.log([1e-10, 0.3, 0.5, 1.0, 2.0, 3.0, 1e10]),
             [0.2, 0.2, 0.1, 0.0, -0.1, -0.2, -0.2],
         )
         deltaC1[0] = 0.2
 
-    Vs_star = min(Vs30, 1000)
+    Vs_star = min(siteprop.vs30, 1000)
 
     # seems silly to loop over all periods
     # TODO: remove periods unused for interpolation keeping 0
-    for i in range(len(period)):
+    for i in range(len(periods)):
         base[i] = (
             theta1[i]
             + theta4 * deltaC1[i]
-            + (theta2[i] + theta14[i] * F_event + theta3 * (M - C1))
+            + (theta2[i] + theta14[i] * f_slab + theta3 * (M - C1))
             * math.log(R + C4 * math.exp((M - 6) * theta9))
             + theta6[i] * R
-            + theta10[i] * F_event
+            + theta10[i] * f_slab
         )
 
         if M <= C1 + deltaC1[i]:
@@ -103,16 +107,16 @@ def bc_hydro_2016_subduction(T, M, R, F_faba, Vs30, F_event, Zh):
             # f_mag[i] = theta5 * (M - (C1 + deltaC1[i])) + ... (removed 0 + )
             f_mag[i] = theta13[i] * (10 - M) ** 2
 
-        if F_event:
+        if f_slab:
             # modified by JWB, 2/27/2019, to include the "min" term, per equation 3 of the paper
-            f_dep[i] = theta11[i] * (min(120, Zh) - 60) * F_event
+            f_dep[i] = theta11[i] * (min(120, faultprop.hdepth) - 60) * f_slab
         else:
             f_dep[i] = 0
 
-        if F_event:
-            f_faba[i] = (theta7[i] + theta8[i] * math.log(max(R, 85) / 40)) * F_faba
+        if f_slab:
+            f_faba[i] = (theta7[i] + theta8[i] * math.log(max(R, 85) / 40)) * siteprop.backarc
         else:
-            f_faba[i] = (theta15[i] + theta16[i] * math.log(max(R, 100) / 40)) * F_faba
+            f_faba[i] = (theta15[i] + theta16[i] * math.log(max(R, 100) / 40)) * siteprop.backarc
 
         if i == 0:
             PGA1000 = math.exp(
@@ -123,7 +127,7 @@ def bc_hydro_2016_subduction(T, M, R, F_faba, Vs30, F_event, Zh):
                 + theta12[0] * math.log(1000 / Vlin[0])
                 + b[0] * n * math.log(1000 / Vlin[0])
             )
-        if Vs30 < Vlin[i]:
+        if siteprop.vs30 < Vlin[i]:
             f_site[i] = (
                 theta12[i] * math.log(Vs_star / Vlin[i])
                 - b[i] * math.log(PGA1000 + c)
@@ -135,8 +139,8 @@ def bc_hydro_2016_subduction(T, M, R, F_faba, Vs30, F_event, Zh):
             )
 
     sa = np.exp(base + f_mag + f_dep + f_faba + f_site)
-    period[0] = 1e-10
-    sa_int = np.interp(np.log(T), np.log(period), sa)
+    periods[0] = 1e-10
+    sa_int = np.interp(np.log(period), np.log(periods), sa)
     # Python version will not repeat sigma
     sigma = math.sqrt(phi ** 2 + tau ** 2)
 

@@ -1,6 +1,7 @@
 from empirical.util import classdef
 from empirical.util.classdef import TectType, GMM, SiteClass, FaultStyle
 from empirical.GMM_models.AfshariStewart_2016_Ds import Afshari_Stewart_2016_Ds
+from empirical.GMM_models.bc_hydro_2016_subduction import bc_hydro_2016_subduction
 from empirical.GMM_models.Bradley_2013_Sa import Bradley_2013_Sa
 from empirical.GMM_models.BSSA_2014_nga import BSSA_2014_nga
 from empirical.GMM_models.CampbellBozorgina_2012_AI import CampbellBozorgina_2012
@@ -91,7 +92,10 @@ def compute_gmm(fault, site, gmm, im, period=None):
             fault.rupture_type = FaultStyle.UNKNOWN
 
     if fault.tect_type is None:
-        fault.tect_type = TectType.ACTIVE_SHALLOW
+        if gmm is GMM.BC_16:
+            fault.tect_type = TectType.SUBDUCTION_INTERFACE
+        else:
+            fault.tect_type = TectType.ACTIVE_SHALLOW
 
     if fault.hdepth is None and gmm in [GMM.ZA_06, GMM.MV_06]:
         print("hypocentre depth is a required parameter for", gmm.name)
@@ -99,6 +103,8 @@ def compute_gmm(fault, site, gmm, im, period=None):
 
     if gmm is GMM.AS_16:
         return Afshari_Stewart_2016_Ds(site, fault, im)
+    elif gmm is GMM.BC_16:
+        return bc_hydro_2016_subduction(site, fault, period=period)
     elif gmm is GMM.Br_13:
         return Bradley_2013_Sa(site, fault, im, period)
     elif gmm is GMM.BSSA_14:
@@ -106,7 +112,7 @@ def compute_gmm(fault, site, gmm, im, period=None):
     elif gmm is GMM.CB_12:
         return CampbellBozorgina_2012(site, fault, im)
     elif gmm is GMM.MV_06:
-        return McVerry_2006_Sa(site, fault, im, period)
+        return McVerry_2006_Sa(site, fault, im=im, period=period)
     elif gmm is GMM.ZA_06:
         return Zhaoetal_2006_Sa(site, fault, im, period)
     else:

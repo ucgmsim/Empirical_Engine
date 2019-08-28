@@ -2,9 +2,8 @@
 
 import numpy as np
 
-import sys
-sys.path.append('..')
-from bc_hydro_2016_subduction import bc_hydro_2016_subduction
+from empirical.GMM_models.bc_hydro_2016_subduction import bc_hydro_2016_subduction
+from empirical.util.classdef import Fault, Site, TectType
 
 # compare with Matlab version
 
@@ -14,18 +13,27 @@ mags = [7.5, 7.8, 8.0, 8.2]
 rrups = [0, 12.6, 90, 1052.22]
 vs30s = [67, 485, 2504]
 hyps = [131, 0, np.nan]
+tect_types = [TectType.SUBDUCTION_INTERFACE, TectType.SUBDUCTION_SLAB]
 
 answers = np.fromfile('bchydro.f32', dtype=np.float32)
 a = 0
 
+site = Site()
+fault = Fault()
 
 for p in periods:
     for m in mags:
+        fault.Mw = m
         for h in hyps:
+            fault.hdepth = h
+            fault.tect_type = tect_types[np.isnan(h)]
             for r in rrups:
+                site.Rrup = r
                 for f in range(2):
+                    site.backarc = f
                     for v in vs30s:
-                        sa, sigma = bc_hydro_2016_subduction(p, m, r, f, v, np.isnan(h), h)
+                        site.vs30 = v
+                        sa, sigma = bc_hydro_2016_subduction(site, fault, p)
                         assert np.isclose(sa, answers[a])
                         assert np.isclose(sigma, answers[a + 1])
                         a += 2

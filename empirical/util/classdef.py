@@ -21,6 +21,7 @@ class Site:  # Class of site properties. initialize all attributes to None
         self.siteclass = None
         self.orientation = 'average'
         self.rvol = 0 # length in km of the part of the source to site distance in volcanic zone
+        self.backarc = False # forearc/unknown = False, backarc = True
 
 
 
