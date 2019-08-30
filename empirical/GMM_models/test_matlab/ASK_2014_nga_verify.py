@@ -2,9 +2,8 @@
 
 import numpy as np
 
-import sys
-sys.path.append('..')
-from ASK_2014_nga import ASK_2014_nga
+from empirical.GMM_models.ASK_2014_nga import ASK_2014_nga
+from empirical.util.classdef import Fault, Site
 
 # compare with Matlab version
 
@@ -19,16 +18,31 @@ z10 = [None, 3, 243]
 answers = np.fromfile('ask2014.f32', dtype=np.float32)
 a = 0
 
+site = Site()
+fault = Fault()
+
 for p in periods:
     for m in mags:
+        fault.Mw = m
         for g in ld:
+            fault.rake = g[0]
+            fault.dip = g[1]
             for r in rrups:
+                site.Rrup = r[0]
+                site.Rjb = r[1]
+                site.Rx = r[2]
+                site.Ry0 = r[3]
+                fault.ztor = r[4]
+                fault.width = r[5]
                 for f in range(2):
                     for h in range(2):
                         for v in vs30s:
+                            site.vs30 = v[0]
+                            site.vs30measured = v[1]
                             for z in z10:
+                                site.z1p0 = z
                                 for l in regions:
-                                    sa, sigma = ASK_2014_nga(m, p, r[0], r[1], r[2], r[3], g[1], g[0], ztor=r[4], f_as=f, f_hw=h, w=r[5], z10=z, vs30=v[0], f_vs30=v[1], region=l)
+                                    sa, sigma = ASK_2014_nga(site, fault, period=p, region=l, f_hw=h, f_as=f)
                                     assert np.isclose(sa, answers[a])
                                     assert np.isclose(sigma, answers[a + 1])
                                     a += 2

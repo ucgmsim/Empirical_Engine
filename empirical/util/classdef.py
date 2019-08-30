@@ -14,6 +14,9 @@ class Site:  # Class of site properties. initialize all attributes to None
             None
         )  # distance measured perpendicular to fault strike from surface projection of
         #                       # updip edge of the fault rupture (+ve in downdip dir) (km)
+        self.Ry0 = (
+            None
+        )  # horizontal distance off the end of the rupture measured parallel
         self.Rtvz = (
             None
         )  # source-to-site distance in the Taupo volcanic zone (TVZ) (km)

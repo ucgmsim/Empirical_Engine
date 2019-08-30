@@ -8,24 +8,7 @@ periods = np.array([0.01, 0.02, 0.03, 0.05, 0.075, 0.1, 0.15, 0.2, 0.25, 0.3, 0.
 # fmt: on
 
 
-def ASK_2014_nga(
-    mag,
-    T,
-    rrup,
-    rjb,
-    rx,
-    ry0,
-    delta,
-    lamda,
-    ztor=None,
-    f_as=0,
-    f_hw=0,
-    w=None,
-    z10=None,
-    vs30: float = 500.0,
-    f_vs30: bool = True,
-    region: int = 0,
-):
+def ASK_2014_nga(siteprop, faultprop, im=None, period=None, region=0, f_hw=0, f_as=0):
     """
     Matlab coded by Yue Hua, 5/19/10
                   Stanford University
@@ -39,24 +22,29 @@ def ASK_2014_nga(
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     Input Variables
-    mag     = Moment Magnitude
-    T     = Period (sec); Use Period = -1 for PGV computation
-                    Use None for output the array of Sa with original period
-                    (no interpolation)
-    crjb  = Centroid crjb, hardcoded to assume no aftershock
-    rrup   = Closest distance (km) to the ruptured plane
-    rjb   = Joyner-Boore distance (km); closest distance (km) to surface
-          projection of rupture plane
-    rx    =  Site coordinate (km) measured perpendicular to the fault strike
-          from the fault line with down-dip direction to be positive
-    ry0   = Horizontal distance off the end of the rupture measured oarallel
-          to strike
-    ztor  = Depth(km) to the top of ruptured plane
-    delta = Fault dip angle (in degree)
-    lamda = Rake angle      (in degree)
-    f_as   = Flag for aftershocks
-    f_hw   = Flag for hanging wall sites
-    w      = Down-dip rupture width (km) 
+    siteprop.Rrup         = closest distance (km) to the ruptured plane
+    siteprop.Rjb          = Joyner-Boore distance (km); closest distance (km) to surface
+                            projection of rupture plane
+    siteprop.Rx           = site coordinate (km) measured perpendicular to the fault strike
+                            from the fault line with down-dip direction to be positive
+    siteprop.Ry0          = horizontal distance off the end of the rupture measured parallel
+                            to strike
+    siteprop.vs30         = shear wave velocity averaged over top 30 m in m/s
+                            ref: 1130
+    siteprop.vs30measured = True for measured vs30
+                            False for vs30 inferred from geology or Japan
+    siteprop.z1p0         = Basin depth (km); depth from the groundsurface to the
+                            1km/s shear-wave horizon.
+
+    faultprop.dip   = fault dip angle (in degrees)
+    faultprop.Mw    = moment magnitude
+    faultprop.rake  = Rake angle (in degrees)
+    faultprop.width = down-dip rupture width (km)
+    faultprop.ztor  = depth (km) to the top of ruptured plane
+
+    period = period (sec); period = -1 for PGV computation
+                    None for output the array of Sa with original period (no interpolation)
+
     region        = 0 for global
                   = 1 for California
                   = 2 for Japan
@@ -64,21 +52,28 @@ def ASK_2014_nga(
                   = 4 for Italy 
                   = 5 for Turkey
                   = 6 for Taiwan
-    z10            = Basin depth (km); depth from the groundsurface to the
-                      1km/s shear-wave horizon.
-    vs30          = shear wave velocity averaged over top 30 m in m/s
-                  = ref: 1130
-    f_vs30         = True for measured vs30 
-                  = False for vs30 inferred from geology or Japan
+
+    f_hw   = flag for hanging wall sites
+
+    f_as   = flag for aftershocks
+
+    crjb = centroid crjb, hardcoded to assume no aftershock
 
     Output Variables
     Sa: Median spectral acceleration prediction
     sigma: logarithmic standard deviation of spectral acceleration
              prediction
     """
+    mag = faultprop.Mw
+    if im == "PGV":
+        period = -1
+    T = period
+    w = faultprop.width
+    z10 = siteprop.z1p0
+    ztor = faultprop.ztor
 
-    f_rv = int(30 <= lamda <= 150)
-    f_nm = int(-150 <= lamda <= -30)
+    f_rv = int(30 <= faultprop.rake <= 150)
+    f_nm = int(-150 <= faultprop.rake <= -30)
 
     if ztor is None:
         if f_rv == 1:
@@ -87,7 +82,7 @@ def ASK_2014_nga(
             ztor = max(2.673 - 1.136 * max(mag - 4.970, 0), 0) ** 2
 
     if w is None:
-        w = min(18 / math.sin(math.radians(delta)), 10 ** (-1.75 + 0.45 * mag))
+        w = min(18 / math.sin(math.radians(faultprop.dip)), 10 ** (-1.75 + 0.45 * mag))
 
     if z10 is None:
         if region == 2:
@@ -96,7 +91,7 @@ def ASK_2014_nga(
                 math.exp(
                     -5.23
                     / 2
-                    * math.log((vs30 ** 2 + 412 ** 2) / (1360 ** 2 + 412 ** 2))
+                    * math.log((siteprop.vs30 ** 2 + 412 ** 2) / (1360 ** 2 + 412 ** 2))
                 )
                 / 1000
             )
@@ -104,7 +99,7 @@ def ASK_2014_nga(
             z10 = (
                 math.exp(
                     (-7.67 / 4)
-                    * math.log((vs30 ** 4 + 610 ** 4) / (1360 ** 4 + 610 ** 4))
+                    * math.log((siteprop.vs30 ** 4 + 610 ** 4) / (1360 ** 4 + 610 ** 4))
                 )
                 / 1000
             )
@@ -116,20 +111,20 @@ def ASK_2014_nga(
         return ASK_2014_sub_1(
             mag,
             period_i,
-            rrup,
-            rjb,
-            rx,
-            ry0,
+            siteprop.Rrup,
+            siteprop.Rjb,
+            siteprop.Rx,
+            siteprop.Ry0,
             ztor,
-            delta,
+            faultprop.dip,
             f_rv,
             f_nm,
             f_as,
             f_hw,
             w,
             z10,
-            vs30,
-            f_vs30,
+            siteprop.vs30,
+            siteprop.vs30measured,
             region,
         )
 

@@ -1,6 +1,7 @@
 from empirical.util import classdef
 from empirical.util.classdef import TectType, GMM, SiteClass, FaultStyle
 from empirical.GMM_models.AfshariStewart_2016_Ds import Afshari_Stewart_2016_Ds
+from empirical.GMM_models.ASK_2014_nga import ASK_2014_nga
 from empirical.GMM_models.bc_hydro_2016_subduction import bc_hydro_2016_subduction
 from empirical.GMM_models.Bradley_2013_Sa import Bradley_2013_Sa
 from empirical.GMM_models.BSSA_2014_nga import BSSA_2014_nga
@@ -107,7 +108,7 @@ def compute_gmm(fault, site, gmm, im, period=None):
     if gmm is GMM.AS_16:
         return Afshari_Stewart_2016_Ds(site, fault, im)
     elif gmm is ASK_14:
-        return
+        return ASK_2014_nga(site, fault, im=im, period=period)
     elif gmm is GMM.BC_16:
         return bc_hydro_2016_subduction(site, fault, period=period)
     elif gmm is GMM.Br_13:
@@ -119,7 +120,7 @@ def compute_gmm(fault, site, gmm, im, period=None):
     elif gmm is CB_14:
         return CB_2014_nga(site, fault, im=im, period=period)
     elif gmm is GMM.CY_14:
-        return CY_2014_nga(siteprop, faultprop, im=im, period=period)
+        return CY_2014_nga(site, fault, im=im, period=period)
     elif gmm is GMM.MV_06:
         return McVerry_2006_Sa(site, fault, im=im, period=period)
     elif gmm is GMM.ZA_06:
