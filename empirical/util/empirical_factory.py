@@ -5,6 +5,8 @@ from empirical.GMM_models.bc_hydro_2016_subduction import bc_hydro_2016_subducti
 from empirical.GMM_models.Bradley_2013_Sa import Bradley_2013_Sa
 from empirical.GMM_models.BSSA_2014_nga import BSSA_2014_nga
 from empirical.GMM_models.CampbellBozorgina_2012_AI import CampbellBozorgina_2012
+from empirical.GMM_models.CB_2014_nga import CB_2014_nga
+from empirical.GMM_models.McVerry_2006_Sa import McVerry_2006_Sa
 from empirical.GMM_models.zhou_2006 import Zhaoetal_2006_Sa
 import numpy as np
 import yaml
@@ -14,7 +16,7 @@ import os
 def read_model_dict(config=None):
     if config is None:
         dir = os.path.dirname(__file__)
-        config_file = os.path.join(dir, 'model_config.yaml')
+        config_file = os.path.join(dir, "model_config.yaml")
     else:
         config_file = config
     model_dict = yaml.load(open(config_file))
@@ -107,6 +109,8 @@ def compute_gmm(fault, site, gmm, im, period=None):
         return bc_hydro_2016_subduction(site, fault, period=period)
     elif gmm is GMM.Br_13:
         return Bradley_2013_Sa(site, fault, im, period)
+    elif gmm is CB_14:
+        return CB_2014_nga(site, fault, im=im, period=period)
     elif gmm is GMM.BSSA_14:
         return BSSA_2014_nga(site, fault, im=im, period=period)
     elif gmm is GMM.CB_12:

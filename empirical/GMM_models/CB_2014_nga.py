@@ -9,23 +9,7 @@ PGAi = 21
 # fmt: on
 
 
-def CB_2014_nga(
-    M,
-    T,
-    Rrup,
-    Rjb,
-    Rx,
-    W=None,
-    Ztor=None,
-    Zbot=None,
-    delta=None,
-    lamda=90,
-    f_hw=0,
-    vs30=500,
-    Z25=None,
-    Zhyp=None,
-    region=0,
-):
+def CB_2014_nga(siteprop, faultprop, im=None, period=None, region=0, f_hw=0):
 
     """
     Campbell and Bozorgnia 2014 ground motion prediciton model. Citation for
@@ -44,44 +28,54 @@ def CB_2014_nga(
     damped linear pseudo-absolute aceeleration response spectra
 
     Input Variables
-    M             = Magnitude
-    T             = Period (sec)
-                    Use 1000 for output the array of Sa with period
-    Rrup          = Closest distance coseismic rupture (km)
-    Rjb           = Joyner-Boore distance (km)
-    Rx            = Closest distance to the surface projection of the
-                    coseismic fault rupture plane
-    W             = down-dip width of the fault rupture plane
-                    if unknown, input: 999
-    Ztor          = Depth to the top of coseismic rupture (km)
-                    if unknown, input: 999
-    Zbot          = Depth to the bottom of the seismogenic crust
-                needed only when W is unknown
-    delta         = average dip of the rupture place (degree)
-    lamda        = rake angle (degree) - average angle of slip measured in
-                    the plance of rupture
-    f_hw           = hanging wall effect
-                = 1 for including
-                = 0 for excluding
-    vs30          = shear wave velocity averaged over top 30 m (m/s)
-    Z25           = Depth to the 2.5 km/s shear-wave velocity horizon (km)
-                    None if in California or Japan and Z2.5 is unknow
-    Zhyp          = Hypocentral depth of the earthquake measured from sea level
-                    if unknown, input: 999
-    region        = 0 for global (incl. Taiwan)
-                = 1 for California
-                = 2 for Japan
-                = 3 for China or Turkey
-                = 4 for Italy
+    siteprop.Rrup = Closest distance coseismic rupture (km)
+    siteprop.Rjb  = Joyner-Boore distance (km)
+    siteprop.Rx   = Closest distance to the surface projection of the
+                       coseismic fault rupture plane
+    siteprop.vs30 = shear wave velocity averaged over top 30 m (m/s)
+    siteprop.z2p5 = Depth to the 2.5 km/s shear-wave velocity horizon (km)
+                    None if in California or Japan and Z2.5 is unknown
+
+    faultprop.dip    = average dip of the rupture place (degree)
+    faultprop.hdepth = Hypocentral depth of the earthquake measured from sea level
+                       None if unknown
+    faultprop.Mw     = Magnitude
+    faultprop.rake   = rake angle (degree) - average angle of slip measured in
+                       the plance of rupture
+    faultprop.width  = down-dip width of the fault rupture plane
+                       None if unknown
+    faultprop.zbot   = Depth to the bottom of the seismogenic crust
+                       needed only when W is unknown
+    faultprop.ztor   = Depth to the top of coseismic rupture (km)
+                       None if unknown
+
+    period = Period (sec)
+             None to output the array of Sa with period
+
+    region = 0 for global (incl. Taiwan)
+           = 1 for California
+           = 2 for Japan
+           = 3 for China or Turkey
+           = 4 for Italy
+
+    f_hw = hanging wall effect
+           True for including
+           False for excluding
+
     Output Variables
     Sa            = Median spectral acceleration prediction
     sigma         = logarithmic standard deviation of spectral acceleration
                     prediction
     """
+    M = faultprop.Mw
+    T = period
+    W = faultprop.width
+    Zhyp = faultprop.hdepth
+    Ztor = faultprop.ztor
 
     # style of faulting
-    f_rv = int(30 < lamda < 150)
-    f_nm = int(-150 < lamda < -30)
+    f_rv = int(30 < faultprop.rake < 150)
+    f_nm = int(-150 < faultprop.rake < -30)
 
     # Ztor is unknown
     if Ztor is None:
@@ -98,7 +92,7 @@ def CB_2014_nga(
         try:
             W = min(
                 math.sqrt(10 ** ((M - 4.07) / 0.98)),
-                (Zbot - Ztori) / math.sin(math.pi / 180 * delta),
+                (faultprop.zbot - Ztori) / math.sin(math.pi / 180 * faultprop.dip),
             )
         except ZeroDivisionError:
             W = math.sqrt(10 ** ((M - 4.07) / 0.98))
@@ -106,7 +100,7 @@ def CB_2014_nga(
 
     elif Zhyp is None:
         fdZM = min(-4.317 + 0.984 * M, 2.325)
-        fdZD = 0.0445 * (min(delta, 40) - 40)
+        fdZD = 0.0445 * (min(faultprop.dip, 40) - 40)
 
         if f_rv:
             Ztori = max(2.704 - 1.226 * max(M - 5.849, 0), 0) ** 2
@@ -114,7 +108,7 @@ def CB_2014_nga(
             Ztori = max(2.673 - 1.136 * max(M - 4.970, 0), 0) ** 2
 
         # depth to bottom of rupture plane
-        Zbor = Ztori + W * math.sin(math.pi / 180 * delta)
+        Zbor = Ztori + W * math.sin(math.pi / 180 * faultprop.dip)
         try:
             d_Z = math.exp(min(fdZM + fdZD, math.log(0.9 * (Zbor - Ztori))))
         except ValueError:
@@ -129,18 +123,18 @@ def CB_2014_nga(
         return CB_2014_nga_sub(
             M,
             period_i,
-            Rrup,
-            Rjb,
-            Rx,
+            siteprop.Rrup,
+            siteprop.Rjb,
+            siteprop.Rx,
             W,
             Ztor,
-            Zbot,
-            delta,
+            faultprop.zbot,
+            faultprop.dip,
             f_hw,
-            vs30,
-            Z25,
+            siteprop.vs30,
+            siteprop.z2p5,
             Zhyp,
-            lamda,
+            faultprop.rake,
             f_rv,
             f_nm,
             region,
@@ -342,21 +336,23 @@ def CB_2014_nga_sub(
 
     if vs30 <= k1[ip]:
         if A1100 is None:
-            A1100 = CB_2014_nga(
+            A1100 = CB_2014_nga_sub(
                 M,
-                0,
+                PGAi,
                 Rrup,
                 Rjb,
                 Rx,
-                W=W,
-                Ztor=Ztor,
-                Zbot=Zbot,
-                delta=delta,
-                lamda=lamda,
-                f_hw=f_hw,
-                vs30=1100,
-                Z25=Z25A,
-                Zhyp=Zhyp,
+                W,
+                Ztor,
+                Zbot,
+                delta,
+                f_hw,
+                1100,
+                Z25A,
+                Zhyp,
+                lamda,
+                f_rv,
+                f_nm,
                 region=region,
             )[0]
         f_siteG = c11[ip] * math.log(vs30 / k1[ip]) + k2[ip] * (

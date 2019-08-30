@@ -2,9 +2,8 @@
 
 import numpy as np
 
-import sys
-sys.path.append('..')
-from CB_2014_nga import CB_2014_nga
+from empirical.GMM_models.CB_2014_nga import CB_2014_nga
+from empirical.util.classdef import Fault, Site
 
 # compare with Matlab version
 
@@ -20,16 +19,31 @@ zs = np.array([[None, 17, 17, 18], [18, 20, 21, 22], [None, 5, 25, 35]]).T
 answers = np.fromfile('cb2014.f32', dtype=np.float32)
 a = 0
 
+site = Site()
+fault = Fault()
+
 for p in periods:
     for m in mags:
+        fault.Mw = m
         for g in ld:
+            fault.rake = g[0]
+            fault.dip = g[1]
             for r in rrups:
+                site.Rrup = r[0]
+                site.Rjb = r[1]
+                site.Rx = r[2]
+                fault.width = r[3]
                 for f in range(2):
                     for h in zs:
+                        fault.ztor = h[0]
+                        fault.zbot = h[1]
+                        fault.hdepth = h[2]
                         for v in vs30s:
+                            site.vs30 = v
                             for z in z25:
+                                site.z2p5 = z
                                 for l in regions:
-                                    [sa, sigma] = CB_2014_nga(m, p, r[0], r[1], r[2], W=r[3], Ztor=h[0], Zbot=h[1], delta=g[1], lamda=g[0], f_hw=f, vs30=v, Z25=z, Zhyp=h[2], region=l)
+                                    sa, sigma = CB_2014_nga(site, fault, period=p, region=l, f_hw=f)
                                     assert np.isclose(sa, answers[a])
                                     assert np.isclose(sigma, answers[a + 1])
                                     a += 2
