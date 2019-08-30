@@ -8,59 +8,63 @@ periods = np.array([-1, 0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.075, 0.1, 0.12, 0.15,
 # fmt: on
 
 
-def CY_2014_nga(
-    M, T, Rup, Rjb, Rx, Ztor, delta, lamda, Z10, Vs30, Fhw, FVS30, region=0
-):
+def CY_2014_nga(siteprop, faultprop, im=None, period=None, region=0, f_hw=None):
     """
     coded by Yue Hua
                 Stanford University
                 yuehua@stanford.edu
-    Updated 6/16/2017 by Gemma Cremen to fix a bug with the FVS30 flag
+    Updated 6/16/2017 by Gemma Cremen to fix a bug with the vs30measured flag
     Chiou, B. S.-J., and Youngs, R. R. (2014). ?Update of the Chiou and 
     Youngs NGA Model for the Average Horizontal Component of Peak Ground 
     Motion and Response Spectra.? Earthquake Spectra, 30(3), 1117?1153.
 
     Input Variables
-    M     = Moment Magnitude
-    T     = Period (sec); Use Period = -1 for PGV computation
-                    Use None for output the array of Sa with original period
-                    (no interpolation)
-    Rup   = Closest distance (km) to the ruptured plane
-    Rjb   = Joyner-Boore distance (km); closest distance (km) to surface
-        projection of rupture plane
-    Rx    =    Horizontal distance from top of rupture measured perpendicular 
-        to fault strike (km). See Figures a, b and c for illustationZtor  = Depth(km) to the top of ruptured plane
-    delta = Fault dip angle (in degree) VS30
-    lamda = Rake angle      (in degree)
-    region      = 0 for global (incl. Taiwan)
-                = 1 for California
-                = 2 for Japan
-                = 3 for China
-                = 4 for Italy
-                = 5 for Turkey
-    Z10            = Basin depth (km); depth from the groundsurface to the
-                    1km/s shear-wave horizon.
-                = 999 if unknown
-                = 'na' if unknow
-    Vs30          = shear wave velocity averaged over top 30 m in m/s
-                = ref: 1130
-    FVS30         = 0 for Vs30 is inferred from geology
-                = 1 for measured  Vs30
-    d_DPP         = DPP centered on the site and earthquake specific average
-                DPP, = 0 for median calc (not included as a variable here)
+    siteprop.Rrup     = closest distance (km) to the ruptured plane
+    siteprop.Rjb      = Joyner-Boore distance (km); closest distance (km) to surface
+                        projection of rupture plane
+    siteprop.Rx       = Horizontal distance from top of rupture measured perpendicular 
+                        to fault strike (km). See Figures a, b and c for illustation
+                        Ztor = Depth(km) to the top of ruptured plane
+    siteprop.vs30     = shear wave velocity averaged over top 30 m in m/s
+                        ref: 1130
+    site.vs30measured = 0 for s30 is inferred from geology
+                        1 for measured vs30
+    siteprop.z1p0     = basin depth (km); depth from the groundsurface to the
+                        1km/s shear-wave horizon.
+                        None if unknown
+
+    faultprop.dip  = fault dip angle (in degrees)
+    faultprop.Mw   = moment magnitude
+    faultprop.rake = rake angle (in degrees)
+
+    period     = Period (sec); period = -1 for PGV computation
+                 None for output the array of Sa with original period (no interpolation)
+
+    region = 0 for global (incl. Taiwan)
+           = 1 for California
+           = 2 for Japan
+           = 3 for China
+           = 4 for Italy
+           = 5 for Turkey
+
+    d_DPP = DPP centered on the site and earthquake specific average
+            DPP = 0 for median calc (not included as a variable here)
 
     Output Variables
     Sa: Median spectral acceleration prediction
     sigma: logarithmic standard deviation of spectral acceleration
             prediction
     """
+    if im == "PGV":
+        period = -1
+    T = period
 
-    delta = delta * math.pi / 180.0
-    frv = 30 <= lamda <= 150
-    fnm = -120 <= lamda <= -60
+    dip = faultprop.dip * math.pi / 180.0
+    f_rv = 30 <= faultprop.rake <= 150
+    f_nm = -120 <= faultprop.rake <= -60
 
-    if Fhw is None:
-        Fhw = Rx >= 0
+    if f_hw is None:
+        f_hw = siteprop.Rx >= 0
 
     # d_DPP=0 for median
     d_DPP = 0
@@ -70,19 +74,19 @@ def CY_2014_nga(
         Return Sa and sigma for given period index.
         """
         return CY_2014_sub(
-            M,
+            faultprop.Mw,
             period_i,
-            Rup,
-            Rjb,
-            Rx,
-            Ztor,
-            delta,
-            frv,
-            fnm,
-            Fhw,
-            Z10,
-            Vs30,
-            FVS30,
+            siteprop.Rrup,
+            siteprop.Rjb,
+            siteprop.Rx,
+            faultprop.ztor,
+            dip,
+            f_rv,
+            f_nm,
+            f_hw,
+            siteprop.z1p0,
+            siteprop.vs30,
+            siteprop.vs30measured,
             region,
             d_DPP,
         )

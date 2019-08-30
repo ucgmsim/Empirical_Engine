@@ -2,9 +2,8 @@
 
 import numpy as np
 
-import sys
-sys.path.append('..')
-from CY_2014_nga import CY_2014_nga
+from empirical.GMM_models.CY_2014_nga import CY_2014_nga
+from empirical.util.classdef import Fault, Site
 
 # compare with Matlab version
 
@@ -18,17 +17,28 @@ z10 = [None, 3, 243]
 answers = np.fromfile('cy2014.f32', dtype=np.float32)
 a = 0
 
+site = Site()
+fault = Fault()
+
 for p in periods:
     for m in mags:
+        fault.Mw = m
         for g in ld:
+            fault.rake = g[0]
+            fault.dip = g[1]
             for r in rrups:
+                site.Rrup = r[0]
+                site.Rjb = r[1]
+                site.Rx = r[2]
+                fault.ztor = r[3]
                 for f in range(2):
                     for v in vs30s:
+                        site.vs30 = v[0]
+                        site.vs30measured = v[1]
                         for z in z10:
+                            site.z1p0 = z
                             for l in range(6):
-                                sa, sigma = CY_2014_nga(
-                                    m, p, r[0], r[1], r[2], r[3], g[1], g[0], z, v[0], f, v[1], region=l
-                                )
+                                sa, sigma = CY_2014_nga(site, fault, period=p, region=l, f_hw=f)
                                 assert np.isclose(sa, answers[a])
                                 assert np.isclose(sigma, answers[a + 1])
                                 a += 2
