@@ -107,7 +107,7 @@ def compute_gmm(fault, site, gmm, im, period=None):
 
     if gmm is GMM.AS_16:
         return Afshari_Stewart_2016_Ds(site, fault, im)
-    elif gmm is ASK_14:
+    elif gmm is GMM.ASK_14:
         return ASK_2014_nga(site, fault, im=im, period=period)
     elif gmm is GMM.BC_16:
         return bc_hydro_2016_subduction(site, fault, period=period)
