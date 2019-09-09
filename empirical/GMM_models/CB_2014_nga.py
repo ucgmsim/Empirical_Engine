@@ -52,7 +52,7 @@ rlnPGA_lnY = [1.000, 0.998, 0.986, 0.938, 0.887, 0.870, 0.876, 0.870, 0.850, 0.8
 # fmt: on
 
 
-def CB_2014_nga(siteprop, faultprop, im=None, period=None, region=0, f_hw=0):
+def CB_2014_nga(siteprop, faultprop, im=None, period=None, region=0, f_hw=None):
 
     """
     Campbell and Bozorgnia 2014 ground motion prediciton model. Citation for
@@ -115,6 +115,8 @@ def CB_2014_nga(siteprop, faultprop, im=None, period=None, region=0, f_hw=0):
     W = faultprop.width
     Zhyp = faultprop.hdepth
     Ztor = faultprop.ztor
+    if f_hw is None:
+        f_hw = int(siteprop.Rx >= 0)
 
     # style of faulting
     f_rv = int(30 < faultprop.rake < 150)

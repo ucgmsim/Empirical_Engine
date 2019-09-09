@@ -54,7 +54,7 @@ s6_JP = [0.6300, 0.6300, 0.6300, 0.6500, 0.6900, 0.7000, 0.7000, 0.7000, 0.7000,
 # fmt: on
 
 
-def ASK_2014_nga(siteprop, faultprop, im=None, period=None, region=0, f_hw=0, f_as=0):
+def ASK_2014_nga(siteprop, faultprop, im=None, period=None, region=0, f_hw=None, f_as=0):
     """
     Matlab coded by Yue Hua, 5/19/10
                   Stanford University
@@ -113,6 +113,8 @@ def ASK_2014_nga(siteprop, faultprop, im=None, period=None, region=0, f_hw=0, f_
     mag = faultprop.Mw
     if im == "PGV":
         period = -1
+    if f_hw is None:
+        f_hw = int(siteprop.Rx >= 0)
     T = period
     w = faultprop.width
     z10 = siteprop.z1p0

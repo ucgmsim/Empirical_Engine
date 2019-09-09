@@ -110,7 +110,7 @@ def CY_2014_nga(siteprop, faultprop, im=None, period=None, region=0, f_hw=None):
     f_nm = -120 <= faultprop.rake <= -60
 
     if f_hw is None:
-        f_hw = siteprop.Rx >= 0
+        f_hw = int(siteprop.Rx >= 0)
 
     # d_DPP=0 for median
     d_DPP = 0
