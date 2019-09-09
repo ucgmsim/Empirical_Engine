@@ -117,7 +117,7 @@ def compute_gmm(fault, site, gmm, im, period=None):
         return BSSA_2014_nga(site, fault, im=im, period=period)
     elif gmm is GMM.CB_12:
         return CampbellBozorgina_2012(site, fault, im)
-    elif gmm is CB_14:
+    elif gmm is GMM.CB_14:
         return CB_2014_nga(site, fault, im=im, period=period)
     elif gmm is GMM.CY_14:
         return CY_2014_nga(site, fault, im=im, period=period)
