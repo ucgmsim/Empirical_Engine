@@ -18,7 +18,7 @@ def McVerry_2006_Sa(siteprop, faultprop, im=None, period=None):
     siteprop
        Rrup  -- Shortest distance from source to site (km) (i.e. Rrup)
        siteclass - 'A','B','C','D','E'; as per NZS1170.5
-       rvol-- length in km of the part of the source to site distance in volcanic
+       Rtvz-- length in km of the part of the source to site distance in volcanic
               zone (not needed for slab event)
 
     faultprop
@@ -111,8 +111,8 @@ def McVerry_2006_Sa(siteprop, faultprop, im=None, period=None):
     delC = int(siteprop.siteclass.value == "C")
     delD = int(siteprop.siteclass.value == "D")
 
-    # rvol, volcanic path term doesn't matter with subduction slab
-    rvol = siteprop.rvol if faultprop.faultstyle != FaultStyle.SLAB else 0
+    # Rtvz, volcanic path term doesn't matter with subduction slab
+    Rtvz = siteprop.Rtvz if faultprop.faultstyle != FaultStyle.SLAB else 0
     # CS, crustal event
     CS = faultprop.faultstyle in [FaultStyle.SLAB, FaultStyle.INTERFACE]
 
@@ -135,7 +135,7 @@ def McVerry_2006_Sa(siteprop, faultprop, im=None, period=None):
                 + C3AS[p] * (8.5 - M) ** 2
                 + C5[p] * R
                 + (C8[p] + C6AS * (M - 6)) * np.log(np.sqrt(R ** 2 + C10AS[p] ** 2))
-                + C46[p] * rvol
+                + C46[p] * Rtvz
                 + C32 * CN
                 + C33AS[p] * CR
             )

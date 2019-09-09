@@ -11,7 +11,7 @@ periods = [-1.0, 0.078, 0.14, 0.18, 0.3, 0.4, 0.5, 0.75, 1, 1.5, 2, 3]
 mags = [4.8, 6, 10]
 rrups = [0, 30, 800]
 faultstyles = [FaultStyle.NORMAL, FaultStyle.REVERSE, FaultStyle.OBLIQUE, FaultStyle.STRIKESLIP, FaultStyle.INTERFACE, FaultStyle.SLAB]
-rvols = [82.24, 2.244]
+rtvzs = [82.24, 2.244]
 hcs = [4.422, 39.24]
 
 answers = np.fromfile('mv2006.f32', dtype=np.float32)
@@ -29,8 +29,8 @@ for p in periods:
                 site.Rrup = r
                 for f in faultstyles:
                     fault.faultstyle = f
-                    for v in rvols:
-                        site.rvol = v
+                    for v in rtvzs:
+                        site.Rtvz = v
                         for h in hcs:
                             fault.hdepth = h
 
