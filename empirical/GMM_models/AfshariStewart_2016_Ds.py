@@ -74,40 +74,37 @@ tau2 = [0.25, 0.19, 0.19]
 phi1 = [0.54, 0.43, 0.56]
 phi2 = [0.41, 0.35, 0.45]
 
+
 def Afshari_Stewart_2016_Ds(siteprop, faultprop, im):
     M = faultprop.Mw
     R = siteprop.Rrup
     v30 = siteprop.vs30
     Z1p0 = siteprop.z1p0
 
-    if im == 'Ds575':
+    if im == "Ds575":
         i = 0
-    elif im == 'Ds595':
+    elif im == "Ds595":
         i = 1
-    elif im == 'Ds2080':
+    elif im == "Ds2080":
         i = 2
     else:
         print("Invalid IM specified")
         exit()
 
-
-
     M0 = 10 ** (1.5 * M + 16.05)
 
-    if faultprop.rupture_type == 'n':
+    if faultprop.rupture_type == "n":
         b0 = [1.555, 2.541, 1.409]
         b1 = [4.992, 3.170, 4.778]
-    elif faultprop.rupture_type == 'r':
+    elif faultprop.rupture_type == "r":
         b0 = [0.7806, 1.612, 0.7729]
         b1 = [7.061, 4.536, 6.579]
-    elif faultprop.rupture_type == 'ss':
+    elif faultprop.rupture_type == "ss":
         b0 = [1.279, 2.302, 0.8804]
         b1 = [5.578, 3.467, 6.188]
     else:
         b0 = [1.28, 2.182, 0.8822]
         b1 = [5.576, 3.628, 6.182]
-
-
 
     # stress_drop = math.exp(b1[i] + b2[i] * M-Mstar)
     if M <= M2[i]:
@@ -130,13 +127,19 @@ def Afshari_Stewart_2016_Ds(siteprop, faultprop, im):
         Fp = c1[i] * R1 + c2[i] * (R2 - R1) + c3[i] * (R - R2)
 
     # Japan
-    MuZ1 = np.exp(-5.23 / 2 * np.log((v30 ** 2 + 412.39 ** 2) / (1360 ** 2 + 412.39 ** 2)) - np.log(1000))
+    MuZ1 = np.exp(
+        -5.23 / 2 * np.log((v30 ** 2 + 412.39 ** 2) / (1360 ** 2 + 412.39 ** 2))
+        - np.log(1000)
+    )
     # California
-    MuZ1 = np.exp(-7.15 / 4 * np.log((v30 ** 4 + 570.94 ** 4) / (1360 ** 4 + 570.94 ** 4)) - np.log(1000))
+    MuZ1 = np.exp(
+        -7.15 / 4 * np.log((v30 ** 4 + 570.94 ** 4) / (1360 ** 4 + 570.94 ** 4))
+        - np.log(1000)
+    )
 
     delta_z1 = Z1p0 - MuZ1
 
-    #default value
+    # default value
     # delta_z1 = 0
 
     if delta_z1 <= sigma_z1ref:
