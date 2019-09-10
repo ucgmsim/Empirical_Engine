@@ -237,6 +237,12 @@ def BSSA_2014_sub(M, ip, Rjb, ftype, region, z1, vs30):
         ln_y = F_E + F_P
         median = math.exp(ln_y)
 
+    sigma = compute_stdev(M, Rjb, vs30, ip)
+
+    return median, sigma
+
+
+def compute_stdev(M, Rjb, vs30, ip):
     # aleatory - uncertainty function
 
     if M <= 4.5:
@@ -265,6 +271,4 @@ def BSSA_2014_sub(M, ip, Rjb, ftype, region, z1, vs30):
     else:
         phi_MRV = phi_MR - dphiV[ip]
 
-    sigma = math.sqrt(phi_MRV ** 2 + tau ** 2)
-
-    return median, sigma
+    return math.sqrt(phi_MRV ** 2 + tau ** 2)

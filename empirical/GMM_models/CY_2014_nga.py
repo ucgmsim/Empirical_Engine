@@ -189,10 +189,13 @@ def CY_2014_sub(
 ):
     if region == 2:
         # konichiwa
-        sigma2 = sigma2_JP
-        phi1 = phi1_JP
-        phi5 = phi5_JP
-        phi6 = phi6_JP
+        phi1l = phi1_JP
+        phi5l = phi5_JP
+        phi6l = phi6_JP
+    else:
+        phi1l = phi1
+        phi5l = phi5
+        phi6l = phi6
 
     # fmag
     term6 = c2[ip] * (M - 6)
@@ -284,7 +287,7 @@ def CY_2014_sub(
     )
 
     ## Site response
-    term14 = phi1[ip] * min(math.log(Vs30 / 1130), 0)
+    term14 = phi1l[ip] * min(math.log(Vs30 / 1130), 0)
     term15 = (
         phi2[ip]
         * (
@@ -293,9 +296,22 @@ def CY_2014_sub(
         )
         * math.log((yrefij + phi4[ip]) / phi4[ip])
     )
-    term16 = phi5[ip] * (1 - math.exp(-d_Z1 / phi6[ip]))
+    term16 = phi5l[ip] * (1 - math.exp(-d_Z1 / phi6l[ip]))
 
     Sa = yrefij * math.exp(term14 + term15 + term16)
+
+    sigma = compute_stdev(M, Vs30, FVS30, yrefij, ip, region=region)
+
+    return Sa, sigma
+
+
+def compute_stdev(M, Vs30, FVS30, yrefij, ip, region=0):
+    if region == 2:
+        # konichiwa
+        sigma2l = sigma2_JP
+    else:
+        sigma2l = sigma2
+
     # standard deviation
     inferred = FVS30 == 0
     measured = FVS30 == 1
@@ -309,10 +325,8 @@ def CY_2014_sub(
         * (yrefij / (yrefij + phi4[ip]))
     )
     sigmaNL0 = (
-        sigma1[ip] + (sigma2[ip] - sigma1[ip]) / 1.5 * (min(max(M, 5), 6.5) - 5)
+        sigma1[ip] + (sigma2l[ip] - sigma1[ip]) / 1.5 * (min(max(M, 5), 6.5) - 5)
     ) * math.sqrt((sigma3[ip] * inferred + 0.7 * measured) + (1 + NL0) ** 2)
 
     tau = tau1[ip] + (tau2[ip] - tau1[ip]) / 1.5 * (min(max(M, 5), 6.5) - 5)
-    sigma = math.sqrt((1 + NL0) ** 2 * tau ** 2 + sigmaNL0 ** 2)
-
-    return Sa, sigma
+    return math.sqrt((1 + NL0) ** 2 * tau ** 2 + sigmaNL0 ** 2)

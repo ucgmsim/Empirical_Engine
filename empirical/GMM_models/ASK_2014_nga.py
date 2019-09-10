@@ -54,7 +54,9 @@ s6_JP = [0.6300, 0.6300, 0.6300, 0.6500, 0.6900, 0.7000, 0.7000, 0.7000, 0.7000,
 # fmt: on
 
 
-def ASK_2014_nga(siteprop, faultprop, im=None, period=None, region=0, f_hw=None, f_as=0):
+def ASK_2014_nga(
+    siteprop, faultprop, im=None, period=None, region=0, f_hw=None, f_as=0
+):
     """
     Matlab coded by Yue Hua, 5/19/10
                   Stanford University
@@ -490,7 +492,12 @@ def ASK_2014_sub_1(
         f1 + f6 + f_rv * f7 + f_nm * f8 + f_hw * f4 + f_as * f11 + f5 + f10 + regional
     )
     Sa = np.exp(lnSa)
+    sigma_SA = compute_stdev(ip, mag, rrup, Sa1180, vs30, f_vs30, region=region)
 
+    return Sa, sigma_SA
+
+
+def compute_stdev(ip, mag, rrup, Sa1180, vs30, f_vs30, region=0):
     # Standard deviation
 
     if region == 2:
@@ -504,14 +511,17 @@ def ASK_2014_sub_1(
     else:
         if f_vs30:
             # measured
-            s1 = s1_m
-            s2 = s2_m
-        if mag < 4:
-            phi_AL = s1[ip]
-        elif mag <= 6:
-            phi_AL = s1[ip] + (s2[ip] - s1[ip]) / 2 * (mag - 4)
+            s1l = s1_m
+            s2l = s2_m
         else:
-            phi_AL = s2[ip]
+            s1l = s1
+            s2l = s2
+        if mag < 4:
+            phi_AL = s1l[ip]
+        elif mag <= 6:
+            phi_AL = s1l[ip] + (s2l[ip] - s1l[ip]) / 2 * (mag - 4)
+        else:
+            phi_AL = s2l[ip]
     phi_amp = 0.4
     phi_B = math.sqrt(phi_AL ** 2 - phi_amp ** 2)
 
@@ -532,6 +542,4 @@ def ASK_2014_sub_1(
     phi = math.sqrt(phi_B ** 2 * (1 + dln) ** 2 + phi_amp ** 2)
     tau = tau_B * (1 + dln)
 
-    sigma = math.sqrt(phi ** 2 + tau ** 2)
-
-    return Sa, sigma
+    return math.sqrt(phi ** 2 + tau ** 2)

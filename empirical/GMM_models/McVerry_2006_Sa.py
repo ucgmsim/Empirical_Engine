@@ -157,7 +157,7 @@ def McVerry_2006_Sa(siteprop, faultprop, im=None, period=None):
                 + C17[p] * np.log(R + C18y * np.exp(C19y * M))
                 + C20[p] * faultprop.hdepth
                 + C24[p] * SI
-                + C46[p] * rvol * (1 - DS)
+                + C46[p] * Rtvz * (1 - DS)
             )
 
         funca = suba
@@ -172,6 +172,12 @@ def McVerry_2006_Sa(siteprop, faultprop, im=None, period=None):
 
     Sa = cd(i) * cd(0) / cd(1)
 
+    sigma_SA = compute_stdev(M, i)
+
+    return Sa, sigma_SA
+
+
+def compute_stdev(M, i):
     # standard deviation
     if M < 5:
         sig_intra = Sigma6[i] - Sigslope[i]
@@ -181,5 +187,4 @@ def McVerry_2006_Sa(siteprop, faultprop, im=None, period=None):
         sig_intra = Sigma6[i] + Sigslope[i] * (M - 6)
 
     # output
-    sigma_SA = np.sqrt(sig_intra ** 2 + Tau[i] ** 2), sig_intra, Tau[i]
-    return Sa, sigma_SA
+    return np.sqrt(sig_intra ** 2 + Tau[i] ** 2), sig_intra, Tau[i]

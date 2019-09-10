@@ -405,6 +405,12 @@ def CB_2014_nga_sub(
     # median value
     Sa = math.exp(fmag + fdis + fflt + fhng + fsite + fsed + fhyp + f_dip + f_atn)
 
+    sigma = compute_stdev(M, vs30, A1100, ip)
+
+    return Sa, sigma
+
+
+def compute_stdev(M, vs30, A1100, ip):
     # standard deviation computations
     if M <= 4.5:
         tau_lny = t1[ip]
@@ -448,6 +454,4 @@ def CB_2014_nga_sub(
         + 2 * alpha * rlnPGA_lnY[ip] * phi_lnyB * phi_lnPGAB
     )
 
-    sigma = math.sqrt(tau ** 2 + phi ** 2)
-
-    return Sa, sigma
+    return math.sqrt(tau ** 2 + phi ** 2)

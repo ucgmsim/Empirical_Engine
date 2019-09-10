@@ -143,9 +143,14 @@ def bc_hydro_2016_subduction(siteprop, faultprop, period):
             )
 
     sa = np.exp(base + f_mag + f_dep + f_faba + f_site)
-    periods[0] = 1e-10
-    sa_int = np.interp(np.log(period), np.log(periods), sa)
-    # Python version will not repeat sigma
-    sigma = math.sqrt(phi ** 2 + tau ** 2)
+    periods_int = np.copy(periods)
+    periods_int[0] = 1e-10
+    sa_int = np.interp(np.log(period), np.log(periods_int), sa)
+    sigma = compute_stdev()
 
     return sa_int, sigma
+
+
+def compute_stdev():
+    # Python version will not repeat sigma
+    return math.sqrt(phi ** 2 + tau ** 2)
