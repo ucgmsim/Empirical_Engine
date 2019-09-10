@@ -66,7 +66,7 @@ def CB_2014_nga(siteprop, faultprop, im=None, period=None, region=0, f_hw=None):
         Stanford University, yuehua@stanford.edu
     Modified 4/5/2015 by Jack Baker to fix a few small bugs
 
-    Provides ground-mtion prediction equations for computing medians and
+    Provides ground-motion prediction equations for computing medians and
     standard deviations of average horizontal components of PGA, PGV and 5%
     damped linear pseudo-absolute aceeleration response spectra
 
