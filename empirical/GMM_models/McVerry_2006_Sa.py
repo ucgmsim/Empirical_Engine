@@ -72,9 +72,9 @@ def McVerry_2006_Sa(siteprop, faultprop, im=None, period=None):
     M = faultprop.Mw
     R = siteprop.Rrup
     # not sure about this because it is not documented
-    if im == "PGA":
+    if im == "PGV":
         period = -1
-    elif im == "PGV":
+    elif im == "PGA":
         period = 0
     assert period <= (periods[-1] + 0.0001)
 
