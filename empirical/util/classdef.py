@@ -14,6 +14,9 @@ class Site:  # Class of site properties. initialize all attributes to None
             None
         )  # distance measured perpendicular to fault strike from surface projection of
         #                       # updip edge of the fault rupture (+ve in downdip dir) (km)
+        self.Ry0 = (
+            None
+        )  # horizontal distance off the end of the rupture measured parallel
         self.Rtvz = (
             None
         )  # source-to-site distance in the Taupo volcanic zone (TVZ) (km)
@@ -28,20 +31,21 @@ class Site:  # Class of site properties. initialize all attributes to None
         self.z2p5 = None  # (km)
         self.siteclass = None
         self.orientation = "average"
+        self.backarc = False  # forearc/unknown = False, backarc = True
 
 
 class Fault:  # Class of fault properties. initialize all attributes to None
     def __init__(self):
-        self.Mw = None  # moment tensor magnitude
-        self.rake = None  # rake angle (degrees)
         self.dip = None  # dip angle (degrees)
-        self.ztor = None  # depth to top of coseismic rupture (km)
-        self.rupture_type = (
-            None
-        )  # Valid values are: N, R, SS and None which correlate to Normal, Reverse, Strike-Slip and Unknown
-        self.tect_type = None
         self.faultstyle = None
         self.hdepth = None
+        self.Mw = None  # moment tensor magnitude
+        self.rake = None  # rake angle (degrees)
+        self.rupture_type = None  # FaultStyle
+        self.tect_type = None
+        self.width = None  # down-dip width of the fault rupture plane
+        self.zbot = None  # depth to the bottom of the seismogenic crust
+        self.ztor = None  # depth to top of coseismic rupture (km)
 
 
 class TectType(Enum):
@@ -56,14 +60,21 @@ class GMM(Enum):
     Br_13 = 2
     AS_16 = 3
     CB_12 = 4
+    BSSA_14 = 5
+    MV_06 = 6
+    ASK_14 = 7
+    BC_16 = 8
+    CB_14 = 9
+    CY_14 = 10
 
 
 class SiteClass(Enum):
-    HARDROCK = 1
-    ROCK = 2
-    HARDSOIL = 3
-    MEDIUMSOIL = 4
-    SOFTSOIL = 5
+    # as per NZS1170.5
+    HARDROCK = "A"
+    ROCK = "B"
+    HARDSOIL = "C"
+    MEDIUMSOIL = "D"
+    SOFTSOIL = "E"
 
 
 class FaultStyle(Enum):
@@ -72,6 +83,8 @@ class FaultStyle(Enum):
     STRIKESLIP = 3
     OBLIQUE = 4
     UNKNOWN = 5
+    SLAB = 6
+    INTERFACE = 7
 
 
 def interpolate_to_closest(T, T_hi, T_low, y_high, y_low):
