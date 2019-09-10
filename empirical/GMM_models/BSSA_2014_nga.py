@@ -231,11 +231,10 @@ def BSSA_2014_sub(M, ip, Rjb, ftype, region, z1, vs30):
         F_S = ln_Flin + ln_Fnlin + F_dz1
 
         ln_Y = F_E + F_P + F_S
-        median = math.exp(ln_Y)
-
     else:
-        ln_y = F_E + F_P
-        median = math.exp(ln_y)
+        ln_Y = F_E + F_P
+
+    median = math.exp(ln_Y)
 
     sigma = compute_stdev(M, Rjb, vs30, ip)
 
