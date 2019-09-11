@@ -32,7 +32,7 @@ def read_background_txt(background_file):
 
 def calculate_ds(background_file, ll_file, vs30_file, ims, psa_periods, output_dir):
     background_data = read_background_txt(background_file)
-    rupture_list = [create_rupture_name(row.source_lat, row.source_lon, mag, row.source_depth, row.tect_type)
+    rupture_list = [create_rupture_name(row.source_lat, row.source_lon, row.source_depth, mag, row.tect_type)
                     for __, row in background_data.iterrows()
                     for mag in get_mw_range(row.M_min, row.M_cutoff, row.n_mags)]
     fault_list = [create_fault_name(row.source_lat, row.source_lon, row.source_depth)
@@ -86,7 +86,7 @@ def calculate_ds_site(ims, psa_periods, rupture_df, fault_df, background_data, l
             site.Rrup = np.sqrt(row.source_depth ** 2 + rjb ** 2)
             for mag in get_mw_range(row.M_min, row.M_cutoff, row.n_mags):
                 fault.Mw = mag
-                rupture_name = create_rupture_name(row.source_lat, row.source_lon, mag, row.source_depth, row.tect_type)
+                rupture_name = create_rupture_name(row.source_lat, row.source_lon, row.source_depth, mag, row.tect_type)
                 rupture_id = rupture_df[rupture_df["rupture_name"] == rupture_name].index.item()
 
                 im_result_dict = {'rupture_id': rupture_id}
@@ -115,8 +115,8 @@ def calculate_ds_site(ims, psa_periods, rupture_df, fault_df, background_data, l
     return im_df, distance_df
 
 
-def create_rupture_name(lat, lon, mag, depth, tect_type):
-    return "{}_{}_{}--{}_{}".format(lat, lon, depth, mag, tect_type)
+def create_rupture_name(lat, lon, depth, mag, tect_type):
+    return "{}--{}_{}".format(create_fault_name(lat, lon, depth), mag, tect_type)
 
 
 def create_fault_name(lat, lon, depth):
@@ -132,7 +132,7 @@ def calculate_erf(background_file):
     background_data = read_background_txt(background_file)
     for index, row in background_data.iterrows():
         for mag in get_mw_range(row.M_min, row.M_cutoff, row.n_mags):
-            print(create_rupture_name(row.source_lat, row.source_lon, mag, row.source_depth, row.tect_type))
+            print(create_rupture_name(row.source_lat, row.source_lon, row.source_depth, mag, row.tect_type))
         exit()
 
 
@@ -150,7 +150,7 @@ def parse_args():
     parser.add_argument("--periods", default=PERIOD, nargs='+', help="Which pSA periods to calculate for")
     parser.add_argument("--im", default=IM, nargs='+', help="Which IMs to calculate")
     parser.add_argument("--store_erf", action="store_true", help="writes the erf to a file")
-    parser.add_argument("--skip_calculation", action="store_true", help="skip calculations")
+    parser.add_argument("--skip_calculation", dest="run_calculation", action="store_false", help="skip calculations")
 
     return parser.parse_args()
 
@@ -160,7 +160,7 @@ def calculate_emp_ds():
     if args.store_erf:
         #calculate_erf(args.background_txt)
         pass
-    if not args.skip_calculation:
+    if args.run_calculation:
         calculate_ds(args.background_txt, args.ll_file, args.vs30_file, args.im, args.periods, args.output_dir)
 
 
