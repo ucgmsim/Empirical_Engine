@@ -21,7 +21,7 @@ def read_model_dict(config=None):
         config_file = os.path.join(dir, "model_config.yaml")
     else:
         config_file = config
-    model_dict = yaml.load(open(config_file))
+    model_dict = yaml.safe_load(open(config_file))
     return model_dict
 
 
