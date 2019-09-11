@@ -30,7 +30,7 @@ def read_background_txt(background_file):
                        "source_depth", "rake", "dip", "tect_type"])
 
 
-def calculate_ds(background_file, ll_file, vs30_file, ims, psa_periods):
+def calculate_ds(background_file, ll_file, vs30_file, ims, psa_periods, output_dir):
     background_data = read_background_txt(background_file)
     rupture_list = [create_rupture_name(row.source_lat, row.source_lon, mag, row.source_depth, row.tect_type)
                     for __, row in background_data.iterrows()
@@ -43,8 +43,10 @@ def calculate_ds(background_file, ll_file, vs30_file, ims, psa_periods):
     site_df = formats.load_station_ll_vs30(ll_file, vs30_file)
     n_stations = len(site_df)
 
-    with pd.HDFStore('/home/jam335/scratch/seistech/emp_ds.imdb') as im_store,\
-            pd.HDFStore('/home/jam335/scratch/seistech/emp_ds_ss.db') as distance_store:
+    imdb_path = os.path.join(output_dir, 'emp_ds.imdb')
+    emp_ds_path = os.path.join(output_dir, 'emp_ds_ss.db')
+    with pd.HDFStore(imdb_path) as im_store,\
+            pd.HDFStore(emp_ds_path) as distance_store:
         im_store['sites'] = site_df[["lat", "lon"]]
         distance_store['sites'] = pd.DataFrame(site_df.index)
 
@@ -144,6 +146,7 @@ def parse_args():
     parser.add_argument("background_txt", help="background txt file")
     parser.add_argument("ll_file")
     parser.add_argument("vs30_file")
+    parser.add_argument("output_dir")
     parser.add_argument("--periods", default=PERIOD, nargs='+', help="Which pSA periods to calculate for")
     parser.add_argument("--im", default=IM, nargs='+', help="Which IMs to calculate")
     parser.add_argument("--store_erf", action="store_true", help="writes the erf to a file")
@@ -158,7 +161,7 @@ def calculate_emp_ds():
         #calculate_erf(args.background_txt)
         pass
     if not args.skip_calculation:
-        calculate_ds(args.background_txt, args.ll_file, args.vs30_file, args.im, args.periods)
+        calculate_ds(args.background_txt, args.ll_file, args.vs30_file, args.im, args.periods, args.output_dir)
 
 
 if __name__ == '__main__':
