@@ -19,6 +19,8 @@ from qcore.utils import setup_dir
 
 PRINT_FREQUENCY = 100
 MAX_RJB = 200
+IM = ['PGA', 'pSA']
+PERIOD = [0.1, 0.2, 0.5, 1.0, 2.0, 3.0, 5.0]
 
 
 def read_background_txt(background_file):
@@ -28,33 +30,39 @@ def read_background_txt(background_file):
                        "source_depth", "rake", "dip", "tect_type"])
 
 
-def calculate_ds(background_file, ll_file, vs30_file):
+def calculate_ds(background_file, ll_file, vs30_file, ims, psa_periods):
     background_data = read_background_txt(background_file)
-    n_faults = np.sum(background_data.n_mags)
-    fault_list = [create_rupture_name(row.source_lon, row.source_lat, mag, row.source_depth, row.tect_type) for __, row in background_data.iterrows() for mag in get_mw_range(row.M_min, row.M_cutoff, row.n_mags) ]
+    rupture_list = [create_rupture_name(row.source_lat, row.source_lon, mag, row.source_depth, row.tect_type)
+                    for __, row in background_data.iterrows()
+                    for mag in get_mw_range(row.M_min, row.M_cutoff, row.n_mags)]
+    fault_list = [create_fault_name(row.source_lat, row.source_lon, row.source_depth)
+                    for __, row in background_data.iterrows()]
+    rupture_df = pd.DataFrame(rupture_list, columns=["rupture_name"])
+    fault_df = pd.DataFrame(fault_list, columns=["fault_name"])
 
-    station_df = formats.load_station_ll_vs30(ll_file, vs30_file)
-    print(len(station_df), n_faults, len(station_df) * n_faults)
-    init_data = np.full((len(station_df), n_faults), np.nan, dtype=np.float32)
-    init_data2 = np.full((len(station_df), n_faults), np.nan, dtype=np.float32)
-    rrup_df = pd.DataFrame(init_data, index=station_df.index.values, columns=fault_list)
-    rjb_df = pd.DataFrame(init_data2, index=station_df.index.values, columns=fault_list)
+    site_df = formats.load_station_ll_vs30(ll_file, vs30_file)
+    n_stations = len(site_df)
+
+    with pd.HDFStore('/home/jam335/scratch/seistech/emp_ds.imdb') as im_store,\
+            pd.HDFStore('/home/jam335/scratch/seistech/emp_ds_ss.db') as distance_store:
+        im_store['sites'] = site_df[["lat", "lon"]]
+        distance_store['sites'] = pd.DataFrame(site_df.index)
+
+        for index, station in site_df.iterrows():
+            print("Processing site {} / {}".format(site_df.index.get_loc(index), n_stations))
+            site_im_df, distance_df = calculate_ds_site(ims, psa_periods, rupture_df, fault_df, background_data, station.lat, station.lon, station.vs30)
+            if not site_im_df.empty:
+                im_store['IM_data/site_{}'.format(station.name)] = site_im_df
+                distance_store['distances/site_{}'.format(station.name)] = distance_df
+
+        im_store['ruptures'] = rupture_df
+        distance_store['faults'] = fault_df
 
 
-    with pd.HDFStore('/home/jam335/scratch/seistech/emp_ds.imdb') as im_store:
-        for index, station in station_df.iterrows():
-            site_im_df = calculate_ds_site(rrup_df, rjb_df, background_data, station.lat, station.lon, station.vs30, station.name)
-            im_store['IM_params/site_{}'.format(station.name)] = site_im_df
 
-    rrup_df.to_sparse()
-    with pd.HDFStore('/home/jam335/scratch/seistech/emp_ds_ss.db') as rrup_store:
-        rrup_store['rrup'] = rrup_df
-        rrup_store['rjb'] = rjb_df
-    pass
-
-
-def calculate_ds_site(rrup_df, rjb_df, background_data, lat, lon, vs30, site_name):
+def calculate_ds_site(ims, psa_periods, rupture_df, fault_df, background_data, lat, lon, vs30):
     im_df = pd.DataFrame()
+    distance_df = pd.DataFrame()
 
 
     site = Site()
@@ -64,13 +72,7 @@ def calculate_ds_site(rrup_df, rjb_df, background_data, lat, lon, vs30, site_nam
 
     model_dict = empirical_factory.read_model_dict()
 
-    im = 'pSA'
-    period = [5.0]
-    full_im_name = "pSA_5.0"
-
     for index, row in background_data.iterrows():
-        if index % PRINT_FREQUENCY == 0:
-            print("completed {} / ~20000".format(index))
         fault = Fault()
         fault.hdepth = fault.ztor = row.source_depth
         fault.dip = row.dip
@@ -80,29 +82,55 @@ def calculate_ds_site(rrup_df, rjb_df, background_data, lat, lon, vs30, site_nam
         if rjb < MAX_RJB:
             site.Rjb = rjb
             site.Rrup = np.sqrt(row.source_depth ** 2 + rjb ** 2)
-            GMM = empirical_factory.determine_gmm(fault, im, model_dict)
             for mag in get_mw_range(row.M_min, row.M_cutoff, row.n_mags):
                 fault.Mw = mag
-                name = create_rupture_name(row.source_lon, row.source_lat, mag, row.source_depth, row.tect_type)
-                rrup_df[name][site_name] = site.Rrup
-                rjb_df[name][site_name] = site.Rjb
-                value = empirical_factory.compute_gmm(fault, site, GMM, im, period)
-                mean = np.log(value[0][0])
-                stdev = value[0][1][0]
-                im_df = im_df.append({'fault': name, im + '_mean': mean, im + '_sigma': stdev}, ignore_index=True)
+                rupture_name = create_rupture_name(row.source_lat, row.source_lon, mag, row.source_depth, row.tect_type)
+                rupture_id = rupture_df[rupture_df["rupture_name"] == rupture_name].index.item()
+
+                im_result_dict = {'rupture_id': rupture_id}
+
+
+                for im in ims:
+                    GMM = empirical_factory.determine_gmm(fault, im, model_dict)
+                    values = empirical_factory.compute_gmm(fault, site, GMM, im, psa_periods)
+                    if im is not 'pSA':
+                        values = [values]
+                    for i, value in enumerate(values):
+                        full_im_name = get_full_im_name(im, psa_periods[i])
+                        mean = np.log(value[0])
+                        stdev = value[1][0]
+
+                        im_result_dict[full_im_name] = mean
+                        im_result_dict["{}_sigma".format(full_im_name)] = stdev
+                im_df = im_df.append(im_result_dict, ignore_index=True)
                 # print(name, mean, stdev)
-    return im_df
+
+            fault_name = create_fault_name(row.source_lat, row.source_lon, row.source_depth)
+            fault_id = fault_df[fault_df["fault_name"] == fault_name].index.item()
+            distance_dict = {"fault_id": fault_id, 'rrup': site.Rrup, 'rjb': rjb, "rx": None, "rtvz": None,}
+            distance_df = distance_df.append(distance_dict, ignore_index=True)
+
+    return im_df, distance_df
 
 
-def create_rupture_name(lon, lat, mag, depth, tect_type):
-    return "{}_{}_{}_{}_{}".format(lon, lat, mag, depth, tect_type)
+def create_rupture_name(lat, lon, mag, depth, tect_type):
+    return "{}_{}_{}--{}_{}".format(lat, lon, depth, mag, tect_type)
 
+
+def create_fault_name(lat, lon, depth):
+    return "{}_{}_{}".format(lat, lon, depth)
+
+def get_full_im_name(im, psa_period):
+    if im == 'pSA':
+        return "{}_{}".format(im, psa_period)
+    else:
+        return im
 
 def calculate_erf(background_file):
     background_data = read_background_txt(background_file)
     for index, row in background_data.iterrows():
         for mag in get_mw_range(row.M_min, row.M_cutoff, row.n_mags):
-            print(create_rupture_name(row.source_lon, row.source_lat, mag, row.source_depth, row.tect_type))
+            print(create_rupture_name(row.source_lat, row.source_lon, mag, row.source_depth, row.tect_type))
         exit()
 
 
@@ -116,6 +144,8 @@ def parse_args():
     parser.add_argument("background_txt", help="background txt file")
     parser.add_argument("ll_file")
     parser.add_argument("vs30_file")
+    parser.add_argument("--periods", default=PERIOD, nargs='+', help="Which pSA periods to calculate for")
+    parser.add_argument("--im", default=IM, nargs='+', help="Which IMs to calculate")
     parser.add_argument("--store_erf", action="store_true", help="writes the erf to a file")
     parser.add_argument("--skip_calculation", action="store_true", help="skip calculations")
 
@@ -128,7 +158,7 @@ def calculate_emp_ds():
         #calculate_erf(args.background_txt)
         pass
     if not args.skip_calculation:
-        calculate_ds(args.background_txt, args.ll_file, args.vs30_file)
+        calculate_ds(args.background_txt, args.ll_file, args.vs30_file, args.im, args.periods)
 
 
 if __name__ == '__main__':
