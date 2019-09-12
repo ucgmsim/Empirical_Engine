@@ -6,46 +6,53 @@ VS30_DEFAULT = 250
 
 
 class Site:  # Class of site properties. initialize all attributes to None
-    def __init__(self):
-        self.name = None
-        self.Rrup = None  # closest distance coseismic rupture (km)
-        self.Rjb = None  # closest horizontal distance coseismic rupture (km)
-        self.Rx = (
-            None
+    def __init__(self, **kwargs):
+        self.name = kwargs.get("name")  # station name
+        self.Rrup = kwargs.get("rrup")  # closest distance coseismic rupture (km)
+        self.Rjb = kwargs.get(
+            "rjb"
+        )  # closest horizontal distance coseismic rupture (km)
+        self.Rx = kwargs.get(
+            "rx"
         )  # distance measured perpendicular to fault strike from surface projection of
         #                       # updip edge of the fault rupture (+ve in downdip dir) (km)
-        self.Ry0 = (
-            None
+        self.Ry0 = kwargs.get(
+            "ry"
         )  # horizontal distance off the end of the rupture measured parallel
-        self.Rtvz = (
-            None
+        self.Rtvz = kwargs.get(
+            "rtvz"
         )  # source-to-site distance in the Taupo volcanic zone (TVZ) (km)
-        self.vs30measured = (
-            None
+        self.vs30measured = kwargs.get(
+            "vs30measured", False
         )  # yes =True (i.e. from Vs tests); no=False (i.e. estimated from geology)
-        self.vs30 = None  # shear wave velocity at 30m depth (m/s)
-        self.z1p0 = (
-            None
+        self.vs30 = kwargs.get("vs30")  # shear wave velocity at 30m depth (m/s)
+        self.z1p0 = kwargs.get(
+            "z1p0"
         )  # depth (km) to the 1.0km/s shear wave velocity horizon (optional, uses default relationship otherwise)
-        self.z1p5 = None  # (km)
-        self.z2p5 = None  # (km)
-        self.siteclass = None
-        self.orientation = "average"
-        self.backarc = False  # forearc/unknown = False, backarc = True
+        self.z1p5 = kwargs.get("z1p5")  # (km)
+        self.z2p5 = kwargs.get("z2p5")  # (km)
+        self.siteclass = kwargs.get("siteclass")
+        self.orientation = kwargs.get("orientation", "average")
+        self.backarc = kwargs.get(
+            "backarc", False
+        )  # forearc/unknown = False, backarc = True
 
 
 class Fault:  # Class of fault properties. initialize all attributes to None
-    def __init__(self):
-        self.dip = None  # dip angle (degrees)
-        self.faultstyle = None
-        self.hdepth = None
-        self.Mw = None  # moment tensor magnitude
-        self.rake = None  # rake angle (degrees)
-        self.rupture_type = None  # FaultStyle
-        self.tect_type = None
-        self.width = None  # down-dip width of the fault rupture plane
-        self.zbot = None  # depth to the bottom of the seismogenic crust
-        self.ztor = None  # depth to top of coseismic rupture (km)
+    def __init__(self, **kwargs):
+        self.dip = kwargs.get("dip")  # dip angle (degrees)
+        self.faultstyle = kwargs.get(
+            "faultstyle"
+        )  # Faultstyle (options described in enum below)
+        self.hdepth = kwargs.get("hdepth")  # hypocentre depth
+        self.Mw = kwargs.get("mw")  # moment tensor magnitude
+        self.rake = kwargs.get("rake")  # rake angle (degrees)
+        self.tect_type = kwargs.get(
+            "tect_type"
+        )  # tectonic type of the rupture (options described in the enum below)
+        self.width = kwargs.get("width")  # down-dip width of the fault rupture plane
+        self.zbot = kwargs.get("zbot")  # depth to the bottom of the seismogenic crust
+        self.ztor = kwargs.get("ztor")  # depth to top of coseismic rupture (km)
 
 
 class TectType(Enum):

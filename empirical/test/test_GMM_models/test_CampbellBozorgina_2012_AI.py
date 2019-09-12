@@ -14,7 +14,6 @@ CB_IMS = ["CAV", "AI"]
 TEST_PARAMS = [(rrup, mag, im) for rrup in RRUPS for mag in CB_M for im in CB_IMS]
 
 FAULT = Fault()
-FAULT.faultstyle = "SHALLOWCRUSTAL"
 FAULT.ztor = 0
 FAULT.rake = 180
 FAULT.dip = 45
