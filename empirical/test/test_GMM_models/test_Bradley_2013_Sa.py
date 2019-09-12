@@ -12,7 +12,6 @@ PERIODS = [0, 0.01, 0.40370172586, 0.5, 3.0, 8.6974900]
 
 FAULT = Fault()
 FAULT.Mw = 10.5
-FAULT.faultstyle = "interface"
 FAULT.ztor = 0
 FAULT.rake = 180
 FAULT.dip = 45

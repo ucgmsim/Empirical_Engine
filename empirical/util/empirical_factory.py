@@ -85,15 +85,15 @@ def compute_gmm(fault, site, gmm, im, period=None):
         print("ztor is a required parameter for Br_13 and CB_12")
         exit()
 
-    if fault.rupture_type is None:
+    if fault.faultstyle is None:
         if 45 < fault.rake < 135:
-            fault.rupture_type = FaultStyle.REVERSE
+            fault.faultstyle = FaultStyle.REVERSE
         elif -135 < fault.rake < -45:
-            fault.rupture_type = FaultStyle.NORMAL
+            fault.faultstyle = FaultStyle.NORMAL
         elif 0 < abs(fault.rake) < 45 or 135 < abs(fault.rake) < 180:
-            fault.rupture_type = FaultStyle.STRIKESLIP
+            fault.faultstyle = FaultStyle.STRIKESLIP
         else:
-            fault.rupture_type = FaultStyle.UNKNOWN
+            fault.faultstyle = FaultStyle.UNKNOWN
 
     if fault.tect_type is None:
         if gmm is GMM.BC_16:
