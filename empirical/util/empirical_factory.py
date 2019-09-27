@@ -31,7 +31,14 @@ def get_models_from_dict(config):
     :return: a list of the unique models present in a configuration file
     """
     model_dict = yaml.safe_load(open(config))
-    return list(set([model for im_model_dict in model_dict.values() for models in im_model_dict.values() for model in models]))
+    return list(
+        {
+            model
+            for im_model_dict in model_dict.values()
+            for models in im_model_dict.values()
+            for model in models
+        }
+    )
 
 
 def determine_gmm(fault, im, model_dict):
