@@ -30,26 +30,26 @@ def get_models_from_dict(config):
     :param config: yaml
     :return: a list of the unique models present in a configuration file
     """
-    model_dict = yaml.safe_load(open(config))
+    tect_type_model_dict = yaml.safe_load(open(config))
     return list(
         {
             model
-            for im_model_dict in model_dict.values()
+            for im_model_dict in tect_type_model_dict.values()
             for models in im_model_dict.values()
             for model in models
         }
     )
 
 
-def determine_gmm(fault, im, model_dict):
+def determine_gmm(fault, im, tect_type_model_dict):
     if fault.tect_type is None:
         print("tect-type not found assuming 'ACTIVE_SHALLOW'")
         tect_type = TectType.ACTIVE_SHALLOW.name
     else:
         tect_type = fault.tect_type.name
 
-    if tect_type in model_dict and im in model_dict[tect_type]:
-        model = model_dict[tect_type][im]
+    if tect_type in tect_type_model_dict and im in tect_type_model_dict[tect_type]:
+        model = tect_type_model_dict[tect_type][im]
         return GMM[model[0]]
     else:
         print("No valid empirical model found")
