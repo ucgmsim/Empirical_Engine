@@ -21,20 +21,36 @@ def read_model_dict(config=None):
         config_file = os.path.join(dir, "model_config.yaml")
     else:
         config_file = config
-    model_dict = yaml.load(open(config_file))
+    model_dict = yaml.safe_load(open(config_file))
     return model_dict
 
 
-def determine_gmm(fault, im, model_dict):
+def get_models_from_dict(config):
+    """
+    :param config: yaml
+    :return: a list of the unique models present in a configuration file
+    """
+    tect_type_model_dict = yaml.safe_load(open(config))
+    return list(
+        {
+            model
+            for im_model_dict in tect_type_model_dict.values()
+            for models in im_model_dict.values()
+            for model in models
+        }
+    )
+
+
+def determine_gmm(fault, im, tect_type_model_dict):
     if fault.tect_type is None:
         print("tect-type not found assuming 'ACTIVE_SHALLOW'")
         tect_type = TectType.ACTIVE_SHALLOW.name
     else:
         tect_type = fault.tect_type.name
 
-    if tect_type in model_dict and im in model_dict[tect_type]:
-        model = model_dict[tect_type][im]
-        return GMM[model]
+    if tect_type in tect_type_model_dict and im in tect_type_model_dict[tect_type]:
+        model = tect_type_model_dict[tect_type][im]
+        return GMM[model[0]]
     else:
         print("No valid empirical model found")
         return None
@@ -85,15 +101,15 @@ def compute_gmm(fault, site, gmm, im, period=None):
         print("ztor is a required parameter for Br_13 and CB_12")
         exit()
 
-    if fault.rupture_type is None:
+    if fault.faultstyle is None:
         if 45 < fault.rake < 135:
-            fault.rupture_type = FaultStyle.REVERSE
+            fault.faultstyle = FaultStyle.REVERSE
         elif -135 < fault.rake < -45:
-            fault.rupture_type = FaultStyle.NORMAL
+            fault.faultstyle = FaultStyle.NORMAL
         elif 0 < abs(fault.rake) < 45 or 135 < abs(fault.rake) < 180:
-            fault.rupture_type = FaultStyle.STRIKESLIP
+            fault.faultstyle = FaultStyle.STRIKESLIP
         else:
-            fault.rupture_type = FaultStyle.UNKNOWN
+            fault.faultstyle = FaultStyle.UNKNOWN
 
     if fault.tect_type is None:
         if gmm is GMM.BC_16:

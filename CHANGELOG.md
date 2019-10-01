@@ -7,6 +7,9 @@ Empirical Engine - Empirical IM calculation
 ### Changed
 ### Added
 
+##[19.9.1] - 2019-09-11
+###Added
+Additional Empirical Models.
 
 ##[18.7.2] - 2018-08-16
 ###Added

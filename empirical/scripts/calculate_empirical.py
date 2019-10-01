@@ -202,12 +202,12 @@ def calculate_empirical():
     else:
         period = PERIOD
 
-    model_dict = empirical_factory.read_model_dict(args.config)
+    tect_type_model_dict = empirical_factory.read_model_dict(args.config)
     station_names = (
         [site.name for site in sites] if args.stations is None else args.stations
     )
     for im in args.im:
-        cur_gmm = empirical_factory.determine_gmm(fault, im, model_dict)
+        cur_gmm = empirical_factory.determine_gmm(fault, im, tect_type_model_dict)
 
         # File & column names
         cur_filename = "{}_{}_{}.csv".format(args.identifier, cur_gmm.name, im)
