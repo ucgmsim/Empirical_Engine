@@ -45,7 +45,7 @@ class Fault:  # Class of fault properties. initialize all attributes to None
             "faultstyle"
         )  # Faultstyle (options described in enum below)
         self.hdepth = kwargs.get("hdepth")  # hypocentre depth
-        self.Mw = kwargs.get("mw")  # moment tensor magnitude
+        self.Mw = kwargs.get("Mw")  # moment tensor magnitude
         self.rake = kwargs.get("rake")  # rake angle (degrees)
         self.tect_type = kwargs.get(
             "tect_type"
