@@ -76,8 +76,11 @@ def compute_gmm(fault, site, gmm, im, period=None):
     if site.siteclass is None:
         site.siteclass = determine_siteclass(site.vs30)
 
-    if site.Rtvz is None:
-        site.Rtvz = 0
+    if site.Rtvz is None or np.isnan(site.Rtvz):
+        if fault.tect_type == classdef.TectType.VOLCANIC:
+            site.Rtvz = site.Rrup
+        else:
+            site.Rtvz = 0
 
     if site.Rjb is None:
         site.Rjb = np.sqrt(site.Rrup ** 2 - fault.ztor ** 2)
