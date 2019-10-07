@@ -66,7 +66,7 @@ Wc = [0.0000, 0.0000, 0.0000, 0.000, 0.0000, 0.000, 0.0000, 0.0000, 0.0116, 0.02
 
 def Zhaoetal_2006_Sa(site, fault, im, periods=None):
 
-    if im is "PGA":
+    if im == "PGA":
         periods = [0]
 
     results = []
