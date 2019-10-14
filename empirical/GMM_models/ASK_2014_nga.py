@@ -164,7 +164,7 @@ def ASK_2014_nga(
             siteprop.Rrup,
             siteprop.Rjb,
             siteprop.Rx,
-            siteprop.Ry0,
+            siteprop.Ry,
             ztor,
             faultprop.dip,
             f_rv,

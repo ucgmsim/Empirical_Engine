@@ -30,6 +30,11 @@ def get_models_from_dict(config):
     :param config: yaml
     :return: a list of the unique models present in a configuration file
     """
+
+    if config is None:
+        dir = os.path.dirname(__file__)
+        config = os.path.join(dir, "model_config.yaml")
+
     tect_type_model_dict = yaml.safe_load(open(config))
     return list(
         {
@@ -46,7 +51,7 @@ def determine_gmm(fault, im, tect_type_model_dict):
         print("tect-type not found assuming 'ACTIVE_SHALLOW'")
         tect_type = TectType.ACTIVE_SHALLOW.name
     else:
-        tect_type = fault.tect_type.name
+        tect_type = TectType(fault.tect_type).name
 
     if tect_type in tect_type_model_dict and im in tect_type_model_dict[tect_type]:
         model = tect_type_model_dict[tect_type][im]
@@ -74,7 +79,7 @@ def compute_gmm(fault, site, gmm, im, period=None):
         site.vs30measured = False  # assume not measured unless set
 
     if site.siteclass is None:
-        site.siteclass = determine_siteclass(site.vs30)
+        site.siteclass = ord(determine_siteclass(site.vs30).value)
 
     if site.Rtvz is None or np.isnan(site.Rtvz):
         if fault.tect_type == classdef.TectType.VOLCANIC:
@@ -84,9 +89,6 @@ def compute_gmm(fault, site, gmm, im, period=None):
 
     if site.Rjb is None:
         site.Rjb = np.sqrt(site.Rrup ** 2 - fault.ztor ** 2)
-
-    if site.Rx is None:
-        site.Rx = -site.Rjb  # incorrect assumption but keeping for legacy reasons
 
     if fault.Mw is None:
         print("Moment magnitude is a required parameter")

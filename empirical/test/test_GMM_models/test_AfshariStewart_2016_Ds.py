@@ -15,6 +15,7 @@ AS_IMS = ["Ds575", "Ds595", "Ds2080"]
 TEST_PARAMS = [(rrup, mag, im) for rrup in RRUPS for mag in AS_M for im in AS_IMS]
 
 FAULT = Fault()
+FAULT.faultstyle = "SHALLOWCRUSTAL"
 FAULT.ztor = 0
 FAULT.rake = 180
 FAULT.dip = 45

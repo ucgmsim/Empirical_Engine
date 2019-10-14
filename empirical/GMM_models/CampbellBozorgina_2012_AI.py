@@ -1,6 +1,6 @@
 import numpy as np
 import copy
-from empirical.util.classdef import estimate_z1p0, estimate_z2p5
+from empirical.util.classdef import estimate_z1p0, estimate_z2p5, Orientation
 
 """
 Provides the attenuation relation for AI in units of cm/s
@@ -82,7 +82,7 @@ def CampbellBozorgina_2012(siteprop, faultprop, im_name):
     delta = faultprop.dip
     V30 = siteprop.vs30
     Z_2p5 = siteprop.z2p5
-    siteprop.orientation = "average"
+    siteprop.orientation = Orientation.AVERAGE
 
     # Magnitude dependence
     if M <= 5.5:
@@ -175,7 +175,7 @@ def CampbellBozorgina_2012(siteprop, faultprop, im_name):
     )
 
     sigma_IM = [None] * 3
-    if siteprop.orientation == "random":  # random/arbitrary component
+    if siteprop.orientation == Orientation.RANDOM:  # random/arbitrary component
         sigma_IM[0] = np.sqrt(tlny[i] ** 2 + sigma ** 2 + sigmac[i] ** 2)
         sigma_IM[1] = tlny[i]
         sigma_IM[2] = np.sqrt(sigma ** 2 + sigmac[i] ** 2)

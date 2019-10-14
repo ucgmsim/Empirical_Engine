@@ -46,8 +46,6 @@ Output Variables:
 import math
 import numpy as np
 
-from empirical.util.classdef import FaultStyle
-
 beta = 3.2
 Mstar = 6.0
 
@@ -95,13 +93,13 @@ def Afshari_Stewart_2016_Ds(siteprop, faultprop, im):
 
     M0 = 10 ** (1.5 * M + 16.05)
 
-    if faultprop.faultstyle == FaultStyle.NORMAL:
+    if faultprop.rupture_type == "n":
         b0 = [1.555, 2.541, 1.409]
         b1 = [4.992, 3.170, 4.778]
-    elif faultprop.faultstyle == FaultStyle.REVERSE:
+    elif faultprop.rupture_type == "r":
         b0 = [0.7806, 1.612, 0.7729]
         b1 = [7.061, 4.536, 6.579]
-    elif faultprop.faultstyle == FaultStyle.STRIKESLIP:
+    elif faultprop.rupture_type == "ss":
         b0 = [1.279, 2.302, 0.8804]
         b1 = [5.578, 3.467, 6.188]
     else:
