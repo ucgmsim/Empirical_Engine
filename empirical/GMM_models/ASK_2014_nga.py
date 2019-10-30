@@ -115,6 +115,8 @@ def ASK_2014_nga(
     mag = faultprop.Mw
     if im == "PGV":
         period = -1
+    if im == "PGA":
+        period = 0
     if f_hw is None:
         f_hw = int(siteprop.Rx >= 0)
     T = period
@@ -256,7 +258,7 @@ def ASK_2014_sub_1(
             + (a2[ip] + a3[ip] * (mag - m1[ip])) * math.log(R)
             + a17[ip] * rrup
         )
-    elif mag >= m2 and mag <= m1[ip]:
+    elif m2 <= mag <= m1[ip]:
         f1 = (
             a1[ip]
             + a4[ip] * (mag - m1[ip])

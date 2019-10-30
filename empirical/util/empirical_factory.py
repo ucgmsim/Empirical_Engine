@@ -3,7 +3,7 @@ from empirical.util.classdef import TectType, GMM, SiteClass, FaultStyle
 from empirical.GMM_models.AfshariStewart_2016_Ds import Afshari_Stewart_2016_Ds
 from empirical.GMM_models.ASK_2014_nga import ASK_2014_nga
 from empirical.GMM_models.bc_hydro_2016_subduction import bc_hydro_2016_subduction
-from empirical.GMM_models.Bradley_2013_Sa import Bradley_2013_Sa
+from empirical.GMM_models.Bradley_2010_Sa import Bradley_2013_Sa
 from empirical.GMM_models.BSSA_2014_nga import BSSA_2014_nga
 from empirical.GMM_models.CampbellBozorgina_2012_AI import CampbellBozorgina_2012
 from empirical.GMM_models.CB_2014_nga import CB_2014_nga
@@ -79,7 +79,7 @@ def compute_gmm(fault, site, gmm, im, period=None):
         site.vs30measured = False  # assume not measured unless set
 
     if site.siteclass is None:
-        site.siteclass = ord(determine_siteclass(site.vs30).value)
+        site.siteclass = determine_siteclass(site.vs30)
 
     if site.Rtvz is None or np.isnan(site.Rtvz):
         if fault.tect_type == classdef.TectType.VOLCANIC:

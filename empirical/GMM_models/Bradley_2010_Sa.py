@@ -58,7 +58,7 @@ Output Variables:
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
  Coefficients
- 	// coefficients (index -1 is PPV and 0 is PGA): 
+ 	// coefficients (index -1 is PGV and 0 is PGA):
 
 Issues:
 
@@ -216,7 +216,6 @@ def Bradley_2013_Sa(siteprop, faultprop, im, periods=None):
     return results
 
 
-@numba.jit(nopython=True)
 def calculate_Bradley(siteprop, faultprop, period):
     M = faultprop.Mw
     Rrup = siteprop.Rrup
@@ -256,44 +255,41 @@ def calculate_Bradley(siteprop, faultprop, period):
     # don't interpolate
     i = closest_index
 
+    return B10(HW, M, Rjb, Rrup, Rtvz, Rx, Vs30, Z10, Ztor, deltar, f_inferred, f_measured, fnm, frv, i, period)
+
+
+@numba.jit(nopython=True)
+def B10(HW, M, Rjb, Rrup, Rtvz, Rx, Vs30, Z10, Ztor, deltar, f_inferred, f_measured, fnm, frv, i, period):
     # modifications from CY10 (i.e. CY08 also)
     # 1) maximum Ztor set to 10km depth
     # 2) insertion of v1 term which can be used to obtain site effect for up
     # to Vs30 = 1500 m/s
     # 3) Something for volcanic anelastic attenuation
     # 4) Changed normal faulting style effect for short periods
-
     # calculate terms in the median computation
     term1 = c1[i]
     # Modification 2: Ztor maximum depth
     term2 = (
-        c1a[i] * frv + c1b[i] * fnm + c7[i] * min(Ztor, c8[i]) - 4.0
+            c1a[i] * frv + c1b[i] * fnm + c7[i] * (min(Ztor, c8[i]) - 4.0)
     )  # modification of Ztor limit
     term5 = c2 * (M - 6.0)
-
     term6 = ((c2 - c3[i]) / cn[i]) * np.log(1.0 + np.exp(cn[i] * (cm[i] - M)))
-
     term7 = c4 * np.log(Rrup + c5[i] * np.cosh(c6[i] * max(M - chm, 0)))
-
     term8 = (c4a - c4) * np.log(np.sqrt(Rrup ** 2 + (crb) ** 2))
-
     # Modification 3: Rtvz attenuation
     term9 = (
-        (cy1[i] + cy2[i] / np.cosh(max(M - cy3, 0)))
-        * (1.0 + ctvz[i] * Rtvz / Rrup)
-        * Rrup
+            (cy1[i] + cy2[i] / np.cosh(max(M - cy3, 0)))
+            * (1.0 + ctvz[i] * Rtvz / Rrup)
+            * Rrup
     )  # modified term including Rtvz anelastic attenuation
-
     term10 = (
-        c9[i]
-        * HW
-        * np.tanh(Rx * np.cos(deltar) ** 2 / c9a[i])
-        * (1.0 - np.sqrt(Rjb ** 2 + Ztor ** 2) / (Rrup + 0.001))
+            c9[i]
+            * HW
+            * np.tanh(Rx * np.cos(deltar) ** 2 / c9a[i])
+            * (1.0 - np.sqrt(Rjb ** 2 + Ztor ** 2) / (Rrup + 0.001))
     )
-
     # reference Sa on rock (Vs=1130m/s)
     Sa1130 = np.exp(term1 + term2 + term5 + term6 + term7 + term8 + term9 + term10)
-
     # Modification 4: Rock amplification
     if period == 0:
         v1 = 1800
@@ -301,27 +297,22 @@ def calculate_Bradley(siteprop, faultprop, period):
         v1 = min(max(1130.0 * (1.0 / 0.75) ** (-0.11), 1130.0), 1800.0)
     else:
         v1 = min(max(1130.0 * (period / 0.75) ** (-0.11), 1130.0), 1800.0)
-
     term11 = phi1[i] * np.log(
         min(Vs30, v1) / 1130.0
     )  # modified site term accounting for Vs=1800m/s
-
     term12 = (
-        phi2[i]
-        * (
-            np.exp(phi3[i] * (min(Vs30, 1130.0) - 360.0))
-            - np.exp(phi3[i] * (1130.0 - 360.0))
-        )
-        * np.log((Sa1130 + phi4[i]) / phi4[i])
+            phi2[i]
+            * (
+                    np.exp(phi3[i] * (min(Vs30, 1130.0) - 360.0))
+                    - np.exp(phi3[i] * (1130.0 - 360.0))
+            )
+            * np.log((Sa1130 + phi4[i]) / phi4[i])
     )
-
     term13 = phi5[i] * (
-        1.0 - 1.0 / np.cosh(phi6[i] * max(0, Z10 - phi7[i]))
+            1.0 - 1.0 / np.cosh(phi6[i] * max(0, Z10 - phi7[i]))
     ) + phi8[i] / np.cosh(0.15 * max(0, Z10 - 15))
-
     # Compute median
     Sa = np.exp(np.log(Sa1130) + term11 + term12 + term13)
-
     # Compute standard deviation
     sigma_SA = compute_stdev(f_inferred, f_measured, M, Sa1130, Vs30, i)
     return Sa, sigma_SA

@@ -1,13 +1,68 @@
-from enum import Enum, IntEnum
-
-import numba
+from enum import Enum
 import numpy as np
 
 
 VS30_DEFAULT = 250
 
 
-class GMM(IntEnum):
+class Site:  # Class of site properties. initialize all attributes to None
+    def __init__(self, **kwargs):
+        self.name = kwargs.get("name")  # station name
+        self.Rrup = kwargs.get("rrup")  # closest distance coseismic rupture (km)
+        self.Rjb = kwargs.get(
+            "rjb"
+        )  # closest horizontal distance coseismic rupture (km)
+        self.Rx = kwargs.get(
+            "rx"
+        )  # distance measured perpendicular to fault strike from surface projection of
+        #                       # updip edge of the fault rupture (+ve in downdip dir) (km)
+        self.Ry = kwargs.get(
+            "ry"
+        )  # horizontal distance off the end of the rupture measured parallel
+        self.Rtvz = kwargs.get(
+            "rtvz"
+        )  # source-to-site distance in the Taupo volcanic zone (TVZ) (km)
+        self.vs30measured = kwargs.get(
+            "vs30measured", False
+        )  # yes =True (i.e. from Vs tests); no=False (i.e. estimated from geology)
+        self.vs30 = kwargs.get("vs30")  # shear wave velocity at 30m depth (m/s)
+        self.z1p0 = kwargs.get(
+            "z1p0"
+        )  # depth (km) to the 1.0km/s shear wave velocity horizon (optional, uses default relationship otherwise)
+        self.z1p5 = kwargs.get("z1p5")  # (km)
+        self.z2p5 = kwargs.get("z2p5")  # (km)
+        self.siteclass = kwargs.get("siteclass")
+        self.orientation = kwargs.get("orientation", "average")
+        self.backarc = kwargs.get(
+            "backarc", False
+        )  # forearc/unknown = False, backarc = True
+
+
+class Fault:  # Class of fault properties. initialize all attributes to None
+    def __init__(self, **kwargs):
+        self.dip = kwargs.get("dip")  # dip angle (degrees)
+        self.faultstyle = kwargs.get(
+            "faultstyle"
+        )  # Faultstyle (options described in enum below)
+        self.hdepth = kwargs.get("hdepth")  # hypocentre depth
+        self.Mw = kwargs.get("Mw")  # moment tensor magnitude
+        self.rake = kwargs.get("rake")  # rake angle (degrees)
+        self.tect_type = kwargs.get(
+            "tect_type"
+        )  # tectonic type of the rupture (options described in the enum below)
+        self.width = kwargs.get("width")  # down-dip width of the fault rupture plane
+        self.zbot = kwargs.get("zbot")  # depth to the bottom of the seismogenic crust
+        self.ztor = kwargs.get("ztor")  # depth to top of coseismic rupture (km)
+
+
+class TectType(Enum):
+    ACTIVE_SHALLOW = 1
+    VOLCANIC = 2
+    SUBDUCTION_INTERFACE = 3
+    SUBDUCTION_SLAB = 4
+
+
+class GMM(Enum):
     ZA_06 = 1
     Br_13 = 2
     AS_16 = 3
@@ -20,23 +75,16 @@ class GMM(IntEnum):
     CY_14 = 10
 
 
-class TectType(IntEnum):
-    ACTIVE_SHALLOW = 1
-    VOLCANIC = 2
-    SUBDUCTION_INTERFACE = 3
-    SUBDUCTION_SLAB = 4
-
-
 class SiteClass(Enum):
     # as per NZS1170.5
-    HARDROCK = 0
-    ROCK = 1
-    HARDSOIL = 2
-    MEDIUMSOIL = 3
-    SOFTSOIL = 4
+    HARDROCK = "A"
+    ROCK = "B"
+    HARDSOIL = "C"
+    MEDIUMSOIL = "D"
+    SOFTSOIL = "E"
 
 
-class FaultStyle(IntEnum):
+class FaultStyle(Enum):
     REVERSE = 1
     NORMAL = 2
     STRIKESLIP = 3
@@ -46,108 +94,9 @@ class FaultStyle(IntEnum):
     INTERFACE = 7
 
 
-class Orientation(IntEnum):
+class Orientation(Enum):
     AVERAGE = 1
     RANDOM = 2
-
-
-site_spec = [
-    ("Rrup", numba.float32),
-    ("Rjb", numba.optional(numba.float32)),
-    ("Rx", numba.optional(numba.float32)),
-    ("Ry", numba.optional(numba.float32)),
-    ("Rtvz", numba.optional(numba.float32)),
-    ("vs30measured", numba.boolean),
-    ("vs30", numba.optional(numba.float32)),
-    ("z1p0", numba.optional(numba.float32)),
-    ("z1p5", numba.optional(numba.float32)),
-    ("z2p5", numba.optional(numba.float32)),
-    ("siteclass", numba.optional(numba.uint8)),
-    ("orientation", numba.int8),
-    ("backarc", numba.boolean),
-]
-
-
-@numba.jitclass(site_spec)
-class Site:  # Class of site properties. initialize all attributes to None
-    def __init__(
-        self,
-        rrup=0,
-        rjb=None,
-        rx=None,
-        ry=None,
-        rtvz=None,
-        vs30measured=False,
-        vs30=None,
-        z1p0=None,
-        z1p5=None,
-        z2p5=None,
-        siteclass=None,
-        orientation=Orientation.AVERAGE,
-        backarc=False,
-    ):
-        self.Rrup = rrup  # closest distance coseismic rupture (km)
-        self.Rjb = rjb  # closest horizontal distance coseismic rupture (km)
-        self.Rx = (
-            rx
-        )  # distance measured perpendicular to fault strike from surface projection of
-        #                       # updip edge of the fault rupture (+ve in downdip dir) (km)
-        self.Ry = (
-            ry
-        )  # horizontal distance off the end of the rupture measured parallel
-        self.Rtvz = (
-            rtvz
-        )  # source-to-site distance in the Taupo volcanic zone (TVZ) (km)
-        self.vs30measured = (
-            vs30measured
-        )  # yes =True (i.e. from Vs tests); no=False (i.e. estimated from geology)
-        self.vs30 = vs30  # shear wave velocity at 30m depth (m/s)
-        self.z1p0 = (
-            z1p0
-        )  # depth (km) to the 1.0km/s shear wave velocity horizon (optional, uses default relationship otherwise)
-        self.z1p5 = z1p5  # (km)
-        self.z2p5 = z2p5  # (km)
-        self.siteclass = siteclass
-        self.orientation = orientation
-        self.backarc = backarc  # forearc/unknown = False, backarc = True
-
-
-fault_spec = [
-    ("dip", numba.optional(numba.float32)),
-    ("faultstyle", numba.optional(numba.uint8)),
-    ("hdepth", numba.optional(numba.float32)),
-    ("Mw", numba.optional(numba.float32)),
-    ("rake", numba.optional(numba.float32)),
-    ("tect_type", numba.optional(numba.int8)),
-    ("width", numba.optional(numba.float32)),
-    ("zbot", numba.optional(numba.float32)),
-    ("ztor", numba.float32),
-]
-
-
-@numba.jitclass(fault_spec)
-class Fault:  # Class of fault properties. initialize all attributes to None
-    def __init__(
-        self,
-        dip=None,
-        faultstyle=None,
-        hdepth=None,
-        Mw=None,
-        rake=None,
-        tect_type=None,
-        width=None,
-        zbot=None,
-        ztor=None,
-    ):
-        self.dip = dip  # dip angle (degrees)
-        self.faultstyle = faultstyle  # Faultstyle (options described in enum above)
-        self.hdepth = hdepth  # hypocentre depth
-        self.Mw = Mw  # moment tensor magnitude
-        self.rake = rake  # rake angle (degrees)
-        self.tect_type = tect_type  # tectonic type of the rupture (options described in the enum below)
-        self.width = width  # down-dip width of the fault rupture plane
-        self.zbot = zbot  # depth to the bottom of the seismogenic crust
-        self.ztor = ztor  # depth to top of coseismic rupture (km)
 
 
 def interpolate_to_closest(T, T_hi, T_low, y_high, y_low):

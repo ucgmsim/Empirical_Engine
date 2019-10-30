@@ -64,6 +64,8 @@ Qc = np.array([0.000, 0.000, 0.000, 0.000, 0.000, 0.0000, 0.0000, 0.0000, -0.012
 Wc = np.array([0.0000, 0.0000, 0.0000, 0.000, 0.0000, 0.000, 0.0000, 0.0000, 0.0116, 0.0202, 0.0274, 0.0336, 0.0391, 0.044,
       0.0545, 0.063, 0.0764, 0.0869, 0.0954, 0.1088, 0.1193])
 
+zeros = np.zeros(21)
+
 
 def Zhaoetal_2006_Sa(site, fault, im, periods=None):
 
@@ -105,105 +107,91 @@ def Zhaoetal_2006_Sa(site, fault, im, periods=None):
     return results
 
 
-@numba.jit(nopython=True)
-def char_to_int(char_str: bytes) -> np.bool:
-    return np.array(char_str, 'c').view(np.uint8)
-
-
-@numba.jit(nopython=True)
 def calculate_zhao(site, fault, period):
     M = fault.Mw
     R = site.Rrup
 
     closest_index = np.argmin(np.abs(period_list - period))
     i = int(closest_index)
-    faultSR = 0
-    faultSC = 0
-    faultSI = 0
-    faultSS = 0
-    faultSSL = 0
+    faultS = zeros
+    faultSSL = zeros
 
-    pFa = qFa = wFa = 0.0
-    mc = 6.3
+    pFa = qFa = wFa = zeros
 
-    if fault.tect_type == TectType.ACTIVE_SHALLOW.value:
-        qFa = Qc[i]
-        wFa = Wc[i]
+    if fault.tect_type == TectType.ACTIVE_SHALLOW:
+        qFa = Qc
+        wFa = Wc
 
-        if fault.faultstyle == FaultStyle.REVERSE.value:
-            faultSR = 1
+        if fault.faultstyle == FaultStyle.REVERSE:
+            faultS = SR
         else:
-            faultSC = 1
-    elif fault.tect_type == TectType.SUBDUCTION_INTERFACE.value:
-        faultSI = 1
-        qFa = Qi[i]
-        wFa = Wi[i]
-    elif fault.tect_type == TectType.SUBDUCTION_SLAB.value:
-        faultSS = 1
-        faultSSL = 1
-        pFa = Ps[i]
-        qFa = Qs[i]
-        wFa = Ws[i]
+            faultS = zeros
+    elif fault.tect_type == TectType.SUBDUCTION_INTERFACE:
+        faultS = SI
+        qFa = Qi
+        wFa = Wi
+    elif fault.tect_type == TectType.SUBDUCTION_SLAB:
+        faultS = SS
+        faultSSL = SSL
+        pFa = Ps
+        qFa = Qs
+        wFa = Ws
 
-    siterock = 0
-    siteSCI = 0
-    siteSCII = 0
-    siteSCIII = 0
-    siteSCIV = 0
-    if site.siteclass == SiteClass.HARDROCK.value:
-        siterock = 1
-    elif site.siteclass == SiteClass.ROCK.value:
-        siteSCI = 1
-    elif site.siteclass == SiteClass.HARDSOIL.value:
-        siteSCII = 1
-    elif site.siteclass == SiteClass.MEDIUMSOIL.value:
-        siteSCIII = 1
-    elif site.siteclass == SiteClass.SOFTSOIL.value:
-        siteSCIV = 1
+    siteC = zeros
+    if site.siteclass == SiteClass.HARDROCK:
+        siteC = CH
+    elif site.siteclass == SiteClass.ROCK:
+        siteC = C1
+    elif site.siteclass == SiteClass.HARDSOIL:
+        siteC = C2
+    elif site.siteclass == SiteClass.MEDIUMSOIL:
+        siteC = C3
+    elif site.siteclass == SiteClass.SOFTSOIL:
+        siteC = C4
     h = fault.hdepth
+
+    tau = get_tau(fault.tect_type)
+
+    return ZA06(i, M, h, R, faultS, faultSSL, pFa, qFa, wFa, siteC, tau)
+
+
+@numba.jit(nopython=True)
+def ZA06(i, M, h, R, faultS, faultSSL, pFa, qFa, wFa, siteC, tau):
     hc = 15
+    mc = 6.3
     R_star = R + c[i] * np.exp(d[i] * M)
     logSA = (
-        a[i] * M
-        + b[i] * R
-        - np.log(R_star)
-        + e[i] * max(min(h, 125) - hc, 0)
-        + faultSR * SR[i]
-        + faultSI * SI[i]
-        + faultSS * SS[i]
-        + faultSSL * SSL[i] * (np.log(R))  # - np.log(125.0))
-        + siterock * CH[i]
-        + siteSCI * C1[i]
-        + siteSCII * C2[i]
-        + siteSCIII * C3[i]
-        + siteSCIV * C4[i]
+            a[i] * M
+            + b[i] * R
+            - np.log(R_star)
+            + e[i] * max(min(h, 125) - hc, 0)
+            + faultS[i]
+            + faultSSL[i] * (np.log(R))  # - np.log(125.0))
+            + siteC[i]
     )
-
-    m2_corr_fact = pFa * (M - mc) + (qFa * (M - mc) ** 2) + wFa
+    m2_corr_fact = pFa[i] * (M - mc) + (qFa[i] * (M - mc) ** 2) + wFa[i]
     logSA += m2_corr_fact
-
     # convert to median in g
     SA = np.exp(logSA) / 981
-    sigma_SA = determine_stdev(i, fault.tect_type)
+    sigma_SA = determine_stdev(i, tau)
     return SA, sigma_SA
 
 
 @numba.jit(nopython=True)
-def determine_stdev(i, tect_type):
-    sigma_intra = get_tau(tect_type)[i]
+def determine_stdev(i, tau):
+    sigma_intra = tau[i]
     sigma_inter = sigma[i]
     sigma_total = np.sqrt(sigma_intra ** 2 + sigma_inter ** 2)
     sigma_SA = [sigma_total, sigma_inter, sigma_intra]
     return sigma_SA
 
 
-@numba.jit(nopython=True)
 def get_tau(tect_type):
-    if tect_type == TectType.ACTIVE_SHALLOW.value:
+    if tect_type == TectType.ACTIVE_SHALLOW:
         tau = tau_c
-    elif tect_type == TectType.SUBDUCTION_INTERFACE.value:
+    elif tect_type == TectType.SUBDUCTION_INTERFACE:
         tau = tau_i
-    elif tect_type == TectType.SUBDUCTION_SLAB.value:
+    elif tect_type == TectType.SUBDUCTION_SLAB:
         tau = tau_s
     else:
         print("TectType is unset assuming SHALLOW CRUSTAL")
