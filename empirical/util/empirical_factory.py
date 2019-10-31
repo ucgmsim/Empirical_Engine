@@ -3,7 +3,7 @@ from empirical.util.classdef import TectType, GMM, SiteClass, FaultStyle
 from empirical.GMM_models.AfshariStewart_2016_Ds import Afshari_Stewart_2016_Ds
 from empirical.GMM_models.ASK_2014_nga import ASK_2014_nga
 from empirical.GMM_models.bc_hydro_2016_subduction import bc_hydro_2016_subduction
-from empirical.GMM_models.Bradley_2013_Sa import Bradley_2013_Sa
+from empirical.GMM_models.Bradley_2010_Sa import Bradley_2010_Sa
 from empirical.GMM_models.BSSA_2014_nga import BSSA_2014_nga
 from empirical.GMM_models.CampbellBozorgina_2012_AI import CampbellBozorgina_2012
 from empirical.GMM_models.CB_2014_nga import CB_2014_nga
@@ -30,6 +30,11 @@ def get_models_from_dict(config):
     :param config: yaml
     :return: a list of the unique models present in a configuration file
     """
+
+    if config is None:
+        dir = os.path.dirname(__file__)
+        config = os.path.join(dir, "model_config.yaml")
+
     tect_type_model_dict = yaml.safe_load(open(config))
     return list(
         {
@@ -46,7 +51,7 @@ def determine_gmm(fault, im, tect_type_model_dict):
         print("tect-type not found assuming 'ACTIVE_SHALLOW'")
         tect_type = TectType.ACTIVE_SHALLOW.name
     else:
-        tect_type = fault.tect_type.name
+        tect_type = TectType(fault.tect_type).name
 
     if tect_type in tect_type_model_dict and im in tect_type_model_dict[tect_type]:
         model = tect_type_model_dict[tect_type][im]
@@ -84,9 +89,6 @@ def compute_gmm(fault, site, gmm, im, period=None):
 
     if site.Rjb is None:
         site.Rjb = np.sqrt(site.Rrup ** 2 - fault.ztor ** 2)
-
-    if site.Rx is None:
-        site.Rx = -site.Rjb  # incorrect assumption but keeping for legacy reasons
 
     if fault.Mw is None:
         print("Moment magnitude is a required parameter")
@@ -131,7 +133,7 @@ def compute_gmm(fault, site, gmm, im, period=None):
     elif gmm is GMM.BC_16:
         return bc_hydro_2016_subduction(site, fault, period=period)
     elif gmm is GMM.Br_13:
-        return Bradley_2013_Sa(site, fault, im, period)
+        return Bradley_2010_Sa(site, fault, im, period)
     elif gmm is GMM.BSSA_14:
         return BSSA_2014_nga(site, fault, im=im, period=period)
     elif gmm is GMM.CB_12:

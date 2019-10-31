@@ -16,7 +16,7 @@ class Site:  # Class of site properties. initialize all attributes to None
             "rx"
         )  # distance measured perpendicular to fault strike from surface projection of
         #                       # updip edge of the fault rupture (+ve in downdip dir) (km)
-        self.Ry0 = kwargs.get(
+        self.Ry = kwargs.get(
             "ry"
         )  # horizontal distance off the end of the rupture measured parallel
         self.Rtvz = kwargs.get(
@@ -92,6 +92,11 @@ class FaultStyle(Enum):
     UNKNOWN = 5
     SLAB = 6
     INTERFACE = 7
+
+
+class Orientation(Enum):
+    AVERAGE = 1
+    RANDOM = 2
 
 
 def interpolate_to_closest(T, T_hi, T_low, y_high, y_low):
