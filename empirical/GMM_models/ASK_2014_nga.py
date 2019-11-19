@@ -75,7 +75,7 @@ def ASK_2014_nga(
                             projection of rupture plane
     siteprop.Rx           = site coordinate (km) measured perpendicular to the fault strike
                             from the fault line with down-dip direction to be positive
-    siteprop.Ry0          = horizontal distance off the end of the rupture measured parallel
+    siteprop.Ry          = horizontal distance off the end of the rupture measured parallel
                             to strike
     siteprop.vs30         = shear wave velocity averaged over top 30 m in m/s
                             ref: 1130
