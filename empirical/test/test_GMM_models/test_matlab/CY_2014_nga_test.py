@@ -21,6 +21,7 @@ answers = np.fromfile(os.path.join(os.path.dirname(os.path.abspath(__file__)), '
 site = Site()
 fault = Fault()
 
+
 def test_run():
     a = 0
     for p in periods:
@@ -41,10 +42,11 @@ def test_run():
                             for z in z10:
                                 site.z1p0 = z
                                 for l in range(6):
-                                    sa, sigma = CY_2014_nga(site, fault, period=p, region=l, f_hw=f)
+                                    sa, sigma = CY_2014_nga(site, fault, im='pSA', period=p, region=l, f_hw=f)
                                     assert np.isclose(sa, answers[a])
-                                    assert np.isclose(sigma, answers[a + 1])
+                                    assert np.isclose(sigma[0], answers[a + 1])
                                     a += 2
+
 
 if __name__ == "__main__":
     test_run()

@@ -46,9 +46,9 @@ def test_run():
                                 for z in z25:
                                     site.z2p5 = z
                                     for l in regions:
-                                        sa, sigma = CB_2014_nga(site, fault, period=p, region=l, f_hw=f)
+                                        sa, sigma = CB_2014_nga(site, fault, im='pSA', period=p, region=l, f_hw=f)
                                         assert np.isclose(sa, answers[a])
-                                        assert np.isclose(sigma, answers[a + 1])
+                                        assert np.isclose(sigma[0], answers[a + 1])
                                         a += 2
 
 if __name__ == "__main__":

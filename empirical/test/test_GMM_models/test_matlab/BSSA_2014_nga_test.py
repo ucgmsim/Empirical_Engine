@@ -36,9 +36,9 @@ def test_run():
                         for z in z1:
                             site.z1p0 = z
                             for l in regions:
-                                sa, sigma = BSSA_2014_nga(site, fault, period=p, region=l)
+                                sa, sigma = BSSA_2014_nga(site, fault, im="pSA", period=p, region=l)
                                 assert np.isclose(sa, answers[a])
-                                assert np.isclose(sigma, answers[a + 1])
+                                assert np.isclose(sigma[0], answers[a + 1])  # only tests total sigma
                                 a += 2
 
 if __name__ == "__main__":

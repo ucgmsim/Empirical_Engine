@@ -3,6 +3,8 @@ import math
 
 import numpy as np
 
+from empirical.util.classdef import interpolate_to_closest
+
 # fmt: off
 periods = np.array([-1, 0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.075, 0.1, 0.12, 0.15, 0.17, 0.2, 0.25, 0.3, 0.4, 0.5, 0.75, 1, 1.5, 2, 3, 4, 5, 7.5, 10])
 # coefficients
@@ -155,14 +157,10 @@ def CY_2014_nga(siteprop, faultprop, im=None, period=None, region=0, f_hw=None):
             ip_high = np.argmin(periods < Ti)
             ip_low = ip_high - 1
 
-            Sa_low, sigma_low = sa_sigma(ip_low)
-            Sa_high, sigma_high = sa_sigma(ip_high)
+            y_low = sa_sigma(ip_low)
+            y_high = sa_sigma(ip_high)
 
-            x = math.log(periods[ip_low]), math.log(periods[ip_high])
-            Y_sa = math.log(Sa_low), math.log(Sa_high)
-            Y_sigma = np.array([sigma_low, sigma_high]).T
-            Sa[i] = math.exp(np.interp(math.log(Ti), x, Y_sa))
-            sigma[i] = np.interp(math.log(Ti), x, Y_sigma)
+            Sa[i], sigma[i] = interpolate_to_closest(Ti, periods[ip_high], periods[ip_low], y_high, y_low)
             if Sa[i] < PGA and Ti <= 0.3:
                 Sa[i] = PGA
         else:

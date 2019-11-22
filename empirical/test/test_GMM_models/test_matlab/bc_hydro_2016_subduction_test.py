@@ -36,9 +36,9 @@ def test_run():
                         site.backarc = f
                         for v in vs30s:
                             site.vs30 = v
-                            sa, sigma = bc_hydro_2016_subduction(site, fault, p)
+                            sa, sigma = bc_hydro_2016_subduction(site, fault, "pSA", p)
                             assert np.isclose(sa, answers[a])
-                            assert np.isclose(sigma, answers[a + 1])
+                            assert np.isclose(sigma[0], answers[a + 1])
                             a += 2
 
 if __name__ == "__main__":

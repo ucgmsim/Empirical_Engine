@@ -70,6 +70,10 @@ def bc_hydro_2016_subduction(siteprop, faultprop, im, period):
     """
     if im == 'PGA':
         period = [0]
+    try:
+        period[0]
+    except TypeError:
+        period = [period]
 
     M = faultprop.Mw
     R = siteprop.Rrup
@@ -151,12 +155,11 @@ def bc_hydro_2016_subduction(siteprop, faultprop, im, period):
     sa_int = np.interp(np.log(period), np.log(periods_int), sa)
     sigma = compute_stdev()
 
-    if im == 'PGA':
+    if im == 'PGA' or len(period) == 1:
         return sa_int, sigma
     else:
         return list(zip(sa_int, [sigma] * len(sa_int)))
 
 
 def compute_stdev():
-    # Python version will not repeat sigma
     return math.sqrt(phi ** 2 + tau ** 2), tau, phi
