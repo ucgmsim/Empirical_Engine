@@ -98,17 +98,8 @@ def BSSA_2014_nga(siteprop, faultprop, im="pSA", period=None, region=0):
     vs30 = siteprop.vs30
     if im == "PGV":
         period = -1
-
-    if period is None:
-        # compute median and sigma with pre-defined periods
-        periods_out = periods[2:]
-        median = np.zeros(len(periods_out))
-        sigma = np.zeros(len(periods_out))
-        for ip in range(2, len(periods)):
-            median[ip - 2], sigma[ip - 2] = BSSA_2014_sub(
-                M, ip, siteprop.Rjb, faultprop.faultstyle, region, z1, vs30
-            )
-        return median, sigma, periods_out
+    if im == "PGA":
+        period = 0
 
     # compute median and sigma with user-defined period
     try:
@@ -116,7 +107,7 @@ def BSSA_2014_nga(siteprop, faultprop, im="pSA", period=None, region=0):
     except TypeError:
         period = [period]
     median = np.zeros(len(period))
-    sigma = np.zeros(len(period))
+    sigma = np.zeros((len(period), 3))
     for i, Ti in enumerate(period):
         if not np.isclose(periods, Ti, atol=0.0001).any():
             # user defined period requires interpolation
@@ -142,7 +133,7 @@ def BSSA_2014_nga(siteprop, faultprop, im="pSA", period=None, region=0):
 
     if not i:
         return median[0], sigma[0]
-    return median, sigma
+    return list(zip(median, sigma))
 
 
 def BSSA_2014_sub(M, ip, Rjb, ftype, region, z1, vs30):
@@ -270,4 +261,4 @@ def compute_stdev(M, Rjb, vs30, ip):
     else:
         phi_MRV = phi_MR - dphiV[ip]
 
-    return math.sqrt(phi_MRV ** 2 + tau ** 2)
+    return math.sqrt(phi_MRV ** 2 + tau ** 2), tau, phi_MRV

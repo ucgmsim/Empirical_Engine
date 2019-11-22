@@ -195,7 +195,7 @@ def ASK_2014_nga(
     except TypeError:
         T = [T]
     Sa = np.zeros(len(T))
-    sigma = np.zeros(len(T))
+    sigma = np.zeros([len(T), 3])
     for i, Ti in enumerate(T):
         if not np.isclose(periods, Ti, atol=0.0001).any():
             # user defined period requires interpolation
@@ -211,11 +211,12 @@ def ASK_2014_nga(
             sigma[i] = np.interp(math.log(Ti), x, Y_sigma)
         else:
             ip_T = np.argmin(np.abs(periods - Ti))
-            Sa[i], sigma[i] = sa_sigma(ip_T)
+            Sa[i], sigma[i, :] = sa_sigma(ip_T)
 
     if not i:
         return Sa[0], sigma[0]
-    return Sa, sigma
+    else:
+        return list(zip(Sa, sigma))
 
 
 def ASK_2014_sub_1(
@@ -544,4 +545,4 @@ def compute_stdev(ip, mag, rrup, Sa1180, vs30, f_vs30, region=0):
     phi = math.sqrt(phi_B ** 2 * (1 + dln) ** 2 + phi_amp ** 2)
     tau = tau_B * (1 + dln)
 
-    return math.sqrt(phi ** 2 + tau ** 2)
+    return math.sqrt(phi ** 2 + tau ** 2), tau, phi

@@ -102,8 +102,11 @@ def CY_2014_nga(siteprop, faultprop, im=None, period=None, region=0, f_hw=None):
             prediction
     """
     if im == "PGV":
-        period = -1
-    T = period
+        T = -1
+    elif im == "PGA":
+        T = 0
+    elif im == "pSA":
+        T = period
 
     dip = faultprop.dip * math.pi / 180.0
     f_rv = 30 <= faultprop.rake <= 150
@@ -139,24 +142,13 @@ def CY_2014_nga(siteprop, faultprop, im=None, period=None, region=0, f_hw=None):
 
     PGA, sigma_PGA = sa_sigma(1)
 
-    if T is None:
-        # compute Sa and sigma with pre-defined period
-        periods_out = periods[2:]
-        Sa = np.zeros(len(periods_out))
-        sigma = np.zeros(len(periods_out))
-        for ip in range(len(periods_out)):
-            Sa[ip], sigma[ip] = sa_sigma(ip + 2)
-            if Sa[ip] < PGA and periods_out[ip] <= 0.3:
-                Sa[ip] = PGA
-        return Sa, sigma, periods_out
-
     # compute Sa and sigma with user-defined period
     try:
         T[0]
     except TypeError:
         T = [T]
     Sa = np.zeros(len(T))
-    sigma = np.zeros(len(T))
+    sigma = np.zeros([len(T), 3])
     for i, Ti in enumerate(T):
         if not np.isclose(periods, Ti, atol=0.0001).any():
             # user defined period requires interpolation
@@ -181,7 +173,7 @@ def CY_2014_nga(siteprop, faultprop, im=None, period=None, region=0, f_hw=None):
 
     if not i:
         return Sa[0], sigma[0]
-    return Sa, sigma
+    return list(zip(Sa, sigma))
 
 
 def CY_2014_sub(
@@ -329,4 +321,5 @@ def compute_stdev(M, Vs30, FVS30, yrefij, ip, region=0):
     ) * math.sqrt((sigma3[ip] * inferred + 0.7 * measured) + (1 + NL0) ** 2)
 
     tau = tau1[ip] + (tau2[ip] - tau1[ip]) / 1.5 * (min(max(M, 5), 6.5) - 5)
-    return math.sqrt((1 + NL0) ** 2 * tau ** 2 + sigmaNL0 ** 2)
+    tau_ = ((1 + NL0) * tau)
+    return math.sqrt(tau_ ** 2 + sigmaNL0 ** 2), tau, sigmaNL0

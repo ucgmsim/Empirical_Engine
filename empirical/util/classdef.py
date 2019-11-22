@@ -13,7 +13,7 @@ class Site:  # Class of site properties. initialize all attributes to None
             "rjb"
         )  # closest horizontal distance coseismic rupture (km)
         self.Rx = kwargs.get(
-            "rx"
+            "rx", -1
         )  # distance measured perpendicular to fault strike from surface projection of
         #                       # updip edge of the fault rupture (+ve in downdip dir) (km)
         self.Ry = kwargs.get(

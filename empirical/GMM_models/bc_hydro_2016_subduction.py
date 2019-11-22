@@ -36,7 +36,7 @@ sigma_ss = 0.6
 # fmt: on
 
 
-def bc_hydro_2016_subduction(siteprop, faultprop, period):
+def bc_hydro_2016_subduction(siteprop, faultprop, im, period):
     """
     % Created by Reagan Chandramohan, circa 2017
     % modified by Jack Baker, 2/27/2019, to limit hypocentral depths to 120 km
@@ -68,6 +68,9 @@ def bc_hydro_2016_subduction(siteprop, faultprop, period):
     % sigma   = vector of logarithmic standard deviation
     %
     """
+    if im == 'PGA':
+        period = [0]
+
     M = faultprop.Mw
     R = siteprop.Rrup
     f_slab = faultprop.tect_type == TectType.SUBDUCTION_SLAB
@@ -148,9 +151,12 @@ def bc_hydro_2016_subduction(siteprop, faultprop, period):
     sa_int = np.interp(np.log(period), np.log(periods_int), sa)
     sigma = compute_stdev()
 
-    return sa_int, sigma
+    if im == 'PGA':
+        return sa_int, sigma
+    else:
+        return list(zip(sa_int, [sigma] * len(sa_int)))
 
 
 def compute_stdev():
     # Python version will not repeat sigma
-    return math.sqrt(phi ** 2 + tau ** 2)
+    return math.sqrt(phi ** 2 + tau ** 2), tau, phi
