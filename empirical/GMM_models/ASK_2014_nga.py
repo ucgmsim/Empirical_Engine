@@ -3,6 +3,7 @@ import math
 
 import numpy as np
 
+from empirical.util.classdef import interpolate_to_closest
 
 # fmt: off
 periods = np.array([0.01, 0.02, 0.03, 0.05, 0.075, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.75, 1, 1.5, 2, 3, 4, 5, 6, 7.5, 10, 0, -1])
@@ -195,27 +196,24 @@ def ASK_2014_nga(
     except TypeError:
         T = [T]
     Sa = np.zeros(len(T))
-    sigma = np.zeros(len(T))
+    sigma = np.zeros([len(T), 3])
     for i, Ti in enumerate(T):
         if not np.isclose(periods, Ti, atol=0.0001).any():
             # user defined period requires interpolation
             ip_high = np.argmin(periods < Ti)
             ip_low = ip_high - 1
 
-            Sa_low, sigma_low = sa_sigma(ip_low)
-            Sa_high, sigma_high = sa_sigma(ip_high)
-            x = math.log(periods[ip_low]), math.log(periods[ip_high])
-            Y_sa = math.log(Sa_low), math.log(Sa_high)
-            Y_sigma = np.array([sigma_low, sigma_high]).T
-            Sa[i] = math.exp(np.interp(math.log(Ti), x, Y_sa))
-            sigma[i] = np.interp(math.log(Ti), x, Y_sigma)
+            y_low = sa_sigma(ip_low)
+            y_high = sa_sigma(ip_high)
+            Sa[i], sigma[i] = interpolate_to_closest(Ti, periods[ip_high], periods[ip_low], y_high, y_low)
         else:
             ip_T = np.argmin(np.abs(periods - Ti))
-            Sa[i], sigma[i] = sa_sigma(ip_T)
+            Sa[i], sigma[i, :] = sa_sigma(ip_T)
 
     if not i:
         return Sa[0], sigma[0]
-    return Sa, sigma
+    else:
+        return list(zip(Sa, sigma))
 
 
 def ASK_2014_sub_1(
@@ -544,4 +542,4 @@ def compute_stdev(ip, mag, rrup, Sa1180, vs30, f_vs30, region=0):
     phi = math.sqrt(phi_B ** 2 * (1 + dln) ** 2 + phi_amp ** 2)
     tau = tau_B * (1 + dln)
 
-    return math.sqrt(phi ** 2 + tau ** 2)
+    return math.sqrt(phi ** 2 + tau ** 2), tau, phi

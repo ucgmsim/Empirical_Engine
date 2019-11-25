@@ -3,6 +3,8 @@ import math
 
 import numpy as np
 
+from empirical.util.classdef import interpolate_to_closest
+
 
 # fmt: off
 periods = np.array([0.01, 0.02, 0.03, 0.05, 0.075, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0, 7.5, 10.0, 0, -1])
@@ -28,7 +30,7 @@ c17 = [0.0981, 0.1009, 0.1095, 0.1226, 0.1165, 0.0998, 0.0760, 0.0571, 0.0437, 0
 c18 = [0.0334, 0.0327, 0.0331, 0.0270, 0.0288, 0.0325, 0.0388, 0.0437, 0.0463, 0.0508, 0.0432, 0.0405, 0.0420, 0.0426, 0.0380, 0.0252, 0.0236, 0.0102, 0.0034, 0.0050, 0.0099, 0.0333, 0.0327]
 c19 = [0.00755, 0.00759, 0.00790, 0.00803, 0.00811, 0.00744, 0.00716, 0.00688, 0.00556, 0.00458, 0.00401, 0.00388, 0.00420, 0.00409, 0.00424, 0.00448, 0.00345, 0.00603, 0.00805, 0.00280, 0.00458, 0.00757, 0.00613]
 c20 = [-0.0055, -0.0055, -0.0057, -0.0063, -0.0070, -0.0073, -0.0069, -0.0060, -0.0055, -0.0049, -0.0037, -0.0027, -0.0016, -0.0006, 0, 0, 0, 0, 0, 0, 0, -0.0055, -0.0017]
-Dc20 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+Dc20_global = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 Dc20_JI = [-0.0035, -0.0035, -0.0034, -0.0037, -0.0037, -0.0034, -0.0030, -0.0031, -0.0033, -0.0035, -0.0034, -0.0034, -0.0032, -0.0030, -0.0019, -0.0005, 0, 0, 0, 0, 0, -0.0035, -0.0006]
 Dc20_CH = [0.0036, 0.0036, 0.0037, 0.0040, 0.0039, 0.0042, 0.0042, 0.0041, 0.0036, 0.0031, 0.0028, 0.0025, 0.0016, 0.0006, 0, 0, 0, 0, 0, 0, 0, 0.0036, 0.0017]
 a2 = [0.168, 0.166, 0.167, 0.173, 0.198, 0.174, 0.198, 0.204, 0.185, 0.164, 0.160, 0.184, 0.216, 0.596, 0.596, 0.596, 0.596, 0.596, 0.596, 0.596, 0.596, 0.167, 0.596]
@@ -111,7 +113,10 @@ def CB_2014_nga(siteprop, faultprop, im=None, period=None, region=0, f_hw=None):
                     prediction
     """
     M = faultprop.Mw
-    T = period
+    if im == 'pSA':
+        T = period
+    elif im == 'PGA':
+        T = 0
     W = faultprop.width
     Zhyp = faultprop.hdepth
     Ztor = faultprop.ztor
@@ -185,40 +190,24 @@ def CB_2014_nga(siteprop, faultprop, im=None, period=None, region=0, f_hw=None):
             region,
         )
 
-    # compute Sa and sigma with pre-defined period
-    if T is None:
-        periods_out = periods[:-2]
-        Sa = np.zeros(len(periods_out))
-        sigma = np.zeros(len(periods_out))
-
-        for ipT in range(len(periods_out)):
-            Sa[ipT], sigma[ipT] = sa_sigma(ipT)
-            PGA = sa_sigma(PGAi)[0]
-            if Sa[ipT] < PGA and periods_out[ipT] < 0.25:
-                Sa[ipT] = PGA
-        return Sa, sigma, periods_out
-
     # compute Sa and sigma with user-defined period
     try:
         T[0]
     except TypeError:
         T = [T]
     Sa = np.zeros(len(T))
-    sigma = np.zeros(len(T))
+    sigma = np.zeros((len(T), 3))
     for i, Ti in enumerate(T):
         if not np.isclose(periods, Ti, atol=0.0001).any():
             # user defined period requires interpolation
             ip_high = np.argmin(periods < Ti)
             ip_low = ip_high - 1
 
-            Sa_low, sigma_low = sa_sigma(ip_low)
-            Sa_high, sigma_high = sa_sigma(ip_high)
+            y_low = sa_sigma(ip_low)
+            y_high = sa_sigma(ip_high)
             PGA = sa_sigma(PGAi)[0]
-            x = math.log(periods[ip_low]), math.log(periods[ip_high])
-            Y_sa = math.log(Sa_low), math.log(Sa_high)
-            Y_sigma = np.array([sigma_low, sigma_high]).T
-            Sa[i] = math.exp(np.interp(math.log(Ti), x, Y_sa))
-            sigma[i] = np.interp(math.log(Ti), x, Y_sigma)
+
+            Sa[i], sigma[i] = interpolate_to_closest(Ti, periods[ip_high], periods[ip_low], y_high, y_low)
             if Sa[i] < PGA and Ti < 0.25:
                 Sa[i] = PGA
         else:
@@ -231,7 +220,7 @@ def CB_2014_nga(siteprop, faultprop, im=None, period=None, region=0, f_hw=None):
 
     if not i:
         return Sa[0], sigma[0]
-    return Sa, sigma
+    return list(zip(Sa, sigma))
 
 
 def CB_2014_nga_sub(
@@ -262,6 +251,8 @@ def CB_2014_nga_sub(
     elif region == 3:
         # China
         Dc20 = Dc20_CH
+    else:
+        Dc20 = Dc20_global
 
     # Z2.5
     if Z25in is None:
@@ -454,4 +445,4 @@ def compute_stdev(M, vs30, A1100, ip):
         + 2 * alpha * rlnPGA_lnY[ip] * phi_lnyB * phi_lnPGAB
     )
 
-    return math.sqrt(tau ** 2 + phi ** 2)
+    return math.sqrt(tau ** 2 + phi ** 2), tau, phi

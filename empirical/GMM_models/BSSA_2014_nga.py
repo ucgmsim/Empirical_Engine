@@ -4,6 +4,7 @@ import math
 import numpy as np
 
 from empirical.util.classdef import FaultStyle
+from empirical.util.classdef import interpolate_to_closest
 
 # fmt: off
 periods = np.array([-1, 0, 0.01, 0.02, 0.03, 0.05, 0.075, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.75, 1, 1.5, 2, 3, 4, 5, 7.5, 10])
@@ -98,17 +99,8 @@ def BSSA_2014_nga(siteprop, faultprop, im="pSA", period=None, region=0):
     vs30 = siteprop.vs30
     if im == "PGV":
         period = -1
-
-    if period is None:
-        # compute median and sigma with pre-defined periods
-        periods_out = periods[2:]
-        median = np.zeros(len(periods_out))
-        sigma = np.zeros(len(periods_out))
-        for ip in range(2, len(periods)):
-            median[ip - 2], sigma[ip - 2] = BSSA_2014_sub(
-                M, ip, siteprop.Rjb, faultprop.faultstyle, region, z1, vs30
-            )
-        return median, sigma, periods_out
+    if im == "PGA":
+        period = 0
 
     # compute median and sigma with user-defined period
     try:
@@ -116,24 +108,20 @@ def BSSA_2014_nga(siteprop, faultprop, im="pSA", period=None, region=0):
     except TypeError:
         period = [period]
     median = np.zeros(len(period))
-    sigma = np.zeros(len(period))
+    sigma = np.zeros((len(period), 3))
     for i, Ti in enumerate(period):
         if not np.isclose(periods, Ti, atol=0.0001).any():
             # user defined period requires interpolation
             ip_high = np.argmin(periods < Ti)
             ip_low = ip_high - 1
 
-            Sa_low, sigma_low = BSSA_2014_sub(
+            y_low = BSSA_2014_sub(
                 M, ip_low, siteprop.Rjb, faultprop.faultstyle, region, z1, vs30
             )
-            Sa_high, sigma_high = BSSA_2014_sub(
+            y_high = BSSA_2014_sub(
                 M, ip_high, siteprop.Rjb, faultprop.faultstyle, region, z1, vs30
             )
-            x = math.log(periods[ip_low]), math.log(periods[ip_high])
-            Y_sa = math.log(Sa_low), math.log(Sa_high)
-            Y_sigma = np.array([sigma_low, sigma_high]).T
-            median[i] = math.exp(np.interp(math.log(Ti), x, Y_sa))
-            sigma[i] = np.interp(math.log(Ti), x, Y_sigma)
+            median[i], sigma[i] = interpolate_to_closest(Ti, periods[ip_high], periods[ip_low], y_high, y_low)
         else:
             ip_T = np.argmin(np.abs(periods - Ti))
             median[i], sigma[i] = BSSA_2014_sub(
@@ -142,7 +130,7 @@ def BSSA_2014_nga(siteprop, faultprop, im="pSA", period=None, region=0):
 
     if not i:
         return median[0], sigma[0]
-    return median, sigma
+    return list(zip(median, sigma))
 
 
 def BSSA_2014_sub(M, ip, Rjb, ftype, region, z1, vs30):
@@ -270,4 +258,4 @@ def compute_stdev(M, Rjb, vs30, ip):
     else:
         phi_MRV = phi_MR - dphiV[ip]
 
-    return math.sqrt(phi_MRV ** 2 + tau ** 2)
+    return math.sqrt(phi_MRV ** 2 + tau ** 2), tau, phi_MRV

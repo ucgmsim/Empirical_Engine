@@ -47,15 +47,18 @@ def get_models_from_dict(config):
 
 
 def determine_gmm(fault, im, tect_type_model_dict):
+    return determine_all_gmm(fault, im, tect_type_model_dict)[0]
+
+
+def determine_all_gmm(fault, im, tect_type_model_dict):
     if fault.tect_type is None:
         print("tect-type not found assuming 'ACTIVE_SHALLOW'")
         tect_type = TectType.ACTIVE_SHALLOW.name
     else:
         tect_type = TectType(fault.tect_type).name
-
     if tect_type in tect_type_model_dict and im in tect_type_model_dict[tect_type]:
         model = tect_type_model_dict[tect_type][im]
-        return GMM[model[0]]
+        return [GMM[gmm] for gmm in model]
     else:
         print("No valid empirical model found")
         return None
@@ -131,7 +134,7 @@ def compute_gmm(fault, site, gmm, im, period=None):
     elif gmm is GMM.ASK_14:
         return ASK_2014_nga(site, fault, im=im, period=period)
     elif gmm is GMM.BC_16:
-        return bc_hydro_2016_subduction(site, fault, period=period)
+        return bc_hydro_2016_subduction(site, fault, im, period=period)
     elif gmm is GMM.Br_13:
         return Bradley_2010_Sa(site, fault, im, period)
     elif gmm is GMM.BSSA_14:

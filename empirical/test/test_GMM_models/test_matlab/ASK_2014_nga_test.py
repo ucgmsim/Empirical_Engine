@@ -47,7 +47,7 @@ def test_run():
                                     for l in regions:
                                         sa, sigma = ASK_2014_nga(site, fault, period=p, region=l, f_hw=h, f_as=f)
                                         assert np.isclose(sa, answers[a])
-                                        assert np.isclose(sigma, answers[a + 1])
+                                        assert np.isclose(sigma[0], answers[a + 1])
                                         a += 2
 
 if __name__ == "__main__":
