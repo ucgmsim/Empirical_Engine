@@ -22,6 +22,7 @@ answers = np.fromfile(os.path.join(os.path.dirname(os.path.abspath(__file__)), '
 site = Site()
 fault = Fault()
 
+
 def test_run():
     a = 0
     for p in periods:
@@ -40,6 +41,7 @@ def test_run():
                             assert np.isclose(sa, answers[a])
                             assert np.isclose(sigma[0], answers[a + 1])
                             a += 2
+
 
 if __name__ == "__main__":
     test_run()
