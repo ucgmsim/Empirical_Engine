@@ -36,14 +36,21 @@ def get_models_from_dict(config):
         config = os.path.join(dir, "model_config.yaml")
 
     tect_type_model_dict = yaml.safe_load(open(config))
+    # return list(
+    #     {
+    #         model
+    #         for im_model_dict in tect_type_model_dict.values()
+    #         for models in im_model_dict.values()
+    #         for model in models
+    #     }
+    # )
     return list(
         {
-            model
-            for im_model_dict in tect_type_model_dict.values()
-            for models in im_model_dict.values()
+            f"{model}_{key}"
+            for key in tect_type_model_dict
+            for models in tect_type_model_dict[key].values()
             for model in models
-        }
-    )
+        })
 
 
 def determine_gmm(fault, im, tect_type_model_dict):
