@@ -152,7 +152,10 @@ def bc_hydro_2016_subduction(siteprop, faultprop, im, period):
     sa = np.exp(base + f_mag + f_dep + f_faba + f_site)
     periods_int = np.copy(periods)
     periods_int[0] = 1e-10
-    sa_int = np.interp(np.log(period), np.log(periods_int), sa)
+    if im != "PGA":
+        sa_int = np.interp(np.log(period), np.log(periods_int), sa)
+    else:
+        sa_int = sa[0]
     sigma = compute_stdev()
 
     if im == 'PGA' or len(period) == 1:
