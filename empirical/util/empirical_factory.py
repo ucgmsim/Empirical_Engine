@@ -50,7 +50,8 @@ def get_models_from_dict(config):
             for key in tect_type_model_dict
             for models in tect_type_model_dict[key].values()
             for model in models
-        })
+        }
+    )
 
 
 def determine_gmm(fault, im, tect_type_model_dict):
