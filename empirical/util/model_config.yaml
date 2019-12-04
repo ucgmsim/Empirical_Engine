@@ -1,8 +1,9 @@
 #select a empirical model for the tect-type and intensity measure
 # current valid options are:
-# Br_10 -- Bradley 2013
+# Br_10 -- Bradley 2010
 # ZA_06 -- Zhao 2006
 # CB_12 -- Campbell  Bozorgina 2012
+# CB_10 -- Campbell  Bozorgina 2010
 # AS_16 -- Afshari Stewart 2016
 # ASK_14 -- Abrahamson Silva Kamai 2014
 # BC_16 -- BC Hydro 2016
@@ -21,7 +22,7 @@ ACTIVE_SHALLOW:
   pSA:
     - Br_10 # ZA_06 or Br_10
   CAV:
-    - CB_12
+    - CB_10
   AI:
     - CB_12
   Ds575:
@@ -38,7 +39,7 @@ VOLCANIC:
   pSA:
     - Br_10
   CAV:
-    - CB_12 # These are only for shallow crustal in lieu of a more appropriate model
+    - CB_10 # These are only for shallow crustal in lieu of a more appropriate model
   AI:
     - CB_12 # These are only for shallow crustal in lieu of a more appropriate model
   Ds575:
@@ -53,7 +54,7 @@ SUBDUCTION_SLAB:
   pSA:
     - ZA_06
   CAV:
-    - CB_12 # These are only for shallow crustal in lieu of a more appropriate model
+    - CB_10 # These are only for shallow crustal in lieu of a more appropriate model
   AI:
     - CB_12 # These are only for shallow crustal in lieu of a more appropriate model
   Ds575:
@@ -68,7 +69,7 @@ SUBDUCTION_INTERFACE:
   pSA:
     - ZA_06
   CAV:
-    - CB_12 # These are only for shallow crustal in lieu of a more appropriate model
+    - CB_10 # These are only for shallow crustal in lieu of a more appropriate model
   AI:
     - CB_12 # These are only for shallow crustal in lieu of a more appropriate model
   Ds575:

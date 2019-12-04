@@ -3,9 +3,10 @@ import copy
 from empirical.util.classdef import estimate_z1p0, estimate_z2p5, Orientation
 
 """
-Provides the attenuation relation for AI in units of cm/s
+Provides the attenuation relation for AI in units of cm/s and CAV in gs
 
-Translated from CampbellBorzorgina_2012_AI.m
+Translated from CampbellBorzorgina_2012_AI.m &
+Translated from CampbellBorzorgina_2010_CAV.m
 
 Input Variables:
  M             = Moment magnitude (Mw)
@@ -29,8 +30,8 @@ Input Variables:
                 
 
 Output Variables:
- AI           = median AI  
- sigma_AI     = lognormal standard deviation in AI
+ IM_Value           = median AI / CAV
+ sigma        = lognormal standard deviation of IM
                  sigma_AI(1) = total std
                  sigma_AI(2) = interevent std
                  sigma_AI(3) = intraevent std
