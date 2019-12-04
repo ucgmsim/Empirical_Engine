@@ -5,7 +5,7 @@ from empirical.GMM_models.ASK_2014_nga import ASK_2014_nga
 from empirical.GMM_models.bc_hydro_2016_subduction import bc_hydro_2016_subduction
 from empirical.GMM_models.Bradley_2010_Sa import Bradley_2010_Sa
 from empirical.GMM_models.BSSA_2014_nga import BSSA_2014_nga
-from empirical.GMM_models.CampbellBozorgina_2010_CAV_2012_AI import CampbellBozorgina_2012
+from empirical.GMM_models.CampbellBozorgina_2010_CAV_2012_AI import CampbellBozorgina
 from empirical.GMM_models.CB_2014_nga import CB_2014_nga
 from empirical.GMM_models.CY_2014_nga import CY_2014_nga
 from empirical.GMM_models.McVerry_2006_Sa import McVerry_2006_Sa
@@ -148,7 +148,7 @@ def compute_gmm(fault, site, gmm, im, period=None):
     elif gmm is GMM.BSSA_14:
         return BSSA_2014_nga(site, fault, im=im, period=period)
     elif gmm is GMM.CB_12 or gmm is GMM.CB_10:
-        return CampbellBozorgina_2012(site, fault, im)
+        return CampbellBozorgina(site, fault, im)
     elif gmm is GMM.CB_14:
         return CB_2014_nga(site, fault, im=im, period=period)
     elif gmm is GMM.CY_14:
