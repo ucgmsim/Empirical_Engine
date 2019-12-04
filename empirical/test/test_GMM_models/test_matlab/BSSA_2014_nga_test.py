@@ -12,7 +12,7 @@ from empirical.util.classdef import Fault, Site, FaultStyle
 periods = [-1, 0.011, 0.02, 0.035, 0.06, 0.066, 0.9, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.75, 1, 1.5, 2, 3, 4, 5, 7.5, 10]
 mags = [4.4, 5, 5.5, 9.2]
 rrups = [0, 98, 2345]
-regions = [0, 1, 2, 3, 4]
+regions = [0, 1, 2, 3, 4]  # 0 for global (incl. Taiwan), 1 for California, 2 for Japan, 3 for China or Turkey, 4 for Italy
 vs30s = [134, 760, 1357]
 z1 = [None, 3, 243]
 fault_types = FaultStyle.UNKNOWN, FaultStyle.STRIKESLIP, FaultStyle.NORMAL, FaultStyle.REVERSE

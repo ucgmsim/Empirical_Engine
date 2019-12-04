@@ -3,9 +3,10 @@ import copy
 from empirical.util.classdef import estimate_z1p0, estimate_z2p5, Orientation
 
 """
-Provides the attenuation relation for AI in units of cm/s
+Provides the attenuation relation for AI in units of cm/s and CAV in gs
 
-Translated from CampbellBorzorgina_2012_AI.m
+Translated from CampbellBorzorgina_2012_AI.m &
+Translated from CampbellBorzorgina_2010_CAV.m
 
 Input Variables:
  M             = Moment magnitude (Mw)
@@ -29,8 +30,8 @@ Input Variables:
                 
 
 Output Variables:
- AI           = median AI  
- sigma_AI     = lognormal standard deviation in AI
+ IM_Value           = median AI / CAV
+ sigma        = lognormal standard deviation of IM
                  sigma_AI(1) = total std
                  sigma_AI(2) = interevent std
                  sigma_AI(3) = intraevent std
@@ -38,7 +39,7 @@ Output Variables:
 """
 
 
-def CampbellBozorgina_2012(siteprop, faultprop, im_name):
+def CampbellBozorgina(siteprop, faultprop, im_name):
     if im_name == "AI":
         i = 0
     elif im_name == "CAV":
@@ -138,7 +139,7 @@ def CampbellBozorgina_2012(siteprop, faultprop, im_name):
         rock_site.vs30 = 1100
         rock_site.z1p0 = estimate_z1p0(rock_site.vs30)
         rock_site.z2p5 = estimate_z2p5(rock_site.z1p0)
-        A1100 = CampbellBozorgina_2012(rock_site, faultprop, 2)[0]
+        A1100 = CampbellBozorgina(rock_site, faultprop, 2)[0]
 
         fsite = c10[i] * np.log(V30 / k1[i]) + k2[i] * (
             np.log(A1100 + c * (V30 / k1[i]) ** n) - np.log(A1100 + c)
