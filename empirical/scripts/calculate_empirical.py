@@ -62,14 +62,16 @@ def read_rrup_file(rrup_file):
     with open(rrup_file) as f:
         next(f)
         for line in f:
-            station, __, __, rrup, rjbs, rx = line.rstrip().split(",")
+            station, __, __, rrup, rjbs, rx, ry = line.rstrip().split(",")
             rrup = float(rrup)
             rjbs = float(rjbs)
             if rx == "X":
                 rx = None
+                ry = None
             else:
                 rx = float(rx)
-            values = (rrup, rjbs, rx)
+                ry = float(ry)
+            values = (rrup, rjbs, rx, ry)
             rrups[station] = values
     return rrups
 
@@ -96,7 +98,7 @@ def create_site_parameters(
     if stations is None:
         stations = list(rrups.keys())
     for station in stations:
-        rrup, rjbs, rx = rrups[station]
+        rrup, rjbs, rx, ry = rrups[station]
         if rrup < max_distance:
             site = Site()
             site.name = station
@@ -107,18 +109,89 @@ def create_site_parameters(
             site.Rrup = rrup
             site.Rjb = rjbs
             site.Rx = rx
+            site.Ry = ry
             sites.append(site)
     return sites
 
 
-def calculate_empirical():
+def calculate_empirical(
+    identifier,
+    srf_info,
+    output_dir,
+    config_file,
+    stations,
+    vs30_file,
+    vs30_default,
+    ims,
+    rupture_distance,
+    max_rupture_distance,
+    extended_period,
+):
     """Calculate empirical intensity measures"""
+
+    # Fault & Site parameters
+    fault = create_fault_parameters(srf_info)
+
+    sites = create_site_parameters(
+        rupture_distance,
+        vs30_file,
+        stations=stations,
+        vs30_default=vs30_default,
+        max_distance=max_rupture_distance,
+    )
+
+    if extended_period:
+        period = np.unique(np.append(PERIOD, EXT_PERIOD))
+    else:
+        period = PERIOD
+
+    tect_type_model_dict = empirical_factory.read_model_dict(config_file)
+    station_names = [site.name for site in sites] if stations is None else stations
+
+    for im in ims:
+        for cur_gmm in empirical_factory.determine_all_gmm(
+            fault, im, tect_type_model_dict
+        ):
+
+            # File & column names
+
+            cur_filename = "{}_{}_{}.csv".format(identifier, cur_gmm.name, im)
+            cur_cols = []
+            if im == PSA_IM_NAME:
+                for p in period:
+                    cur_cols.append("{}_{}".format(im, p))
+                    cur_cols.append("{}_{}_sigma".format(im, p))
+            else:
+                cur_cols.append(im)
+                cur_cols.append("{}_sigma".format(im))
+
+            # Get & save the data
+            cur_data = np.zeros((len(sites), len(cur_cols)), dtype=np.float)
+            for ix, site in enumerate(sites):
+                values = empirical_factory.compute_gmm(fault, site, cur_gmm, im, period)
+                if im == PSA_IM_NAME:
+                    cur_data[ix, :] = np.ravel(
+                        [[value_tuple[0], value_tuple[1][0]] for value_tuple in values]
+                    )
+                else:
+                    cur_data[ix, :] = [values[0], values[1][0]]
+
+            df = pd.DataFrame(columns=cur_cols, data=cur_data)
+            df[STATION_COL_NAME] = station_names
+            df[COMPONENT_COL_NAME] = "geom"
+
+            # Correct column order
+            df = order_im_cols_df(df)
+
+            df.to_csv(os.path.join(output_dir, cur_filename), index=False)
+
+
+def load_args():
     parser = argparse.ArgumentParser(
         description="Script to calculate IMs for empirical models."
         "Produces one .csv for each IM containing "
         "all specified sites."
     )
-
     parser.add_argument(
         "--vs30_file",
         "-v",
@@ -163,7 +236,6 @@ def calculate_empirical():
         action="store_true",
         help="Indicate the use of extended(100) pSA periods",
     )
-
     parser.add_argument(
         "-p",
         "--period",
@@ -180,66 +252,28 @@ def calculate_empirical():
         help="Intensity measure(s) separated by a "
         "space(if more than one). eg: PGV PGA CAV.",
     )
-
     parser.add_argument("output", help="output directory")
-
     args = parser.parse_args()
+    return args
 
-    # Fault & Site parameters
-    fault = create_fault_parameters(args.srf_info)
-    sites = create_site_parameters(
-        args.rupture_distance,
-        args.vs30_file,
-        stations=args.stations,
-        vs30_default=args.vs30_default,
-        max_distance=args.max_rupture_distance,
-    )
 
+def main():
+    args = load_args()
     setup_dir(args.output)
-
-    if args.extended_period:
-        period = np.unique(np.append(PERIOD, EXT_PERIOD))
-    else:
-        period = PERIOD
-
-    tect_type_model_dict = empirical_factory.read_model_dict(args.config)
-    station_names = (
-        [site.name for site in sites] if args.stations is None else args.stations
+    calculate_empirical(
+        args.identifier,
+        args.srf_info,
+        args.output,
+        args.config,
+        args.stations,
+        args.vs30_file,
+        args.vs30_default,
+        args.im,
+        args.rupture_distance,
+        args.max_rupture_distance,
+        args.extended_period,
     )
-    for im in args.im:
-        cur_gmm = empirical_factory.determine_gmm(fault, im, tect_type_model_dict)
-
-        # File & column names
-        cur_filename = "{}_{}_{}.csv".format(args.identifier, cur_gmm.name, im)
-        cur_cols = []
-        if im == PSA_IM_NAME:
-            for p in period:
-                cur_cols.append("{}_{}".format(im, p))
-                cur_cols.append("{}_{}_sigma".format(im, p))
-        else:
-            cur_cols.append(im)
-            cur_cols.append("{}_sigma".format(im))
-
-        # Get & save the data
-        cur_data = np.zeros((len(sites), len(cur_cols)), dtype=np.float)
-        for ix, site in enumerate(sites):
-            values = empirical_factory.compute_gmm(fault, site, cur_gmm, im, period)
-            if im == PSA_IM_NAME:
-                cur_data[ix, :] = np.ravel(
-                    [[value_tuple[0], value_tuple[1][0]] for value_tuple in values]
-                )
-            else:
-                cur_data[ix, :] = [values[0], values[1][0]]
-
-        df = pd.DataFrame(columns=cur_cols, data=cur_data)
-        df[STATION_COL_NAME] = station_names
-        df[COMPONENT_COL_NAME] = "geom"
-
-        # Correct column order
-        df = order_im_cols_df(df)
-
-        df.to_csv(os.path.join(args.output, cur_filename), index=False)
 
 
 if __name__ == "__main__":
-    calculate_empirical()
+    main()
