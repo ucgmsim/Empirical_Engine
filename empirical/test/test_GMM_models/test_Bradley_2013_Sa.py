@@ -26,7 +26,7 @@ SITE.Rtvz = 50
 @pytest.mark.parametrize("test_rrup", RRUPS)
 def test_Bradley_2013_Sa(set_up, test_rrup):
     SITE.Rrup = test_rrup
-    test_results = empirical_factory.compute_gmm(FAULT, SITE, GMM.Br_13, IM, PERIODS)
+    test_results = empirical_factory.compute_gmm(FAULT, SITE, GMM.Br_10, IM, PERIODS)
 
     with open(
         os.path.join(

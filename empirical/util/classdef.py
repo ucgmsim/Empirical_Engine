@@ -64,7 +64,7 @@ class TectType(Enum):
 
 class GMM(Enum):
     ZA_06 = 1
-    Br_13 = 2
+    Br_10 = 2
     AS_16 = 3
     CB_12 = 4
     BSSA_14 = 5

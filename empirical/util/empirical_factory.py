@@ -105,15 +105,15 @@ def compute_gmm(fault, site, gmm, im, period=None):
         print("Moment magnitude is a required parameter")
         exit()
 
-    if fault.rake is None and gmm in [GMM.Br_13, GMM.CB_12]:
+    if fault.rake is None and gmm in [GMM.Br_10, GMM.CB_12]:
         print("rake is a required parameter for Br_13 and CB_12")
         exit()
 
-    if fault.dip is None and gmm in [GMM.Br_13, GMM.CB_12]:
+    if fault.dip is None and gmm in [GMM.Br_10, GMM.CB_12]:
         print("dip is a required parameter for Br_13 and CB_12")
         exit()
 
-    if fault.ztor is None and gmm in [GMM.Br_13, GMM.CB_12]:
+    if fault.ztor is None and gmm in [GMM.Br_10, GMM.CB_12]:
         print("ztor is a required parameter for Br_13 and CB_12")
         exit()
 
@@ -143,7 +143,7 @@ def compute_gmm(fault, site, gmm, im, period=None):
         return ASK_2014_nga(site, fault, im=im, period=period)
     elif gmm is GMM.BC_16:
         return bc_hydro_2016_subduction(site, fault, im, period=period)
-    elif gmm is GMM.Br_13:
+    elif gmm is GMM.Br_10:
         return Bradley_2010_Sa(site, fault, im, period)
     elif gmm is GMM.BSSA_14:
         return BSSA_2014_nga(site, fault, im=im, period=period)

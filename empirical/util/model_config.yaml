@@ -1,6 +1,6 @@
 #select a empirical model for the tect-type and intensity measure
 # current valid options are:
-# Br_13 -- Bradley 2013
+# Br_10 -- Bradley 2013
 # ZA_06 -- Zhao 2006
 # CB_12 -- Campbell  Bozorgina 2012
 # AS_16 -- Afshari Stewart 2016
@@ -15,11 +15,11 @@
 # Options for each model are listed to the right
 ACTIVE_SHALLOW:
   PGV:
-    - Br_13
+    - Br_10
   PGA:
-    - Br_13 # ZA_06 or BR_13
+    - Br_10 # ZA_06 or Br_10
   pSA:
-    - Br_13 # ZA_06 or BR_13
+    - Br_10 # ZA_06 or Br_10
   CAV:
     - CB_12
   AI:
@@ -32,11 +32,11 @@ ACTIVE_SHALLOW:
     - AS_16
 VOLCANIC:
   PGV:
-    - Br_13
+    - Br_10
   PGA:
-    - Br_13
+    - Br_10
   pSA:
-    - Br_13
+    - Br_10
   CAV:
     - CB_12 # These are only for shallow crustal in lieu of a more appropriate model
   AI:
@@ -47,7 +47,7 @@ VOLCANIC:
     - AS_16 # These are only for shallow crustal in lieu of a more appropriate model
 SUBDUCTION_SLAB:
   PGV:
-    - Br_13 # These are only for shallow crustal in lieu of a more appropriate model
+    - Br_10 # These are only for shallow crustal in lieu of a more appropriate model
   PGA:
     - ZA_06
   pSA:
@@ -62,7 +62,7 @@ SUBDUCTION_SLAB:
     - AS_16 # These are only for shallow crustal in lieu of a more appropriate model
 SUBDUCTION_INTERFACE:
   PGV:
-    - Br_13 # These are only for shallow crustal in lieu of a more appropriate model
+    - Br_10 # These are only for shallow crustal in lieu of a more appropriate model
   PGA:
     - ZA_06
   pSA:
