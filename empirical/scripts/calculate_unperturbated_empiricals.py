@@ -97,7 +97,8 @@ def main():
 
     events = load_fault_selection_file(args.fault_selection_file)
     events = [
-        name if count == 1 else get_realisation_name(name, 1) for name, count in events
+        name if count == 1 else get_realisation_name(name, 1)
+        for name, count in events.items()
     ]
     tasks = create_event_tasks(
         events,
