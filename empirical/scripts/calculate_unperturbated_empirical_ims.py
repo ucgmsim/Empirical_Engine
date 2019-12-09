@@ -1,8 +1,10 @@
 import argparse
 import pathlib
+from logging import Logger
 from multiprocessing.pool import Pool
 
 from qcore.formats import load_fault_selection_file
+from qcore.qclogging import get_basic_logger, add_general_file_handler, get_logger
 from qcore.simulation_structure import (
     get_sources_dir,
     get_realisation_name,
@@ -61,13 +63,18 @@ def load_args():
     return args
 
 
-def create_event_tasks(events, sim_root, config_file, vs30_default, extended_period):
+def create_event_tasks(
+    events, sim_root, config_file, vs30_default, extended_period, empirical_im_logger
+):
     tasks = []
     sources = pathlib.Path(get_sources_dir(sim_root))
     vs30_file = load_yaml(pathlib.Path(sim_root) / "Runs" / "root_params.yaml")[
         "stat_vs_est"
     ]
     for realisation_name in events:
+        empirical_im_logger.debug(
+            f"Generating calculation tasks for {realisation_name}"
+        )
         event_name = get_fault_from_realisation(realisation_name)
         fault_info = sources / get_srf_info_location(event_name)
         output_dir = pathlib.Path(
@@ -89,27 +96,53 @@ def create_event_tasks(events, sim_root, config_file, vs30_default, extended_per
                 extended_period,
             ]
         )
+        empirical_im_logger.debug(f"Added task {tasks[-1]} to the task list")
     return tasks
 
 
 def main():
+    uei_logger = get_logger("Unperturbated_empirical_ims")
     args = load_args()
+    add_general_file_handler(
+        uei_logger, args.simulation_root / "unperturbated_empirical_ims_log.txt"
+    )
 
-    events = load_fault_selection_file(args.fault_selection_file)
+    calculate_unperturbated_empiricals(
+        args.vs30_default,
+        args.extended_period,
+        args.fault_selection_file,
+        args.config,
+        args.n_processes,
+        args.simulation_root,
+        uei_logger,
+    )
+
+
+def calculate_unperturbated_empiricals(
+    default_vs30,
+    extended_period,
+    fsf,
+    im_config,
+    n_processes,
+    sim_root,
+    empirical_im_logger: Logger = get_basic_logger(),
+):
+    events = load_fault_selection_file(fsf)
+    empirical_im_logger.debug(
+        f"Loaded {len(events)} events from the fault selection file"
+    )
     events = [
         name if count == 1 else get_realisation_name(name, 1)
         for name, count in events.items()
     ]
     tasks = create_event_tasks(
-        events,
-        args.simulation_root,
-        args.config,
-        args.vs30_default,
-        args.extended_period,
+        events, sim_root, im_config, default_vs30, extended_period, empirical_im_logger
     )
 
-    pool = Pool(min(args.n_processes, len(tasks)))
+    pool = Pool(min(n_processes, len(tasks)))
+    empirical_im_logger.debug(f"Running empirical im calculations")
     pool.starmap(calculate_empirical, tasks)
+    empirical_im_logger.debug(f"Empirical ims calculated")
 
 
 if __name__ == "__main__":
