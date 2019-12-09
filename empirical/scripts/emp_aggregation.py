@@ -18,9 +18,7 @@ STATION_COL_NAME = "station"
 COMPONENT_COL_NAME = "component"
 
 
-def aggregate_data(
-    im_files, output_dir, identifier, rupture, version
-):
+def aggregate_data(im_files, output_dir, identifier, rupture, version):
     dfs = [pd.read_csv(im_file) for im_file in im_files]
 
     # Check that they all have the same number of rows
