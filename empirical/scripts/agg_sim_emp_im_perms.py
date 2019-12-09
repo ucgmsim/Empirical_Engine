@@ -51,7 +51,7 @@ def load_args():
 def aggregate_simulation_empirical_im_permutations(
     fsf, n_processes, sim_root, version, logger: Logger = get_basic_logger()
 ):
-    events = load_fault_selection_file(fsf).keys()
+    events = load_fault_selection_file(fsf)
     logger.debug(f"Loaded {len(events)} events from the fault selection file")
     events = [
         name if count == 1 else get_realisation_name(name, 1)
