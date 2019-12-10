@@ -3,7 +3,7 @@ import pathlib
 from logging import Logger
 from typing import List, Union
 
-from qcore.simulation_structure import get_fault_from_realisation, get_verification_dir
+from qcore.simulation_structure import get_fault_from_realisation
 from qcore.qclogging import get_logger, get_basic_logger, add_general_file_handler
 
 from empirical.scripts.calculate_empirical import IM_LIST
@@ -98,24 +98,21 @@ def get_agg_identifier(realisation: str, im_files: List[pathlib.Path]) -> str:
 
 
 def agg_emp_perms(
-    simulation_directory: pathlib.Path,
+    empirical_dir: pathlib.Path,
     version: str,
     aggregation_logger: Union[Logger, str] = get_basic_logger(),
 ):
     """
     Generates aggregated empirical permutations for a given realisation within a simulation run
-    :param simulation_directory: The directory of the event or fault realisation to generate aggregation files for
+    :param empirical_dir: The directory of the event or fault realisation to generate aggregation files for
     :param version: The version of the simulation. e.g. the perturbation version
     :param aggregation_logger: The logger object or name of required logger object to be used for logging
     """
     if isinstance(aggregation_logger, str):
         aggregation_logger = get_logger(aggregation_logger)
 
-    verification_dir = pathlib.Path(get_verification_dir(simulation_directory))
-    aggregation_logger.debug(f"Using verification directory {verification_dir}")
-
-    event = get_fault_from_realisation(simulation_directory.stem)
-    empirical_files = verification_dir.glob(f"{event}_*.csv")
+    event = get_fault_from_realisation(empirical_dir.stem)
+    empirical_files = empirical_dir.glob(f"{event}_*.csv")
 
     ims = {}
     for f in empirical_files:
@@ -140,9 +137,9 @@ def agg_emp_perms(
         aggregation_logger.debug(
             f"The identifier {identifier} is being used for the IM group {group}"
         )
-        aggregate_data(group, verification_dir, identifier, event, version)
+        aggregate_data(group, empirical_dir, identifier, event, version)
         aggregation_logger.debug(
-            f"""Saved empirical IMs to {verification_dir / "{}.csv".format(identifier)}"""
+            f"Saved empirical IMs to {empirical_dir / f'{identifier}.csv'}"
         )
 
 
