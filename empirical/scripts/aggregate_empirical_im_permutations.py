@@ -20,9 +20,12 @@ def load_args():
         return pathlib.Path(path).resolve()
 
     parser.add_argument(
-        "simulation_directory",
+        "realisation", type=str, help="The name of the realisation being aggregated"
+    )
+    parser.add_argument(
+        "empirical_im_directory",
         type=absolute_path,
-        help="The directory of the event or fault realisation to generate aggregated empirical intensity measure files for",
+        help="The directory containing empirical intensity measure files to aggregate",
     )
     parser.add_argument(
         "--version", "-v", help="The version of the simulation", default="unversioned"
@@ -99,19 +102,21 @@ def get_agg_identifier(realisation: str, im_files: List[pathlib.Path]) -> str:
 
 def agg_emp_perms(
     empirical_dir: pathlib.Path,
+    realisation: str,
     version: str,
     aggregation_logger: Union[Logger, str] = get_basic_logger(),
 ):
     """
     Generates aggregated empirical permutations for a given realisation within a simulation run
     :param empirical_dir: The directory of the event or fault realisation to generate aggregation files for
+    :param realisation: The name of the realisation being aggregrated
     :param version: The version of the simulation. e.g. the perturbation version
     :param aggregation_logger: The logger object or name of required logger object to be used for logging
     """
     if isinstance(aggregation_logger, str):
         aggregation_logger = get_logger(aggregation_logger)
 
-    event = get_fault_from_realisation(empirical_dir.stem)
+    event = get_fault_from_realisation(realisation)
     empirical_files = empirical_dir.glob(f"{event}_*.csv")
 
     ims = {}
@@ -154,7 +159,12 @@ def main():
     main_aggregation_logger.debug(
         f"Loaded arguments, creating aggregated empiricals for input: {args}"
     )
-    agg_emp_perms(args.simulation_directory, args.version, main_aggregation_logger)
+    agg_emp_perms(
+        args.empirical_im_directory,
+        args.realisation,
+        args.version,
+        main_aggregation_logger,
+    )
 
 
 if __name__ == "__main__":
