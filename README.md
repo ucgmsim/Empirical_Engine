@@ -88,3 +88,26 @@ python emp_aggregation
 /home/jam335/Documents/Empirical-Engine/Data/output/Darfield_CB_12_AI.csv
 /home/jam335/Documents/Empirical-Engine/Data/output/Darfield_CB_12_CAV.csv
 ```
+
+To generate all possible aggregations of the empirical files calculated in the first script:
+```
+usage: aggregate_empirical_im_permutations.py 
+[-h] [--version VERSION] simulation_directory
+
+positional arguments:
+  simulation_directory  The directory of the event or fault realisation to
+                        generate aggregated empirical intensity measure files
+                        for
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --version VERSION, -v VERSION
+                        The version of the simulation
+
+```
+e.g.
+```
+python aggregate_empirical_im_permutations.py
+/nesi/project/nesi00213/RunFolder/CyberShake/v19p5/Runs/Hossack/Hossack_REL01
+--version 19p5
+```
