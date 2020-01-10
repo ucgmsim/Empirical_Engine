@@ -74,7 +74,7 @@ def Abrahamson_2018(
     if im == "PGA":
         period = 0
 
-    C = imt.index(im)
+    C = imt.index(period)
     C_PGA = imt.index(0)
 
     if faultprop.tect_type == TectType.SUBDUCTION_INTERFACE:
@@ -86,15 +86,15 @@ def Abrahamson_2018(
         mag_scale = a2[C] + a3 * (faultprop.Mw - 7.8)
         mag_scale_pga = a2[C_PGA] + a3 * (faultprop.Mw - 7.8)
         adj = adj_int
-        hinge_mw = C1inter[C]
+        hinge_mw = c1inter[C]
         if epistemic_adj is not None:
             if epistemic_adj == "HIGH":
                 eadj = sinter_high
             elif epistemic_adj == "LOW":
                 eadj = sinter_low
     elif faultprop.tect_type == TectType.SUBDUCTION_SLAB:
-        base = a1[C] + a4[C] * (C1slab - C1inter[C]) + a10
-        base_pga = a1[C] + a4[C_PGA] * (C1slab - C1inter[C_PGA]) + a10
+        base = a1[C] + a4[C] * (C1slab - c1inter[C]) + a10
+        base_pga = a1[C] + a4[C_PGA] * (C1slab - c1inter[C_PGA]) + a10
         if faultprop.ztor <= 100.0:
             depth = a11[C] * (faultprop.ztor - 60.0)
             depth_pga = a11[C_PGA] * (faultprop.ztor - 60.0)
@@ -151,7 +151,7 @@ def Abrahamson_2018(
     # Get full model
     mean = base + f_mag + depth + f_dist + f_site
 
-    std_dev = compute_stdev(C, C_PGA, pga1000, siteprop.vs30, stddev_type)
+    std_dev = compute_stdev(C, C_PGA, pga1000, siteprop.vs30, std_dev_type)
     if epistemic_adj is not None:
         return mean + adj[C] + eadj, std_dev
     else:

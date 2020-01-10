@@ -118,6 +118,7 @@ def compute_gmm(fault, site, gmm, im, period=None):
         print("ztor is a required parameter for", gmm.name)
         exit()
 
+    # this assumes rake is available but faultstyle and rake are not used in A_18
     if fault.faultstyle is None:
         if 45 < fault.rake < 135:
             fault.faultstyle = FaultStyle.REVERSE
