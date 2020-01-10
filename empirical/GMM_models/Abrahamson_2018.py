@@ -3,7 +3,7 @@ import math
 
 import numpy as np
 
-from empirical.util.classdef import TectType
+from empirical.util.classdef import StdDevType, TectType
 
 # fmt: off
 imt = [0.01, 0.02, 0.03, 0.05, 0.075, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.75, 1, 1.5, 2, 2.5, 3, 4, 5, 6, 7.5, 10, 0]
@@ -43,8 +43,14 @@ sslab_low = [-0.5, -0.5, -0.5, -0.5, -0.5, -0.5, -0.5, -0.5, -0.46, -0.42, -0.38
 sslab_high = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.46, 0.42, 0.38, 0.34, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.5]
 # fmt: on
 
+
 def Abrahamson_2018(
-    siteprop, faultprop, im=None, period=None, epistemic_adj=None, stdev_type="TOTAL"
+    siteprop,
+    faultprop,
+    im=None,
+    period=None,
+    epistemic_adj=None,
+    std_dev_type=StdDevType.TOTAL,
 ):
     """
 
@@ -109,11 +115,17 @@ def Abrahamson_2018(
     f_mag = a13[C] * ((10.0 - faultprop.Mw) ** 2.0)
     f_mag_pga = a13[C_PGA] * ((10.0 - faultprop.Mw) ** 2.0)
     if faultprop.Mw <= hinge_mw:
-        f_mag =  a4[C] * (faultprop.Mw - hinge_mw) + f_mag
-        f_mag_pga =  a4[C_PGA] * (faultprop.Mw - hinge_mw) + f_mag
+        f_mag = a4[C] * (faultprop.Mw - hinge_mw) + f_mag
+        f_mag_pga = a4[C_PGA] * (faultprop.Mw - hinge_mw) + f_mag
     # distance attenuation
-    f_dist = mag_scale * np.log(siteprop.Rrup + C4 * np.exp(a9 * (faultprop.Mw - 6.0))) + a6[C] * siteprop.Rrup
-    f_dist_pga = mag_scale_pga * np.log(siteprop.Rrup + C4 * np.exp(a9 * (faultprop.Mw - 6.0))) + a6[C_PGA] * siteprop.Rrup
+    f_dist = (
+        mag_scale * np.log(siteprop.Rrup + C4 * np.exp(a9 * (faultprop.Mw - 6.0)))
+        + a6[C] * siteprop.Rrup
+    )
+    f_dist_pga = (
+        mag_scale_pga * np.log(siteprop.Rrup + C4 * np.exp(a9 * (faultprop.Mw - 6.0)))
+        + a6[C_PGA] * siteprop.Rrup
+    )
     # linear site term for the case where vs30 = 1000.0
     f_lin = (a12[C_PGA] + b[C_PGA] * n) * np.log(1000.0 / vlin[C_PGA])
     # PGA on rock (vs30 = 1000 m / s) + linear site term
@@ -132,39 +144,53 @@ def Abrahamson_2018(
         # linear term
         flin = a12[C] * np.log(vsstar / vlin[C])
         # nonlinear term
-        fnl = (-b[C] * np.log(pga1000 + c)) + (b[C] * np.log(pga1000 + c * (vsstar / vlin[C]) ** n))
+        fnl = (-b[C] * np.log(pga1000 + c)) + (
+            b[C] * np.log(pga1000 + c * (vsstar / vlin[C]) ** n)
+        )
         f_site = flin + fnl
     # Get full model
     mean = base + f_mag + depth + f_dist + f_site
 
-    stdev = compute_stdev(C, C_PGA, pga1000, siteprop.vs30, stdev_type)
+    std_dev = compute_stdev(C, C_PGA, pga1000, siteprop.vs30, stddev_type)
     if epistemic_adj is not None:
-        return mean + adj[C] + eadj, stdev
+        return mean + adj[C] + eadj, std_dev
     else:
-        return mean + adj[C], stdev
+        return mean + adj[C], std_dev
 
 
-def compute_stdev(C, C_PGA, pga1000, vs30, stddev_type):
-    # not sure if we want to return 1 stddev_type or all every time
+def compute_stdev(C, C_PGA, pga1000, vs30, std_dev_type):
+    # not sure if we want to return 1 std_dev_type or all every time
 
     # partial derivative of the amplification term with respect to pga1000
     if vs30 < vlin[C]:
-        dln = b[C] * pga1000 * (-1.0 / (pga1000 + c) + (1.0 / (pga1000 + c * (vs30 / vlin[C]) ** n)))
+        dln = (
+            b[C]
+            * pga1000
+            * (-1.0 / (pga1000 + c) + (1.0 / (pga1000 + c * (vs30 / vlin[C]) ** n)))
+        )
     else:
         dln = 0.0
 
-    if stddev_type == "TOTAL" or stddev_type == "INTER_EVENT":
+    if std_dev_type == StdDevType.TOTAL or std_dev_type == StdDevType.INTER_EVENT:
         # between event aleatory uncertainty, tau
-        tau = math.sqrt((tau0[C] ** 2.0) + (dln ** 2.0 * tau0[C] ** 2.0) + (2.0 * dln * tau0[C] * tau0[C_PGA] * rho_b[C]))
-        if stddev_type == "INTER_EVENT":
+        tau = math.sqrt(
+            (tau0[C] ** 2.0)
+            + (dln ** 2.0 * tau0[C] ** 2.0)
+            + (2.0 * dln * tau0[C] * tau0[C_PGA] * rho_b[C])
+        )
+        if std_dev_type == StdDevType.INTER_EVENT:
             return tau
-    if stddev_type == "TOTAL" or stddev_type == "INTRA_EVENT":
+    if std_dev_type == StdDevType.TOTAL or std_dev_type == StdDevType.INTRA_EVENT:
         # within-event aleatory uncertainty, phi
         phi_amp2 = phiamp ** 2.0
         phi_b = math.sqrt(phi0[C] ** 2.0 - phi_amp2)
         phi_b_pga = np.sqrt((phi0[C_PGA] ** 2.0) - phi_amp2)
-        phi = math.sqrt(phi0[C] ** 2.0 + dln ** 2.0 * phi_b ** 2.0 + 2.0 * dln * phi_b * phi_b_pga * rho_w[C])
-        if stddev_type == "INTRA_EVENT":
+        phi = math.sqrt(
+            phi0[C] ** 2.0
+            + dln ** 2.0 * phi_b ** 2.0
+            + 2.0 * dln * phi_b * phi_b_pga * rho_w[C]
+        )
+        if std_dev_type == StdDevType.INTRA_EVENT:
             return phi
     # assume total
     return math.sqrt(tau ** 2.0 + phi ** 2.0)
