@@ -1,4 +1,6 @@
 
+import math
+
 import numpy as np
 
 from empirical.util.classdef import TectType
@@ -34,6 +36,7 @@ phi0 = [0.61, 0.61, 0.61, 0.61, 0.61, 0.61, 0.61, 0.61, 0.61, 0.61, 0.61, 0.61, 
 tau0 = [0.58, 0.58, 0.58, 0.58, 0.58, 0.58, 0.56, 0.54, 0.52, 0.505, 0.48, 0.46, 0.45, 0.45, 0.45, 0.45, 0.45, 0.45, 0.45, 0.45, 0.45, 0.45, 0.45, 0.45, 0.58]
 rho_w = [1, 1, 0.991, 0.973, 0.952, 0.929, 0.896, 0.874, 0.856, 0.841, 0.818, 0.783, 0.7315, 0.68, 0.607, 0.5004, 0.4301, 0.3795, 0.328, 0.2505, 0.2, 0.2, 0.2, 0.2, 1]
 rho_b = [1, 1, 0.991, 0.973, 0.952, 0.929, 0.896, 0.874, 0.856, 0.841, 0.818, 0.783, 0.7315, 0.68, 0.607, 0.504, 0.431, 0.3795, 0.328, 0.255, 0.2, 0.2, 0.2, 0.2, 1]
+# epistemic adjustment variables
 sinter_low = [-0.3, -0.3, -0.3, -0.3, -0.3, -0.3, -0.3, -0.3, -0.3, -0.3, -0.3, -0.3, -0.3, -0.3, -0.3, -0.3, -0.3, -0.3, -0.3, -0.3, -0.3, -0.3, -0.3, -0.3, -0.3]
 sinter_high = [0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3]
 sslab_low = [-0.5, -0.5, -0.5, -0.5, -0.5, -0.5, -0.5, -0.5, -0.46, -0.42, -0.38, -0.34, -0.3, -0.3, -0.3, -0.3, -0.3, -0.3, -0.3, -0.3, -0.3, -0.3, -0.3, -0.3, -0.5]
@@ -41,22 +44,23 @@ sslab_high = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.46, 0.42, 0.38, 0.34, 0.
 # fmt: on
 
 def Abrahamson_2018(
-    siteprop, faultprop, im=None, period=None, epistemic_adj=None
+    siteprop, faultprop, im=None, period=None, epistemic_adj=None, stdev_type="TOTAL"
 ):
     """
-    
+
     component returned: geometric mean
-    
+
     Input Variables
+
     siteprop.Rrup: closest distance (km) to the ruptured plane
     siteprop.vs30: for site amplification
-    
+
     faultprop.Mw: moment magnitude
     faultprop.tect_type: SUBDUCTION_INTERFACE or SUBDUCTION_SLAB only
     faultprop.ztor: if SUBDUCTION_SLAB only. depth (km) to the top of ruptured plane
-    
+
     im: PGA or SA only
-    
+
     epistemic_adj: None: disabled epistemic adjustment
                    "HIGH": subduction interface or in-slab GMPE with the positive epistemic adjustment factor applied
                    "LOW":  subduction interface or in-slab GMPE with the negative epistemic adjustment factor applied
@@ -74,8 +78,14 @@ def Abrahamson_2018(
         depth_pga = 0.0
         # magnitude scaling term that modifies the distance attenuation
         mag_scale = a2[C] + a3 * (faultprop.Mw - 7.8)
+        mag_scale_pga = a2[C_PGA] + a3 * (faultprop.Mw - 7.8)
         adj = adj_int
         hinge_mw = C1inter[C]
+        if epistemic_adj is not None:
+            if epistemic_adj == "HIGH":
+                eadj = sinter_high
+            elif epistemic_adj == "LOW":
+                eadj = sinter_low
     elif faultprop.tect_type == TectType.SUBDUCTION_SLAB:
         base = a1[C] + a4[C] * (C1slab - C1inter[C]) + a10
         base_pga = a1[C] + a4[C_PGA] * (C1slab - C1inter[C_PGA]) + a10
@@ -86,8 +96,14 @@ def Abrahamson_2018(
             depth = a11[C] * (100.0 - 60.0)
             depth_pga = a11[C_PGA] * (100.0 - 60.0)
         mag_scale = a2[C] + a14[C] + a3 * (faultprop.Mw - 7.8)
+        mag_scale_pga = a2[C_PGA] + a14[C_PGA] + a3 * (faultprop.Mw - 7.8)
         adj = adj_slab
         hinge_mw = C1slab
+        if epistemic_adj is not None:
+            if epistemic_adj == "HIGH":
+                eadj = sslab_high
+            elif epistemic_adj == "LOW":
+                eadj = sslab_low
 
     # magnitude scaling term
     f_mag = a13[C] * ((10.0 - faultprop.Mw) ** 2.0)
@@ -96,39 +112,59 @@ def Abrahamson_2018(
         f_mag =  a4[C] * (faultprop.Mw - hinge_mw) + f_mag
         f_mag_pga =  a4[C_PGA] * (faultprop.Mw - hinge_mw) + f_mag
     # distance attenuation
-    fdist = mag_scale * np.log(siteprop.Rrup + C4 * np.exp(a9 * (faultprop.Mw - 6.0))) + a6[C] * siteprop.Rrup
+    f_dist = mag_scale * np.log(siteprop.Rrup + C4 * np.exp(a9 * (faultprop.Mw - 6.0))) + a6[C] * siteprop.Rrup
+    f_dist_pga = mag_scale_pga * np.log(siteprop.Rrup + C4 * np.exp(a9 * (faultprop.Mw - 6.0))) + a6[C_PGA] * siteprop.Rrup
+    # linear site term for the case where vs30 = 1000.0
+    f_lin = (a12[C_PGA] + b[C_PGA] * n) * np.log(1000.0 / vlin[C_PGA])
+    # PGA on rock (vs30 = 1000 m / s) + linear site term
+    lpga1000 = base_pga + f_mag_pga + depth_pga + f_dist_pga + f_lin
+    # compute median pga on rock (vs30=1000), needed for site response
+    # term calculation
+    pga1000 = np.exp(lpga1000 + adj[C_PGA])
 
-    def get_mean_and_stddevs(self, sites, rup, dists, imt, stddev_types):
-        """
-        See :meth:`superclass method
-        <.base.GroundShakingIntensityModel.get_mean_and_stddevs>`
-        for spec of input and result values.
-        """
-        # extract dictionaries of coefficients specific to required
-        # intensity measure type and for PGA
-        
-        # compute median pga on rock (vs30=1000), needed for site response
-        # term calculation
-        pga1000 = np.exp(self._compute_pga_rock(C_PGA, rup, dists) +
-                         C_PGA[self.CASCADIA_ADJUSTMENT])
-        # Get full model
-        mean = base + f_mag + depth + self.compute_distance_term(C, dists.rrup, rup.mag) + self.compute_site_term(C, sites.vs30, pga1000)
+    if siteprop.vs30 >= 1000.0:
+        vsstar = 1000.0
+    else:
+        vsstar = siteprop.vs30
+    if siteprop.vs30 >= vlin[C]:
+        f_site = (a12[C] + b[C] * n) * np.log(vsstar / vlin[C])
+    else:
+        # linear term
+        flin = a12[C] * np.log(vsstar / vlin[C])
+        # nonlinear term
+        fnl = (-b[C] * np.log(pga1000 + c)) + (b[C] * np.log(pga1000 + c * (vsstar / vlin[C]) ** n))
+        f_site = flin + fnl
+    # Get full model
+    mean = base + f_mag + depth + f_dist + f_site
 
-        stddevs = self.get_stddevs(C, C_PGA, pga1000, sites.vs30, stddev_types)
-        if self.EPISTEMIC_ADJUSTMENT:
-            adjustment = C[self.CASCADIA_ADJUSTMENT] +\
-                C[self.EPISTEMIC_ADJUSTMENT]
-            return mean + adjustment, stddevs
-        else:
-            return mean + C[self.CASCADIA_ADJUSTMENT], stddevs
+    stdev = compute_stdev(C, C_PGA, pga1000, siteprop.vs30, stdev_type)
+    if epistemic_adj is not None:
+        return mean + adj[C] + eadj, stdev
+    else:
+        return mean + adj[C], stdev
 
-    def _compute_pga_rock(C_PGA, rup, dists):
-        """
-        Returns the PGA on rock (vs30 = 1000 m / s)
-        """
-        lpga1000 = base_pga + f_mag_pga + depth_pga + self.compute_distance_term(C_PGA, dists.rrup, rup.mag)
-        # Get linear site term for the case where vs30 = 1000.0
-        flin = self._get_linear_site_term(
-            C_PGA, 1000.0 * np.ones_like(dists.rrup))
-        return lpga1000 + flin
 
+def compute_stdev(C, C_PGA, pga1000, vs30, stddev_type):
+    # not sure if we want to return 1 stddev_type or all every time
+
+    # partial derivative of the amplification term with respect to pga1000
+    if vs30 < vlin[C]:
+        dln = b[C] * pga1000 * (-1.0 / (pga1000 + c) + (1.0 / (pga1000 + c * (vs30 / vlin[C]) ** n)))
+    else:
+        dln = 0.0
+
+    if stddev_type == "TOTAL" or stddev_type == "INTER_EVENT":
+        # between event aleatory uncertainty, tau
+        tau = math.sqrt((tau0[C] ** 2.0) + (dln ** 2.0 * tau0[C] ** 2.0) + (2.0 * dln * tau0[C] * tau0[C_PGA] * rho_b[C]))
+        if stddev_type == "INTER_EVENT":
+            return tau
+    if stddev_type == "TOTAL" or stddev_type == "INTRA_EVENT":
+        # within-event aleatory uncertainty, phi
+        phi_amp2 = phiamp ** 2.0
+        phi_b = math.sqrt(phi0[C] ** 2.0 - phi_amp2)
+        phi_b_pga = np.sqrt((phi0[C_PGA] ** 2.0) - phi_amp2)
+        phi = math.sqrt(phi0[C] ** 2.0 + dln ** 2.0 * phi_b ** 2.0 + 2.0 * dln * phi_b * phi_b_pga * rho_w[C])
+        if stddev_type == "INTRA_EVENT":
+            return phi
+    # assume total
+    return math.sqrt(tau ** 2.0 + phi ** 2.0)
