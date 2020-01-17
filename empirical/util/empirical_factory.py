@@ -1,5 +1,6 @@
 from empirical.util import classdef
 from empirical.util.classdef import TectType, GMM, SiteClass, FaultStyle
+from empirical.GMM_models.Abrahamson_2018 import Abrahamson_2018
 from empirical.GMM_models.AfshariStewart_2016_Ds import Afshari_Stewart_2016_Ds
 from empirical.GMM_models.ASK_2014_nga import ASK_2014_nga
 from empirical.GMM_models.bc_hydro_2016_subduction import bc_hydro_2016_subduction
@@ -76,7 +77,7 @@ def compute_gmm(fault, site, gmm, im, period=None):
     if site.vs30 is None:
         site.vs30 = classdef.VS30_DEFAULT
 
-    if site.Rrup is None and gmm not in [GMM.BSSA_14]:
+    if site.Rrup is None and gmm not in [GMM.A_18, GMM.BSSA_14]:
         print("Rrup is a required parameter for", gmm.name)
         exit()
 
@@ -106,17 +107,18 @@ def compute_gmm(fault, site, gmm, im, period=None):
         exit()
 
     if fault.rake is None and gmm in [GMM.Br_10, GMM.CB_12]:
-        print("rake is a required parameter for Br_13 and CB_12")
+        print("rake is a required parameter for", gmm.name)
         exit()
 
     if fault.dip is None and gmm in [GMM.Br_10, GMM.CB_12]:
-        print("dip is a required parameter for Br_13 and CB_12")
+        print("dip is a required parameter for", gmm.name)
         exit()
 
-    if fault.ztor is None and gmm in [GMM.Br_10, GMM.CB_12]:
-        print("ztor is a required parameter for Br_13 and CB_12")
+    if fault.ztor is None and gmm in [GMM.A_18, GMM.Br_10, GMM.CB_12]:
+        print("ztor is a required parameter for", gmm.name)
         exit()
 
+    # this assumes rake is available but faultstyle and rake are not used in A_18
     if fault.faultstyle is None:
         if 45 < fault.rake < 135:
             fault.faultstyle = FaultStyle.REVERSE
@@ -128,7 +130,7 @@ def compute_gmm(fault, site, gmm, im, period=None):
             fault.faultstyle = FaultStyle.UNKNOWN
 
     if fault.tect_type is None:
-        if gmm is GMM.BC_16:
+        if gmm in [GMM.A_18, GMM.BC_16]:
             fault.tect_type = TectType.SUBDUCTION_INTERFACE
         else:
             fault.tect_type = TectType.ACTIVE_SHALLOW
@@ -137,7 +139,9 @@ def compute_gmm(fault, site, gmm, im, period=None):
         print("hypocentre depth is a required parameter for", gmm.name)
         exit()
 
-    if gmm is GMM.AS_16:
+    if gmm is GMM.A_18:
+        return Abrahamson_2018(site, fault, im=im, period=period)
+    elif gmm is GMM.AS_16:
         return Afshari_Stewart_2016_Ds(site, fault, im)
     elif gmm is GMM.ASK_14:
         return ASK_2014_nga(site, fault, im=im, period=period)
