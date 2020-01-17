@@ -1,4 +1,3 @@
-
 import math
 
 import numpy as np
@@ -46,13 +45,7 @@ sslab_high = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.46, 0.42, 0.38, 0.34, 0.
 # fmt: on
 
 
-def Abrahamson_2018(
-    site,
-    fault,
-    im=None,
-    periods=None,
-    epistemic_adj=None,
-):
+def Abrahamson_2018(site, fault, im=None, periods=None, epistemic_adj=None):
     """
 
     component returned: geometric mean
@@ -135,7 +128,9 @@ def calculate_Abrahamson(site, fault, period, epistemic_adj):
             elif epistemic_adj == "LOW":
                 eadj = sslab_low
     else:
-        raise ValueError("TectType must be SUBDUCTION_SLAB or SUBDUCTION_INTERFACE for this empirical model")
+        raise ValueError(
+            "TectType must be SUBDUCTION_SLAB or SUBDUCTION_INTERFACE for this empirical model"
+        )
 
     # magnitude scaling term
     f_mag = a13[C] * ((10.0 - fault.Mw) ** 2.0)
@@ -145,12 +140,12 @@ def calculate_Abrahamson(site, fault, period, epistemic_adj):
         f_mag_pga = a4[C_PGA] * (fault.Mw - hinge_mw) + f_mag
     # distance attenuation
     f_dist = (
-            mag_scale * np.log(site.Rrup + C4 * np.exp(a9 * (fault.Mw - 6.0)))
-            + a6[C] * site.Rrup
+        mag_scale * np.log(site.Rrup + C4 * np.exp(a9 * (fault.Mw - 6.0)))
+        + a6[C] * site.Rrup
     )
     f_dist_pga = (
-            mag_scale_pga * np.log(site.Rrup + C4 * np.exp(a9 * (fault.Mw - 6.0)))
-            + a6[C_PGA] * site.Rrup
+        mag_scale_pga * np.log(site.Rrup + C4 * np.exp(a9 * (fault.Mw - 6.0)))
+        + a6[C_PGA] * site.Rrup
     )
     # linear site term for the case where vs30 = 1000.0
     f_lin = (a12[C_PGA] + b[C_PGA] * n) * np.log(1000.0 / vlin[C_PGA])
