@@ -10,6 +10,7 @@ Empirical Engine - Empirical IM calculation
 ## [19.9.2] - 2019-12-10 -
 ### Added
   - Permutation aggregation script to generate all combinations of intensity measure models for a given event or fault from the available intensity measure files
+  - Abrahamson A18 model added and verification script created 
 ### Changed
   - Empirical calculation and aggregation scripts refactored to allow easier access to their functionality
 

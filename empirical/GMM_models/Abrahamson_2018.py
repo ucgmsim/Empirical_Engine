@@ -1,9 +1,10 @@
-
 import math
 
 import numpy as np
 
-from empirical.util.classdef import StdDevType, TectType
+from empirical.util.classdef import interpolate_to_closest
+from empirical.util.classdef import TectType
+
 
 # fmt: off
 imt = [0.01, 0.02, 0.03, 0.05, 0.075, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.75, 1, 1.5, 2, 2.5, 3, 4, 5, 6, 7.5, 10, 0]
@@ -44,14 +45,7 @@ sslab_high = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.46, 0.42, 0.38, 0.34, 0.
 # fmt: on
 
 
-def Abrahamson_2018(
-    siteprop,
-    faultprop,
-    im=None,
-    period=None,
-    epistemic_adj=None,
-    std_dev_type=StdDevType.TOTAL,
-):
+def Abrahamson_2018(site, fault, im=None, periods=None, epistemic_adj=None):
     """
 
     component returned: geometric mean
@@ -71,38 +65,61 @@ def Abrahamson_2018(
                    "HIGH": subduction interface or in-slab GMPE with the positive epistemic adjustment factor applied
                    "LOW":  subduction interface or in-slab GMPE with the negative epistemic adjustment factor applied
     """
+    results = []
     if im == "PGA":
-        period = 0
+        periods = [0]
 
+    for t in periods:
+        sorted_t = np.array(sorted(imt))
+        closest_index = int(np.argmin(np.abs(sorted_t - t)))
+        closest_period = sorted_t[closest_index]
+        if np.isclose(closest_period, t):
+            result = calculate_Abrahamson(site, fault, closest_period, epistemic_adj)
+        else:
+            t_low = sorted_t[t >= sorted_t][-1]
+            t_high = sorted_t[t <= sorted_t][-1]
+
+            a_low = calculate_Abrahamson(site, fault, t_low, epistemic_adj)
+            a_high = calculate_Abrahamson(site, fault, t_high, epistemic_adj)
+
+            result = interpolate_to_closest(t, t_high, t_low, a_high, a_low)
+        results.append(result)
+
+    if im in ["PGA", "PGV"]:
+        results = results[0]
+
+    return results
+
+
+def calculate_Abrahamson(site, fault, period, epistemic_adj):
     C = imt.index(period)
     C_PGA = imt.index(0)
-
-    if faultprop.tect_type == TectType.SUBDUCTION_INTERFACE:
+    if fault.tect_type == TectType.SUBDUCTION_INTERFACE:
         base = a1[C]
         base_pga = a1[C_PGA]
         depth = 0.0
         depth_pga = 0.0
         # magnitude scaling term that modifies the distance attenuation
-        mag_scale = a2[C] + a3 * (faultprop.Mw - 7.8)
-        mag_scale_pga = a2[C_PGA] + a3 * (faultprop.Mw - 7.8)
+        mag_scale = a2[C] + a3 * (fault.Mw - 7.8)
+        mag_scale_pga = a2[C_PGA] + a3 * (fault.Mw - 7.8)
         adj = adj_int
         hinge_mw = c1inter[C]
         if epistemic_adj is not None:
             if epistemic_adj == "HIGH":
-                eadj = sinter_high
+                eadj = sinter_high[C]
             elif epistemic_adj == "LOW":
-                eadj = sinter_low
-    elif faultprop.tect_type == TectType.SUBDUCTION_SLAB:
+                eadj = sinter_low[C]
+    elif fault.tect_type == TectType.SUBDUCTION_SLAB:
         base = a1[C] + a4[C] * (C1slab - c1inter[C]) + a10
         base_pga = a1[C] + a4[C_PGA] * (C1slab - c1inter[C_PGA]) + a10
-        if faultprop.ztor <= 100.0:
-            depth = a11[C] * (faultprop.ztor - 60.0)
-            depth_pga = a11[C_PGA] * (faultprop.ztor - 60.0)
+        if fault.ztor <= 100.0:
+            depth = a11[C] * (fault.ztor - 60.0)
+            depth_pga = a11[C_PGA] * (fault.ztor - 60.0)
         else:
             depth = a11[C] * (100.0 - 60.0)
             depth_pga = a11[C_PGA] * (100.0 - 60.0)
-        mag_scale = a2[C] + a14[C] + a3 * (faultprop.Mw - 7.8)
-        mag_scale_pga = a2[C_PGA] + a14[C_PGA] + a3 * (faultprop.Mw - 7.8)
+        mag_scale = a2[C] + a14[C] + a3 * (fault.Mw - 7.8)
+        mag_scale_pga = a2[C_PGA] + a14[C_PGA] + a3 * (fault.Mw - 7.8)
         adj = adj_slab
         hinge_mw = C1slab
         if epistemic_adj is not None:
@@ -110,21 +127,25 @@ def Abrahamson_2018(
                 eadj = sslab_high
             elif epistemic_adj == "LOW":
                 eadj = sslab_low
+    else:
+        raise ValueError(
+            "TectType must be SUBDUCTION_SLAB or SUBDUCTION_INTERFACE for this empirical model"
+        )
 
     # magnitude scaling term
-    f_mag = a13[C] * ((10.0 - faultprop.Mw) ** 2.0)
-    f_mag_pga = a13[C_PGA] * ((10.0 - faultprop.Mw) ** 2.0)
-    if faultprop.Mw <= hinge_mw:
-        f_mag = a4[C] * (faultprop.Mw - hinge_mw) + f_mag
-        f_mag_pga = a4[C_PGA] * (faultprop.Mw - hinge_mw) + f_mag
+    f_mag = a13[C] * ((10.0 - fault.Mw) ** 2.0)
+    f_mag_pga = a13[C_PGA] * ((10.0 - fault.Mw) ** 2.0)
+    if fault.Mw <= hinge_mw:
+        f_mag = a4[C] * (fault.Mw - hinge_mw) + f_mag
+        f_mag_pga = a4[C_PGA] * (fault.Mw - hinge_mw) + f_mag
     # distance attenuation
     f_dist = (
-        mag_scale * np.log(siteprop.Rrup + C4 * np.exp(a9 * (faultprop.Mw - 6.0)))
-        + a6[C] * siteprop.Rrup
+        mag_scale * np.log(site.Rrup + C4 * np.exp(a9 * (fault.Mw - 6.0)))
+        + a6[C] * site.Rrup
     )
     f_dist_pga = (
-        mag_scale_pga * np.log(siteprop.Rrup + C4 * np.exp(a9 * (faultprop.Mw - 6.0)))
-        + a6[C_PGA] * siteprop.Rrup
+        mag_scale_pga * np.log(site.Rrup + C4 * np.exp(a9 * (fault.Mw - 6.0)))
+        + a6[C_PGA] * site.Rrup
     )
     # linear site term for the case where vs30 = 1000.0
     f_lin = (a12[C_PGA] + b[C_PGA] * n) * np.log(1000.0 / vlin[C_PGA])
@@ -134,11 +155,11 @@ def Abrahamson_2018(
     # term calculation
     pga1000 = np.exp(lpga1000 + adj[C_PGA])
 
-    if siteprop.vs30 >= 1000.0:
+    if site.vs30 >= 1000.0:
         vsstar = 1000.0
     else:
-        vsstar = siteprop.vs30
-    if siteprop.vs30 >= vlin[C]:
+        vsstar = site.vs30
+    if site.vs30 >= vlin[C]:
         f_site = (a12[C] + b[C] * n) * np.log(vsstar / vlin[C])
     else:
         # linear term
@@ -151,16 +172,16 @@ def Abrahamson_2018(
     # Get full model
     mean = base + f_mag + depth + f_dist + f_site
 
-    std_dev = compute_stdev(C, C_PGA, pga1000, siteprop.vs30, std_dev_type)
+    std_dev = compute_stdev(C, C_PGA, pga1000, site.vs30)
     if epistemic_adj is not None:
-        return mean + adj[C] + eadj, std_dev
+        mean = np.exp(mean + adj[C] + eadj)
     else:
-        return mean + adj[C], std_dev
+        mean = np.exp(mean + adj[C])
+
+    return mean, std_dev
 
 
-def compute_stdev(C, C_PGA, pga1000, vs30, std_dev_type):
-    # not sure if we want to return 1 std_dev_type or all every time
-
+def compute_stdev(C, C_PGA, pga1000, vs30):
     # partial derivative of the amplification term with respect to pga1000
     if vs30 < vlin[C]:
         dln = (
@@ -171,26 +192,22 @@ def compute_stdev(C, C_PGA, pga1000, vs30, std_dev_type):
     else:
         dln = 0.0
 
-    if std_dev_type == StdDevType.TOTAL or std_dev_type == StdDevType.INTER_EVENT:
         # between event aleatory uncertainty, tau
-        tau = math.sqrt(
-            (tau0[C] ** 2.0)
-            + (dln ** 2.0 * tau0[C] ** 2.0)
-            + (2.0 * dln * tau0[C] * tau0[C_PGA] * rho_b[C])
-        )
-        if std_dev_type == StdDevType.INTER_EVENT:
-            return tau
-    if std_dev_type == StdDevType.TOTAL or std_dev_type == StdDevType.INTRA_EVENT:
-        # within-event aleatory uncertainty, phi
-        phi_amp2 = phiamp ** 2.0
-        phi_b = math.sqrt(phi0[C] ** 2.0 - phi_amp2)
-        phi_b_pga = np.sqrt((phi0[C_PGA] ** 2.0) - phi_amp2)
-        phi = math.sqrt(
-            phi0[C] ** 2.0
-            + dln ** 2.0 * phi_b ** 2.0
-            + 2.0 * dln * phi_b * phi_b_pga * rho_w[C]
-        )
-        if std_dev_type == StdDevType.INTRA_EVENT:
-            return phi
+    tau = math.sqrt(
+        (tau0[C] ** 2.0)
+        + (dln ** 2.0 * tau0[C] ** 2.0)
+        + (2.0 * dln * tau0[C] * tau0[C_PGA] * rho_b[C])
+    )
+
+    # within-event aleatory uncertainty, phi
+    phi_amp2 = phiamp ** 2.0
+    phi_b = math.sqrt(phi0[C] ** 2.0 - phi_amp2)
+    phi_b_pga = np.sqrt((phi0[C_PGA] ** 2.0) - phi_amp2)
+    phi = math.sqrt(
+        phi0[C] ** 2.0
+        + dln ** 2.0 * phi_b ** 2.0
+        + 2.0 * dln * phi_b * phi_b_pga * rho_w[C]
+    )
     # assume total
-    return math.sqrt(tau ** 2.0 + phi ** 2.0)
+    total = math.sqrt(tau ** 2.0 + phi ** 2.0)
+    return total, tau, phi
