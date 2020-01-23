@@ -149,7 +149,7 @@ def calculate_empirical(
     station_names = [site.name for site in sites] if stations is None else stations
 
     for im in ims:
-        for cur_gmm in empirical_factory.determine_all_gmm(
+        for cur_gmm, component in empirical_factory.determine_all_gmm(
             fault, im, tect_type_model_dict
         ):
 
@@ -178,7 +178,7 @@ def calculate_empirical(
 
             df = pd.DataFrame(columns=cur_cols, data=cur_data)
             df[STATION_COL_NAME] = station_names
-            df[COMPONENT_COL_NAME] = "geom"
+            df[COMPONENT_COL_NAME] = component.str_value
 
             # Correct column order
             df = order_im_cols_df(df)

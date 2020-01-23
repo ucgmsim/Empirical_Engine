@@ -1,3 +1,5 @@
+from qcore.constants import Components
+
 from empirical.util import classdef
 from empirical.util.classdef import TectType, GMM, SiteClass, FaultStyle
 from empirical.GMM_models.Abrahamson_2018 import Abrahamson_2018
@@ -67,8 +69,12 @@ def determine_all_gmm(fault, im, tect_type_model_dict):
     else:
         tect_type = TectType(fault.tect_type).name
     if tect_type in tect_type_model_dict and im in tect_type_model_dict[tect_type]:
-        model = tect_type_model_dict[tect_type][im]
-        return [GMM[gmm] for gmm in model]
+        comps = tect_type_model_dict[tect_type][im]
+        models = []
+        for comp in comps:
+            for model in tect_type_model_dict[tect_type][im][comp]:
+                models.append((GMM[model], Components.from_str(comp)))
+        return models
     else:
         print("No valid empirical model found")
         return None

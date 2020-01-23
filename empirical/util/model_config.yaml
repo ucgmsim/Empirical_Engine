@@ -16,63 +16,100 @@
 # Options for each model are listed to the right
 ACTIVE_SHALLOW:
   PGV:
+    geom:
     - Br_10
   PGA:
+    geom:
     - Br_10 # ZA_06 or Br_10
   pSA:
-    - Br_10 # ZA_06 or Br_10
+    geom:
+      - Br_10 # ZA_06 or Br_10
+    RotD100_50:
+      - SB_13
   CAV:
-    - CB_10
+    geom:
+      - CB_10
   AI:
-    - CB_12
+    geom:
+      - CB_12
   Ds575:
-    - AS_16
+    geom:
+      - AS_16
   Ds595:
-    - AS_16
+    geom:
+      - AS_16
   Ds2080:
-    - AS_16
+    geom:
+      - AS_16
 VOLCANIC:
   PGV:
-    - Br_10
+    geom:
+      - Br_10
   PGA:
-    - Br_10
+    geom:
+      - Br_10
+    RotD100_50:
+      - SB_13
   pSA:
-    - Br_10
+    geom:
+      - Br_10
   CAV:
-    - CB_10 # These are only for shallow crustal in lieu of a more appropriate model
+    geom:
+      - CB_10 # These are only for shallow crustal in lieu of a more appropriate model
   AI:
-    - CB_12 # These are only for shallow crustal in lieu of a more appropriate model
+    geom:
+      - CB_12 # These are only for shallow crustal in lieu of a more appropriate model
   Ds575:
-    - AS_16 # These are only for shallow crustal in lieu of a more appropriate model
+    geom:
+      - AS_16 # These are only for shallow crustal in lieu of a more appropriate model
   Ds595:
-    - AS_16 # These are only for shallow crustal in lieu of a more appropriate model
+    geom:
+      - AS_16 # These are only for shallow crustal in lieu of a more appropriate model
 SUBDUCTION_SLAB:
   PGV:
-    - Br_10 # These are only for shallow crustal in lieu of a more appropriate model
+    geom:
+      - Br_10 # These are only for shallow crustal in lieu of a more appropriate model
   PGA:
-    - ZA_06
+    geom:
+      - ZA_06
+    RotD100_50:
+      - SB_13
   pSA:
-    - ZA_06
+    geom:
+      - ZA_06
   CAV:
-    - CB_10 # These are only for shallow crustal in lieu of a more appropriate model
+    geom:
+      - CB_10 # These are only for shallow crustal in lieu of a more appropriate model
   AI:
-    - CB_12 # These are only for shallow crustal in lieu of a more appropriate model
+    geom:
+      - CB_12 # These are only for shallow crustal in lieu of a more appropriate model
   Ds575:
-    - AS_16 # These are only for shallow crustal in lieu of a more appropriate model
+    geom:
+      - AS_16 # These are only for shallow crustal in lieu of a more appropriate model
   Ds595:
-    - AS_16 # These are only for shallow crustal in lieu of a more appropriate model
+    geom:
+      - AS_16 # These are only for shallow crustal in lieu of a more appropriate model
 SUBDUCTION_INTERFACE:
   PGV:
-    - Br_10 # These are only for shallow crustal in lieu of a more appropriate model
+    geom:
+      - Br_10 # These are only for shallow crustal in lieu of a more appropriate model
   PGA:
-    - ZA_06
+    geom:
+      - ZA_06
   pSA:
-    - ZA_06
+    geom:
+      - ZA_06
+    RotD100_50:
+      - SB_13
   CAV:
-    - CB_10 # These are only for shallow crustal in lieu of a more appropriate model
+    geom:
+      - CB_10 # These are only for shallow crustal in lieu of a more appropriate model
   AI:
-    - CB_12 # These are only for shallow crustal in lieu of a more appropriate model
+    geom:
+      - CB_12 # These are only for shallow crustal in lieu of a more appropriate model
   Ds575:
-    - AS_16 # These are only for shallow crustal in lieu of a more appropriate model
+    geom:
+      - AS_16 # These are only for shallow crustal in lieu of a more appropriate model
   Ds595:
-    - AS_16 # These are only for shallow crustal in lieu of a more appropriate model
+    geom:
+      - AS_16 # These are only for shallow crustal in lieu of a more appropriate model
