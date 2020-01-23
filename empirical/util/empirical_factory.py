@@ -1,4 +1,6 @@
-from qcore.constants import Components
+import os
+import numpy as np
+import yaml
 
 from empirical.util import classdef
 from empirical.util.classdef import TectType, GMM, SiteClass, FaultStyle
@@ -14,9 +16,7 @@ from empirical.GMM_models.CY_2014_nga import CY_2014_nga
 from empirical.GMM_models.McVerry_2006_Sa import McVerry_2006_Sa
 from empirical.GMM_models.zhou_2006 import Zhaoetal_2006_Sa
 from empirical.GMM_models.ShahiBaker_2013_RotD100_50 import ShahiBaker_2013_RotD100_50
-import numpy as np
-import yaml
-import os
+from qcore.constants import Components
 
 
 def read_model_dict(config=None):
