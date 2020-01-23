@@ -53,13 +53,14 @@ empirical_values = np.asarray(
     ]
 )
 
+_SB_INTERPOLATOR = interp1d(empirical_periods, empirical_values, axis=0)
+
 
 def ShahiBaker_2013_RotD100_50(im, periods):
     if im is not "pSA":
         raise ValueError("Shahi and Baker 2013 RotD100/50 is only valid for pSA")
 
-    interpolator = interp1d(empirical_periods, empirical_values, axis=0)
-    results = interpolator(periods)
+    results = _SB_INTERPOLATOR(periods)
     # results[:, 0] = np.log(results[:, 0])
 
     return results[:, 0], results[:, -1]

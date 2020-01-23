@@ -10,6 +10,7 @@ from empirical.GMM_models.CB_2014_nga import CB_2014_nga
 from empirical.GMM_models.CY_2014_nga import CY_2014_nga
 from empirical.GMM_models.McVerry_2006_Sa import McVerry_2006_Sa
 from empirical.GMM_models.zhou_2006 import Zhaoetal_2006_Sa
+from empirical.GMM_models.ShahiBaker_2013_RotD100_50 import ShahiBaker_2013_RotD100_50
 import numpy as np
 import yaml
 import os
@@ -157,6 +158,8 @@ def compute_gmm(fault, site, gmm, im, period=None):
         return McVerry_2006_Sa(site, fault, im=im, period=period)
     elif gmm is GMM.ZA_06:
         return Zhaoetal_2006_Sa(site, fault, im, period)
+    elif gmm is GMM.SB_13:
+        return ShahiBaker_2013_RotD100_50(im, period)
     else:
         raise ValueError("Invalid GMM")
 
