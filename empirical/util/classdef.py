@@ -74,7 +74,8 @@ class GMM(Enum):
     CB_14 = 9
     CY_14 = 10
     CB_10 = 11
-    SB_13 = 12
+    A_18 = 12
+    SB_13 = 13
 
 
 class SiteClass(Enum):
@@ -99,6 +100,12 @@ class FaultStyle(Enum):
 class Orientation(Enum):
     AVERAGE = 1
     RANDOM = 2
+
+
+class StdDevType(Enum):
+    TOTAL = 1
+    INTER_EVENT = 2
+    INTRA_EVENT = 3
 
 
 def interpolate_to_closest(T, T_hi, T_low, y_high, y_low):
