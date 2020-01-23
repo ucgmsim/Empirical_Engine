@@ -77,7 +77,7 @@ def compute_gmm(fault, site, gmm, im, period=None):
     if site.vs30 is None:
         site.vs30 = classdef.VS30_DEFAULT
 
-    if site.Rrup is None and gmm not in [GMM.BSSA_14]:
+    if site.Rrup is None and gmm not in [GMM.BSSA_14, GMM.SB_13]:
         print("Rrup is a required parameter for", gmm.name)
         exit()
 
@@ -102,7 +102,7 @@ def compute_gmm(fault, site, gmm, im, period=None):
     if site.Rjb is None:
         site.Rjb = np.sqrt(site.Rrup ** 2 - fault.ztor ** 2)
 
-    if fault.Mw is None:
+    if fault.Mw is None and gmm not in [GMM.SB_13]:
         print("Moment magnitude is a required parameter")
         exit()
 
