@@ -24,7 +24,7 @@ ACTIVE_SHALLOW:
   pSA:
     geom:
       - Br_10 # ZA_06 or Br_10
-    RotD100_50:
+    rotd100_50:
       - SB_13
   CAV:
     geom:
@@ -48,11 +48,11 @@ VOLCANIC:
   PGA:
     geom:
       - Br_10
-    RotD100_50:
-      - SB_13
   pSA:
     geom:
       - Br_10
+    rotd100_50:
+      - SB_13
   CAV:
     geom:
       - CB_10 # These are only for shallow crustal in lieu of a more appropriate model
@@ -72,11 +72,11 @@ SUBDUCTION_SLAB:
   PGA:
     geom:
       - ZA_06
-    RotD100_50:
-      - SB_13
   pSA:
     geom:
       - ZA_06
+    rotd100_50:
+      - SB_13
   CAV:
     geom:
       - CB_10 # These are only for shallow crustal in lieu of a more appropriate model
@@ -99,7 +99,7 @@ SUBDUCTION_INTERFACE:
   pSA:
     geom:
       - ZA_06
-    RotD100_50:
+    rotd100_50:
       - SB_13
   CAV:
     geom:

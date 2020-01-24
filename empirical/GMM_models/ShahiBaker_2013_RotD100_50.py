@@ -62,7 +62,7 @@ def ShahiBaker_2013_RotD100_50(im, periods):
 
     results = _SB_INTERPOLATOR(periods)
 
-    return results[:, 0], results[:, 1:]
+    return zip(list(results[:, 0]), list(results[:, 1:]))
 
 
 def calculate_shahibaker(im, periods):
