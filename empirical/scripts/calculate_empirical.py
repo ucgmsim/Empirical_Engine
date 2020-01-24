@@ -171,7 +171,14 @@ def calculate_empirical(
                 values = empirical_factory.compute_gmm(fault, site, cur_gmm, im, period)
                 if im == PSA_IM_NAME:
                     cur_data[ix, :] = np.ravel(
-                        [[im_value, total_sigma] for im_value, (total_sigma, inter_sigma, intra_sigma) in values]
+                        [
+                            [im_value, total_sigma]
+                            for im_value, (
+                                total_sigma,
+                                inter_sigma,
+                                intra_sigma,
+                            ) in values
+                        ]
                     )
                 else:
                     cur_data[ix, :] = [values[0], values[1][0]]
