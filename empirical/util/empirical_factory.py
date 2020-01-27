@@ -1,3 +1,7 @@
+import os
+import numpy as np
+import yaml
+
 from empirical.util import classdef
 from empirical.util.classdef import TectType, GMM, SiteClass, FaultStyle
 from empirical.GMM_models.Abrahamson_2018 import Abrahamson_2018
@@ -11,9 +15,8 @@ from empirical.GMM_models.CB_2014_nga import CB_2014_nga
 from empirical.GMM_models.CY_2014_nga import CY_2014_nga
 from empirical.GMM_models.McVerry_2006_Sa import McVerry_2006_Sa
 from empirical.GMM_models.zhou_2006 import Zhaoetal_2006_Sa
-import numpy as np
-import yaml
-import os
+from empirical.GMM_models.ShahiBaker_2013_RotD100_50 import ShahiBaker_2013_RotD100_50
+from qcore.constants import Components
 
 
 def read_model_dict(config=None):
@@ -66,8 +69,12 @@ def determine_all_gmm(fault, im, tect_type_model_dict):
     else:
         tect_type = TectType(fault.tect_type).name
     if tect_type in tect_type_model_dict and im in tect_type_model_dict[tect_type]:
-        model = tect_type_model_dict[tect_type][im]
-        return [GMM[gmm] for gmm in model]
+        comps = tect_type_model_dict[tect_type][im]
+        models = []
+        for comp in comps:
+            for model in tect_type_model_dict[tect_type][im][comp]:
+                models.append((GMM[model], Components.from_str(comp)))
+        return models
     else:
         print("No valid empirical model found")
         return None
@@ -77,7 +84,7 @@ def compute_gmm(fault, site, gmm, im, period=None):
     if site.vs30 is None:
         site.vs30 = classdef.VS30_DEFAULT
 
-    if site.Rrup is None and gmm not in [GMM.A_18, GMM.BSSA_14]:
+    if site.Rrup is None and gmm not in [GMM.A_18, GMM.BSSA_14, GMM.SB_13]:
         print("Rrup is a required parameter for", gmm.name)
         exit()
 
@@ -102,7 +109,7 @@ def compute_gmm(fault, site, gmm, im, period=None):
     if site.Rjb is None:
         site.Rjb = np.sqrt(site.Rrup ** 2 - fault.ztor ** 2)
 
-    if fault.Mw is None:
+    if fault.Mw is None and gmm not in [GMM.SB_13]:
         print("Moment magnitude is a required parameter")
         exit()
 
@@ -161,6 +168,8 @@ def compute_gmm(fault, site, gmm, im, period=None):
         return McVerry_2006_Sa(site, fault, im=im, period=period)
     elif gmm is GMM.ZA_06:
         return Zhaoetal_2006_Sa(site, fault, im, period)
+    elif gmm is GMM.SB_13:
+        return ShahiBaker_2013_RotD100_50(im, period)
     else:
         raise ValueError("Invalid GMM")
 

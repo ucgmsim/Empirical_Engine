@@ -149,7 +149,7 @@ def calculate_empirical(
     station_names = [site.name for site in sites] if stations is None else stations
 
     for im in ims:
-        for cur_gmm in empirical_factory.determine_all_gmm(
+        for cur_gmm, component in empirical_factory.determine_all_gmm(
             fault, im, tect_type_model_dict
         ):
 
@@ -171,14 +171,21 @@ def calculate_empirical(
                 values = empirical_factory.compute_gmm(fault, site, cur_gmm, im, period)
                 if im == PSA_IM_NAME:
                     cur_data[ix, :] = np.ravel(
-                        [[value_tuple[0], value_tuple[1][0]] for value_tuple in values]
+                        [
+                            [im_value, total_sigma]
+                            for im_value, (
+                                total_sigma,
+                                inter_sigma,
+                                intra_sigma,
+                            ) in values
+                        ]
                     )
                 else:
                     cur_data[ix, :] = [values[0], values[1][0]]
 
             df = pd.DataFrame(columns=cur_cols, data=cur_data)
             df[STATION_COL_NAME] = station_names
-            df[COMPONENT_COL_NAME] = "geom"
+            df[COMPONENT_COL_NAME] = component.str_value
 
             # Correct column order
             df = order_im_cols_df(df)

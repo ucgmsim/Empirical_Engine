@@ -4,5 +4,6 @@ numpy
 numba
 pandas
 PyYAML
+scipy
 matplotlib==2.0.2
 xlrd>=1.0.0
