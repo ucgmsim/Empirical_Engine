@@ -16,6 +16,7 @@ from empirical.GMM_models.CY_2014_nga import CY_2014_nga
 from empirical.GMM_models.McVerry_2006_Sa import McVerry_2006_Sa
 from empirical.GMM_models.zhou_2006 import Zhaoetal_2006_Sa
 from empirical.GMM_models.ShahiBaker_2013_RotD100_50 import ShahiBaker_2013_RotD100_50
+from empirical.GMM_models.Burks_Baker_2013_iesdr import Burks_Baker_2013_iesdr
 from qcore.constants import Components
 
 
@@ -84,7 +85,7 @@ def compute_gmm(fault, site, gmm, im, period=None):
     if site.vs30 is None:
         site.vs30 = classdef.VS30_DEFAULT
 
-    if site.Rrup is None and gmm not in [GMM.A_18, GMM.BSSA_14, GMM.SB_13]:
+    if site.Rrup is None and gmm not in [GMM.A_18, GMM.BSSA_14, GMM.SB_13, GMM.BB_13]:
         print("Rrup is a required parameter for", gmm.name)
         exit()
 
@@ -170,6 +171,8 @@ def compute_gmm(fault, site, gmm, im, period=None):
         return Zhaoetal_2006_Sa(site, fault, im, period)
     elif gmm is GMM.SB_13:
         return ShahiBaker_2013_RotD100_50(im, period)
+    elif gmm is GMM.BB_13:
+        return Burks_Baker_2013_iesdr(period, 1, fault)
     else:
         raise ValueError("Invalid GMM")
 
