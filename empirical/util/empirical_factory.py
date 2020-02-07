@@ -148,7 +148,7 @@ def compute_gmm(fault, site, gmm, im, period=None):
         exit()
 
     if gmm is GMM.A_18:
-        return Abrahamson_2018(site, fault, im=im, period=period)
+        return Abrahamson_2018(site, fault, im=im, periods=period)
     elif gmm is GMM.AS_16:
         return Afshari_Stewart_2016_Ds(site, fault, im)
     elif gmm is GMM.ASK_14:
