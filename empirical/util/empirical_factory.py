@@ -73,11 +73,12 @@ def determine_all_gmm(fault, im, tect_type_model_dict):
         comps = tect_type_model_dict[tect_type][im]
         models = []
         for comp in comps:
-            for model in tect_type_model_dict[tect_type][im][comp]:
-                models.append((GMM[model], Components.from_str(comp)))
+            if tect_type_model_dict[tect_type][im][comp] is not None:
+                for model in tect_type_model_dict[tect_type][im][comp]:
+                    models.append((GMM[model], Components.from_str(comp)))
         return models
     else:
-        print("No valid empirical model found")
+        print(f"No valid empirical model found for im {im} with tectonic type {tect_type}")
         return None
 
 
@@ -172,7 +173,7 @@ def compute_gmm(fault, site, gmm, im, period=None):
     elif gmm is GMM.SB_13:
         return ShahiBaker_2013_RotD100_50(im, period)
     elif gmm is GMM.BB_13:
-        return Burks_Baker_2013_iesdr(period, 1, fault)
+        return Burks_Baker_2013_iesdr(period, fault)
     else:
         raise ValueError("Invalid GMM")
 

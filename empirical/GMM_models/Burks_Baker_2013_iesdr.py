@@ -31,10 +31,14 @@ c_table = np.asarray([
 _RATIO_INTERPOLATOR = interp1d(
     c_table[:, 0], c_table[:, 1:], axis=0, fill_value="extrapolate", assume_sorted=True
 )
+_STRENGTH_REDUCTION_FACTORS = np.linspace(0.5, 9.5, 10)
 
 
-def Burks_Baker_2013_iesdr(T, R_hat, fault: Fault):
-    return [fn_sdi_atten(period, R_hat, fault.Mw) for period in T]
+def Burks_Baker_2013_iesdr(periods, fault: Fault, R_hat=_STRENGTH_REDUCTION_FACTORS):
+    results = []
+    for period in periods:
+        results.extend(fn_sdi_atten(period, R_hat, fault.Mw))
+    return [[mean, [sigma]] for mean, sigma in results]
 
 
 def fn_sdi_atten(period, R_hat, magnitude):
@@ -52,15 +56,15 @@ def fn_sdi_atten(period, R_hat, magnitude):
     coefs = _RATIO_INTERPOLATOR(period).T
 
     g1 = (
-            (coefs[0] + coefs[1] * magnitude) * R_cur
-            + (coefs[2] + coefs[3] * magnitude) * R_cur * np.log(R_cur)
-            + coefs[4] * R_cur ** 2.5
+        (coefs[0] + coefs[1] * magnitude) * R_cur
+        + (coefs[2] + coefs[3] * magnitude) * R_cur * np.log(R_cur)
+        + coefs[4] * R_cur ** 2.5
     )
 
     g1_p = (
-            (coefs[0] + coefs[1] * magnitude) * 0.2
-            + (coefs[2] + coefs[3] * magnitude) * 0.2 * np.log(0.2)
-            + coefs[4] * 0.2 ** 2.5
+        (coefs[0] + coefs[1] * magnitude) * 0.2
+        + (coefs[2] + coefs[3] * magnitude) * 0.2 * np.log(0.2)
+        + coefs[4] * 0.2 ** 2.5
     )
 
     g2 = np.ones_like(R_cur) * coefs[5]
@@ -69,7 +73,9 @@ def fn_sdi_atten(period, R_hat, magnitude):
     )
     g2[R_cur < 0.3] = 0
 
-    mu_ratio[R_cur >= 0.2] = g1[R_cur >= 0.2] + g2[R_cur >= 0.2] * (magnitude - 6.5) - g1_p
+    mu_ratio[R_cur >= 0.2] = (
+        g1[R_cur >= 0.2] + g2[R_cur >= 0.2] * (magnitude - 6.5) - g1_p
+    )
     sigma_ratio[R_cur >= 0.2] = (
         coefs[6]
         + coefs[7] * R_cur
@@ -80,4 +86,4 @@ def fn_sdi_atten(period, R_hat, magnitude):
     )[R_cur >= 0.2]
 
     mu_ratio = np.exp(mu_ratio)
-    return mu_ratio, sigma_ratio
+    return list(zip(mu_ratio, sigma_ratio))
