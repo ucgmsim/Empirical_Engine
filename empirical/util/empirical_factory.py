@@ -78,7 +78,9 @@ def determine_all_gmm(fault, im, tect_type_model_dict):
                     models.append((GMM[model], Components.from_str(comp)))
         return models
     else:
-        print(f"No valid empirical model found for im {im} with tectonic type {tect_type}")
+        print(
+            f"No valid empirical model found for im {im} with tectonic type {tect_type}"
+        )
         return None
 
 
