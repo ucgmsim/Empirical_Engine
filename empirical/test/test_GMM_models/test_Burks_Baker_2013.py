@@ -17,5 +17,5 @@ mw = 5.49526674438781
 @pytest.mark.parametrize(["period", "R_hat", "mw", "bench_means", "bench_sigmas"], [[period, R_hat, mw, means, sigmas]])
 def test_Burks_Barker_2013_Sa(period, R_hat, mw, bench_means, bench_sigmas):
     test_means, test_sigmas = list(zip(*fn_sdi_atten(period, R_hat, mw)))
-    assert np.isclose(test_means, bench_means).all()
-    assert np.isclose(test_sigmas, bench_sigmas).all()
+    assert np.allclose(test_means, bench_means)
+    assert np.allclose(test_sigmas, bench_sigmas)
