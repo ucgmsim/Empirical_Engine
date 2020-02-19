@@ -34,7 +34,7 @@ _SB_INTERPOLATOR = interp1d(
 
 
 def ShahiBaker_2013_RotD100_50(im, periods):
-    if im is not "pSA":
+    if im != "pSA":
         raise ValueError("Shahi and Baker 2013 RotD100/50 is only valid for pSA")
 
     results = _SB_INTERPOLATOR(np.log(periods))
