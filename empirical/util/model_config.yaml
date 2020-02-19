@@ -10,6 +10,8 @@
 # BSSA_14 -- Boore Stewart Seyhan Atkinson 2014
 # CB_14 -- Campbell Bozorgina 2014 NGA
 # CY_14 -- Chiou Youngso2014 NGA
+# SB_13 -- Shahi Baker 2013
+# BB_13 -- Burks Baker 2013
 
 
 
@@ -41,6 +43,9 @@ ACTIVE_SHALLOW:
   Ds2080:
     geom:
       - AS_16
+  IESDR:
+    geom:
+      - BB_13
 VOLCANIC:
   PGV:
     geom:
@@ -50,7 +55,7 @@ VOLCANIC:
       - Br_10
   pSA:
     geom:
-      - Br_10
+      - BR_10
     rotd100_50:
       - SB_13
   CAV:
@@ -65,6 +70,9 @@ VOLCANIC:
   Ds595:
     geom:
       - AS_16 # These are only for shallow crustal in lieu of a more appropriate model
+  IESDR:
+    geom:
+      - BB_13
 SUBDUCTION_SLAB:
   PGV:
     geom:
@@ -74,7 +82,7 @@ SUBDUCTION_SLAB:
       - ZA_06
   pSA:
     geom:
-      - ZA_06
+      - A_18
     rotd100_50:
       - SB_13
   CAV:
@@ -89,6 +97,9 @@ SUBDUCTION_SLAB:
   Ds595:
     geom:
       - AS_16 # These are only for shallow crustal in lieu of a more appropriate model
+  IESDR:
+    geom:
+      - BB_13
 SUBDUCTION_INTERFACE:
   PGV:
     geom:
@@ -98,7 +109,7 @@ SUBDUCTION_INTERFACE:
       - ZA_06
   pSA:
     geom:
-      - ZA_06
+      - A_18
     rotd100_50:
       - SB_13
   CAV:
@@ -113,3 +124,6 @@ SUBDUCTION_INTERFACE:
   Ds595:
     geom:
       - AS_16 # These are only for shallow crustal in lieu of a more appropriate model
+  IESDR:
+    geom:
+      - BB_13

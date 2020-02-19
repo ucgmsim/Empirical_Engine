@@ -76,6 +76,7 @@ class GMM(Enum):
     CB_10 = 11
     A_18 = 12
     SB_13 = 13
+    BB_13 = 14
 
 
 class SiteClass(Enum):
