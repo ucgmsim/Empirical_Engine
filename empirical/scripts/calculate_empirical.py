@@ -13,14 +13,12 @@ from empirical.util import empirical_factory, classdef
 from empirical.util.classdef import Site, Fault, TectType
 from empirical.GMM_models.Burks_Baker_2013_iesdr import _STRENGTH_REDUCTION_FACTORS
 
+from qcore import constants
 from qcore.utils import setup_dir
 from qcore.im import order_im_cols_df
 
-IM_LIST = ["PGA", "PGV", "CAV", "AI", "Ds575", "Ds595", "pSA", "IESDR"]
+IM_LIST = ["PGA", "PGV", "CAV", "AI", "Ds575", "Ds595", "pSA"]
 MULTI_VALUE_IMS = ("pSA", "IESDR")
-EXT_PERIOD = np.logspace(start=np.log10(0.01), stop=np.log10(10.0), num=100, base=10)
-PERIOD = [0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.75, 1.0, 2.0, 3.0, 4.0, 5.0, 7.5, 10.0]
-
 PSA_IM_NAME = "pSA"
 STATION_COL_NAME = "station"
 COMPONENT_COL_NAME = "component"
@@ -127,6 +125,7 @@ def calculate_empirical(
     ims,
     rupture_distance,
     max_rupture_distance,
+    period,
     extended_period,
 ):
     """Calculate empirical intensity measures"""
@@ -143,9 +142,7 @@ def calculate_empirical(
     )
 
     if extended_period:
-        period = np.unique(np.append(PERIOD, EXT_PERIOD))
-    else:
-        period = PERIOD
+        period = np.unique(np.append(period, constants.EXT_PERIOD))
 
     tect_type_model_dict = empirical_factory.read_model_dict(config_file)
     station_names = [site.name for site in sites] if stations is None else stations
@@ -249,7 +246,7 @@ def load_args():
         "-p",
         "--period",
         nargs="+",
-        default=PERIOD,
+        default=constants.DEFAULT_PSA_PERIODS,
         type=float,
         help="pSA period(s) separated by a " "space. eg: 0.02 0.05 0.1.",
     )
@@ -280,6 +277,7 @@ def main():
         args.im,
         args.rupture_distance,
         args.max_rupture_distance,
+        args.period,
         args.extended_period,
     )
 
