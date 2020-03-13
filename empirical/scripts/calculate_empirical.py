@@ -47,6 +47,10 @@ def create_fault_parameters(srf_info):
         fault.ztor = np.min(attrs["dtop"])
     else:
         fault.ztor = attrs["hdepth"]
+    if "dbottom" in attrs:
+        fault.zbot = np.min(attrs["dbottom"])
+    else:
+        fault.zbot = attrs["hdepth"]
     if "tect_type" in attrs:
         fault.tect_type = TectType[attrs["tect_type"]]
     else:
