@@ -17,7 +17,7 @@ from qcore.im import order_im_cols_df
 
 IM_LIST = ["PGA", "PGV", "CAV", "AI", "Ds575", "Ds595", "pSA"]
 EXT_PERIOD = np.logspace(start=np.log10(0.01), stop=np.log10(10.0), num=100, base=10)
-PERIOD = [0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.75, 1.0, 2.0, 3.0, 4.0, 5.0, 7.5, 10.0]
+PERIOD = np.array([0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.75, 1.0, 2.0, 3.0, 4.0, 5.0, 7.5, 10.0])
 
 PSA_IM_NAME = "pSA"
 STATION_COL_NAME = "station"
@@ -48,7 +48,7 @@ def create_fault_parameters(srf_info):
     else:
         fault.ztor = attrs["hdepth"]
     if "tect_type" in attrs:
-        fault.tect_type = TectType[attrs["tect_type"]]
+        fault.tect_type = TectType[attrs["tect_type"].decode('utf-8')]
     else:
         print("tect_type not found assuming 'ACTIVE_SHALLOW'")
         fault.tect_type = TectType.ACTIVE_SHALLOW

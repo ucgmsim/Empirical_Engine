@@ -50,7 +50,7 @@ def aggregate_data(im_files, output_dir, identifier, rupture, version):
     result_df[COMPONENT_COL_NAME] = tmp_components
 
     if result_df.shape[0] != ref_n_rows:
-        raise Exception("Resulting dataframe has the inccorect shape!")
+        raise Exception("Resulting dataframe has the incorrect shape!")
 
     # Order the columns
     result_df = order_im_cols_df(result_df)
