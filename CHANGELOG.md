@@ -7,6 +7,12 @@ Empirical Engine - Empirical IM calculation
 ### Changed
 ### Added
 
+## [19.9.3] - 2020-02-11 -
+### Added
+  - Added RotD100/50 (rotd100_50) and inelastic to elastic spectral displacement ratio (IESDR) empiricals
+### Changed
+  - Added 16 pSA periods to the default
+
 ## [19.9.2] - 2019-12-10 -
 ### Added
   - Permutation aggregation script to generate all combinations of intensity measure models for a given event or fault from the available intensity measure files

@@ -1,4 +1,5 @@
 import os
+
 import numpy as np
 import yaml
 
@@ -16,6 +17,7 @@ from empirical.GMM_models.CY_2014_nga import CY_2014_nga
 from empirical.GMM_models.McVerry_2006_Sa import McVerry_2006_Sa
 from empirical.GMM_models.zhou_2006 import Zhaoetal_2006_Sa
 from empirical.GMM_models.ShahiBaker_2013_RotD100_50 import ShahiBaker_2013_RotD100_50
+from empirical.GMM_models.Burks_Baker_2013_iesdr import Burks_Baker_2013_iesdr
 from qcore.constants import Components
 
 
@@ -40,19 +42,12 @@ def get_models_from_dict(config):
         config = os.path.join(dir, "model_config.yaml")
 
     tect_type_model_dict = yaml.safe_load(open(config))
-    # return list(
-    #     {
-    #         model
-    #         for im_model_dict in tect_type_model_dict.values()
-    #         for models in im_model_dict.values()
-    #         for model in models
-    #     }
-    # )
     return list(
         {
             f"{model}_{key}"
             for key in tect_type_model_dict
-            for models in tect_type_model_dict[key].values()
+            for component in tect_type_model_dict[key].values()
+            for models in component.values()
             for model in models
         }
     )
@@ -72,11 +67,14 @@ def determine_all_gmm(fault, im, tect_type_model_dict):
         comps = tect_type_model_dict[tect_type][im]
         models = []
         for comp in comps:
-            for model in tect_type_model_dict[tect_type][im][comp]:
-                models.append((GMM[model], Components.from_str(comp)))
+            if tect_type_model_dict[tect_type][im][comp] is not None:
+                for model in tect_type_model_dict[tect_type][im][comp]:
+                    models.append((GMM[model], Components.from_str(comp)))
         return models
     else:
-        print("No valid empirical model found")
+        print(
+            f"No valid empirical model found for im {im} with tectonic type {tect_type}"
+        )
         return None
 
 
@@ -84,7 +82,7 @@ def compute_gmm(fault, site, gmm, im, period=None):
     if site.vs30 is None:
         site.vs30 = classdef.VS30_DEFAULT
 
-    if site.Rrup is None and gmm not in [GMM.A_18, GMM.BSSA_14, GMM.SB_13]:
+    if site.Rrup is None and gmm not in [GMM.A_18, GMM.BSSA_14, GMM.SB_13, GMM.BB_13]:
         print("Rrup is a required parameter for", gmm.name)
         exit()
 
@@ -147,7 +145,7 @@ def compute_gmm(fault, site, gmm, im, period=None):
         exit()
 
     if gmm is GMM.A_18:
-        return Abrahamson_2018(site, fault, im=im, period=period)
+        return Abrahamson_2018(site, fault, im=im, periods=period)
     elif gmm is GMM.AS_16:
         return Afshari_Stewart_2016_Ds(site, fault, im)
     elif gmm is GMM.ASK_14:
@@ -170,6 +168,8 @@ def compute_gmm(fault, site, gmm, im, period=None):
         return Zhaoetal_2006_Sa(site, fault, im, period)
     elif gmm is GMM.SB_13:
         return ShahiBaker_2013_RotD100_50(im, period)
+    elif gmm is GMM.BB_13:
+        return Burks_Baker_2013_iesdr(period, fault)
     else:
         raise ValueError("Invalid GMM")
 
