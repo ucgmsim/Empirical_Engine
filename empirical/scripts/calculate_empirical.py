@@ -48,7 +48,10 @@ def create_fault_parameters(srf_info):
     else:
         fault.ztor = attrs["hdepth"]
     if "tect_type" in attrs:
-        fault.tect_type = TectType[attrs["tect_type"].decode('utf-8')]
+        try:
+            fault.tect_type = TectType[attrs["tect_type"]] #ok if attrs['tect_type'] is str
+        except KeyError: #bytes
+            fault.tect_type = TectType[attrs["tect_type"].decode('utf-8')]
     else:
         print("tect_type not found assuming 'ACTIVE_SHALLOW'")
         fault.tect_type = TectType.ACTIVE_SHALLOW
