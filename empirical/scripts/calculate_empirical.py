@@ -52,7 +52,12 @@ def create_fault_parameters(srf_info):
     else:
         fault.zbot = attrs["hdepth"]
     if "tect_type" in attrs:
-        fault.tect_type = TectType[attrs["tect_type"]]
+        try:
+            fault.tect_type = TectType[
+                attrs["tect_type"]
+            ]  # ok if attrs['tect_type'] is str
+        except KeyError:  # bytes
+            fault.tect_type = TectType[attrs["tect_type"].decode("utf-8")]
     else:
         print("tect_type not found assuming 'ACTIVE_SHALLOW'")
         fault.tect_type = TectType.ACTIVE_SHALLOW
@@ -180,7 +185,7 @@ def calculate_empirical(
                     cur_data[ix, :] = np.ravel(
                         [
                             [im_value, total_sigma]
-                            for im_value, (total_sigma, *_,) in values
+                            for im_value, (total_sigma, *_) in values
                         ]
                     )
                 else:
