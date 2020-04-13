@@ -1,7 +1,7 @@
 pytest>=3.5.0
 pytest-black
 numpy
-numba
+numba>=0.48.0
 pandas
 PyYAML
 scipy
