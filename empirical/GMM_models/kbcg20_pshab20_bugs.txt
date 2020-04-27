@@ -1,0 +1,22 @@
+needed to run:
+import numpy as np
+display -> print
+
+indexing from 1 by adding value to position 0 makes it really confusing and prone to errors
+some arrays have a junk value at position 0, some don't (unmaintainable)
+
+implements bubble sort (VBA code), median calculation (np.median) but gives off value (only works if indexing from 1 yet starts sorting from index 0)
+once corrected, answer matches numpy
+
+get standard deviation function taken from forum question VisualBasic but
+implemented incorrectly in python: uses median instead of mean, off by 1 error in division
+(correct) np.sqrt(np.sum((np.array(Arr) - np.average(Arr))**2) / len(Arr))
+(found  ) np.sqrt(np.sum((np.array(Arr) - getMedian(Arr))**2) / (len(Arr) - 1))
+once corrected, the answer matches numpy
+
+KBCG20_posteriorAtTlist function has med_predictions starting from index 0 yet only adds
+values from index 1 at end and now I can't be sure if this is because of maths or another bug.
+
+uses 2MB csv files, one for each period, 800 lines x 180 cols. default param only uses first 100 lines
+
+remove name, email etc in every function, at top is fine. save heaps of lines
