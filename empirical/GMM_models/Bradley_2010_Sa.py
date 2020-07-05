@@ -63,7 +63,7 @@ Output Variables:
 Issues:
 
 """
-from numba import jit
+#from numba import jit
 
 import numpy as np
 
@@ -281,7 +281,7 @@ def calculate_Bradley(siteprop, faultprop, period):
     return B10(hw, m, rjb, rrup, rtvz, rx, vs30, z10, ztor, deltar, f_inferred, f_measured, fnm, frv, i, period)
 
 
-@jit(nopython=False)
+#@jit(nopython=False)
 def B10(hw, m, rjb, rrup, rtvz, rx, vs30, z1p0, ztor, deltar, f_inferred, f_measured, fnm, frv, i, period):
     # modifications from CY10 (i.e. CY08 also)
     # 1) maximum Ztor set to 10km depth
@@ -341,7 +341,7 @@ def B10(hw, m, rjb, rrup, rtvz, rx, vs30, z1p0, ztor, deltar, f_inferred, f_meas
     return sa, sigma_sa
 
 
-@jit(nopython=False)
+#@jit(nopython=False)
 def compute_stdev(f_inferred, f_measured, m, sa_1130, vs30, i):
     b = phi2[i] * (
         np.exp(phi3[i] * (min(vs30, 1130.0) - 360.0))
