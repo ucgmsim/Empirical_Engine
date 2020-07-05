@@ -1,5 +1,5 @@
 import numpy as np
-import numba
+#import numba
 
 from empirical.util.classdef import (
     TectType,
@@ -157,7 +157,7 @@ def calculate_zhao(site, fault, period):
     return ZA06(i, m, h, r, fault_s, fault_ssl, p_fa, q_fa, w_fa, site_c, tau)
 
 
-@numba.jit(nopython=True)
+#@numba.jit(nopython=True)
 def ZA06(i, m, h, r, fault_s, fault_ssl, p_fa, q_fa, w_fa, site_c, tau):
     hc = 15
     mc = 6.3
@@ -179,7 +179,7 @@ def ZA06(i, m, h, r, fault_s, fault_ssl, p_fa, q_fa, w_fa, site_c, tau):
     return sa, sigma_sa
 
 
-@numba.jit(nopython=True)
+#@numba.jit(nopython=True)
 def determine_stdev(i, tau):
     sigma_intra = tau[i]
     sigma_inter = sigma[i]
