@@ -1,7 +1,7 @@
 
 import math
 
-import numba
+#import numba
 import numpy as np
 
 from empirical.util.classdef import FaultStyle
@@ -230,7 +230,7 @@ def BSSA_2014_sub(M, ip, Rjb, ftype, region, z1, vs30):
     return median, sigma
 
 
-@numba.jit(nopython=True)
+#@numba.jit(nopython=True)
 def compute_stdev(M, Rjb, vs30, ip):
     # aleatory - uncertainty function
 

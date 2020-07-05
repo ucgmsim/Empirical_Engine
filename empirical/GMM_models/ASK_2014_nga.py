@@ -1,7 +1,7 @@
 
 import math
 
-import numba
+#import numba
 import numpy as np
 
 from empirical.util.classdef import interpolate_to_closest
@@ -217,7 +217,7 @@ def ASK_2014_nga(
         return list(zip(Sa, sigma))
 
 
-@numba.jit(nopython=True)
+#@numba.jit(nopython=True)
 def ASK_2014_sub_1(
     mag,
     ip,
@@ -499,7 +499,7 @@ def ASK_2014_sub_1(
     return Sa, sigma_SA
 
 
-@numba.jit(nopython=True)
+#@numba.jit(nopython=True)
 def compute_stdev(ip, mag, rrup, Sa1180, vs30, f_vs30, region=0):
     # Standard deviation
 
