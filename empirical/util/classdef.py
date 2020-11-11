@@ -77,6 +77,10 @@ class GMM(Enum):
     A_18 = 12
     SB_13 = 13
     BB_13 = 14
+    # openquake models below
+    # numbers to match empirical.openquake.openquake_wrapper.OQ_GMM
+    P_20_SI = 1012
+    P_20_SS = 1013
 
 
 class SiteClass(Enum):
