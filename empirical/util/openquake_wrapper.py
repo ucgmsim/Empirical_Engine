@@ -4,16 +4,19 @@ Wrapper for openquake models.
 import numpy as np
 
 from empirical.util.classdef import TectType
-from empirical.openquake import const, imt
 
-# all openquake models
-from empirical.GMM_models import parker_2020
+# openquake constants and models
+from openquake.hazardlib import const, imt
+from openquake.hazardlibgsim import gsim
 
 
 # numbers to match empirical.util.classdef.GMM
 OQ_GMM = {
-    1012: parker_2020.ParkerEtAl2020SInter,
-    1013: parker_2020.ParkerEtAl2020SSlab,
+    1012: gsim.parker_2020.ParkerEtAl2020SInter,
+    1013: gsim.parker_2020.ParkerEtAl2020SSlab,
+    1021: gsim.hassani_atkinson_2020.HassaniAtkinson2020Asc,
+    1022: gsim.hassani_atkinson_2020.HassaniAtkinson2020Sinter,
+    1023: gsim.hassani_atkinson_2020.HassaniAtkinson2020SSlab,
 }
 
 
