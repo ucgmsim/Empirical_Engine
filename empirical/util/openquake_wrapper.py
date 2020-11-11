@@ -6,8 +6,7 @@ import numpy as np
 from empirical.util.classdef import TectType
 
 # openquake constants and models
-from openquake.hazardlib import const, imt
-from openquake.hazardlibgsim import gsim
+from openquake.hazardlib import const, imt, gsim
 
 
 # numbers to match empirical.util.classdef.GMM
@@ -15,7 +14,7 @@ OQ_GMM = {
     1012: gsim.parker_2020.ParkerEtAl2020SInter,
     1013: gsim.parker_2020.ParkerEtAl2020SSlab,
     1021: gsim.hassani_atkinson_2020.HassaniAtkinson2020Asc,
-    1022: gsim.hassani_atkinson_2020.HassaniAtkinson2020Sinter,
+    1022: gsim.hassani_atkinson_2020.HassaniAtkinson2020SInter,
     1023: gsim.hassani_atkinson_2020.HassaniAtkinson2020SSlab,
 }
 
@@ -39,6 +38,8 @@ def oq_run(model_id, site, fault, im, period, **kwargs):
         assert fault.tect_type == TectType.SUBDUCTION_SLAB
     elif trt == const.TRT.ACTIVE_SHALLOW_CRUST:
         assert fault.tect_type == TectType.ACTIVE_SHALLOW
+    else:
+        raise ValueError("unknown tectonic region: " + trt)
 
     if period is not None:
         assert imt.SA in model.DEFINED_FOR_INTENSITY_MEASURE_TYPES
@@ -53,10 +54,13 @@ def oq_run(model_id, site, fault, im, period, **kwargs):
     elif im == "PGD":
         assert imt.PGD in model.DEFINED_FOR_INTENSITY_MEASURE_TYPES
         imr = imt.PGD()
+    else:
+        raise ValueError("unknown im: " + im)
 
     stddev_types = []
-    # DEFINED_FOR_STANDARD_DEVIATION_TYPES
-    # const.StdDev.{TOTAL,INTER_EVENT,INTRA_EVENT}
+    for st in [const.StdDev.TOTAL, const.StdDev.INTER_EVENT, const.StdDev.INTRA_EVENT]:
+        if st in model.DEFINED_FOR_STANDARD_DEVIATION_TYPES:
+            stddev_types.append(st)
 
     sites = Properties()
     for sp in model.REQUIRES_SITES_PARAMETERS:
@@ -98,4 +102,7 @@ def oq_run(model_id, site, fault, im, period, **kwargs):
             raise ValueError("unknown dist property: " + dp)
 
     mean, stddevs = model.get_mean_and_stddevs(sites, rup, dists, imr, stddev_types)
-    return mean
+    mean = mean[0] if hasattr(mean, "__len__") else mean
+    stddevs = [s[0] if hasattr(s, "__len__") else s for s in stddevs]
+
+    return mean, stddevs
