@@ -1,22 +1,32 @@
 """
 Wrapper for openquake models.
+Can import without openquake but using openquake models will raise ImportError.
 """
 import numpy as np
 
 from empirical.util.classdef import TectType
 
-# openquake constants and models
-from openquake.hazardlib import const, imt, gsim
+try:
+    # openquake constants and models
+    from openquake.hazardlib import const, imt, gsim
 
+    OQ = True
+except ImportError:
+    # fail silently, only an issue if openquake models wanted
+    OQ = False
 
-# numbers to match empirical.util.classdef.GMM
-OQ_GMM = {
-    1012: gsim.parker_2020.ParkerEtAl2020SInter,
-    1013: gsim.parker_2020.ParkerEtAl2020SSlab,
-    1021: gsim.hassani_atkinson_2020.HassaniAtkinson2020Asc,
-    1022: gsim.hassani_atkinson_2020.HassaniAtkinson2020SInter,
-    1023: gsim.hassani_atkinson_2020.HassaniAtkinson2020SSlab,
-}
+# GMM numbers to match empirical.util.classdef.GMM
+OQ_GMM = [1012, 1013, 1021, 1022, 1023]
+if OQ:
+    # model classes in order of empirical.util.classdef.GMM
+    oq_models = [
+        gsim.parker_2020.ParkerEtAl2020SInter,
+        gsim.parker_2020.ParkerEtAl2020SSlab,
+        gsim.hassani_atkinson_2020.HassaniAtkinson2020Asc,
+        gsim.hassani_atkinson_2020.HassaniAtkinson2020SInter,
+        gsim.hassani_atkinson_2020.HassaniAtkinson2020SSlab,
+    ]
+    oq_models = dict(zip(OQ_GMM, oq_models))
 
 
 class Properties(object):
@@ -25,11 +35,31 @@ class Properties(object):
     """
 
     def __init__(self):
+        # this allows attaching arbitrary attributes to self later
         pass
 
 
-def oq_run(model_id, site, fault, im, period, **kwargs):
-    model = OQ_GMM[model_id](**kwargs)
+def oq_run(model, site, fault, im, period=None, **kwargs):
+    """
+    Run an openquake model.
+    model: model or value from empirical.util.classdef.GMM or openquake class:
+           GMM.P_20_SI GMM.P_20_SI.value gsim.parker_2020.ParkerEtAl2020SInter
+    site / fault: instances from empirical.classdef
+    im: intensity measure name
+    period: for spectral acceleration, openquake tables automatically
+            interpolate values between specified values, fails if outside range
+    kwargs: pass extra (model specific) parameters to models
+    """
+    if not OQ:
+        raise ImportError("openquake is not installed, models not available")
+
+    # model can be given multiple ways
+    if type(model).__name__ == "GMM":
+        model = oq_models[model.value](**kwargs)
+    elif type(model).__name__ == "MetaGSIM":
+        model = model(**kwargs)
+    elif type(model).__name__ == "int":
+        model = oq_models[model](**kwargs)
 
     trt = model.DEFINED_FOR_TECTONIC_REGION_TYPE
     if trt == const.TRT.SUBDUCTION_INTERFACE:
@@ -45,17 +75,10 @@ def oq_run(model_id, site, fault, im, period, **kwargs):
         assert imt.SA in model.DEFINED_FOR_INTENSITY_MEASURE_TYPES
         # periods = sorted([i.period for i in model.COEFFS.sa_coeffs.keys()])
         imr = imt.SA(period=period)
-    elif im == "PGV":
-        assert imt.PGV in model.DEFINED_FOR_INTENSITY_MEASURE_TYPES
-        imr = imt.PGV()
-    elif im == "PGA":
-        assert imt.PGA in model.DEFINED_FOR_INTENSITY_MEASURE_TYPES
-        imr = imt.PGA()
-    elif im == "PGD":
-        assert imt.PGD in model.DEFINED_FOR_INTENSITY_MEASURE_TYPES
-        imr = imt.PGD()
     else:
-        raise ValueError("unknown im: " + im)
+        imc = getattr(imt, im)
+        assert imc in model.DEFINED_FOR_INTENSITY_MEASURE_TYPES
+        imr = imc()
 
     stddev_types = []
     for st in [const.StdDev.TOTAL, const.StdDev.INTER_EVENT, const.StdDev.INTRA_EVENT]:
@@ -84,7 +107,11 @@ def oq_run(model_id, site, fault, im, period, **kwargs):
         elif rp == "mag":
             rup.mag = fault.Mw
         elif rp == "rake":
+            # rake is used instead of classdef.Fault.faultstyle
+            # because different models have different rake cutoffs
             rup.rake = fault.rake
+        elif rp == "width":
+            rup.width = fault.width
         elif rp == "ztor":
             rup.ztor = fault.ztor
         else:
@@ -98,6 +125,8 @@ def oq_run(model_id, site, fault, im, period, **kwargs):
             dists.rjb = np.array([site.Rjb])
         elif dp == "rx":
             dists.rx = np.array([site.Rx])
+        elif dp == "ry0":
+            dists.rx = np.array([site.Ry])
         else:
             raise ValueError("unknown dist property: " + dp)
 

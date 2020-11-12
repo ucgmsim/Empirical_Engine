@@ -85,9 +85,8 @@ def compute_gmm(fault, site, gmm, im, period=None, **kwargs):
 
     # openquake models will check dependent parameters dynamically
     # therefore placed before local checking of required parameters
-    # TODO: local models have a list of required parameters also
-    if gmm.value in OQ_GMM:
-        return oq_run(gmm.value, site, fault, im, period, **kwargs)
+    if type(gmm).__name__ == "MetaGSIM" or gmm.value in OQ_GMM:
+        return oq_run(gmm, site, fault, im, period, **kwargs)
 
     if site.Rrup is None and gmm not in [GMM.A_18, GMM.BSSA_14, GMM.SB_13, GMM.BB_13]:
         print("Rrup is a required parameter for", gmm.name)
