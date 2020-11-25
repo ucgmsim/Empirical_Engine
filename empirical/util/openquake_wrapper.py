@@ -2,6 +2,8 @@
 Wrapper for openquake models.
 Can import without openquake but using openquake models will raise ImportError.
 """
+from math import exp
+
 import numpy as np
 
 from empirical.util.classdef import TectType
@@ -94,7 +96,9 @@ def oq_run(model, site, fault, im, period=None, **kwargs):
         elif sp == "z1pt0":
             sites.z1pt0 = np.array([site.z1p0])
         elif sp == "z2pt5":
-            sites.set_z2pt5 = np.array([site.z2p5])
+            sites.z2pt5 = np.array([site.z2p5])
+        elif sp == "fpeak":
+            sites.fpeak = site.fpeak
         else:
             raise ValueError("unknown site property: " + sp)
 
@@ -131,7 +135,7 @@ def oq_run(model, site, fault, im, period=None, **kwargs):
             raise ValueError("unknown dist property: " + dp)
 
     mean, stddevs = model.get_mean_and_stddevs(sites, rup, dists, imr, stddev_types)
-    mean = mean[0] if hasattr(mean, "__len__") else mean
+    mean = exp(mean[0]) if hasattr(mean, "__len__") else exp(mean)
     stddevs = [s[0] if hasattr(s, "__len__") else s for s in stddevs]
 
     return mean, stddevs

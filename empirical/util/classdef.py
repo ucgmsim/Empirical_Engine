@@ -36,6 +36,7 @@ class Site:  # Class of site properties. initialize all attributes to None
         self.backarc = kwargs.get(
             "backarc", False
         )  # forearc/unknown = False, backarc = True
+        self.fpeak = None
 
 
 class Fault:  # Class of fault properties. initialize all attributes to None
