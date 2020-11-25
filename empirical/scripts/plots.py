@@ -66,7 +66,7 @@ for i, im in enumerate(ims):
             imt = "SA"
         else:
             imt = im
-        gmms = gmms_sl
+        gmms = gmms_if
         for g in gmms:
             if type(g).__name__ == "MetaGSIM":
                 if imt not in [
@@ -99,7 +99,7 @@ for i, im in enumerate(ims):
 
             y = np.array(y)
             plt.loglog(x, y, label=gmms[g][0])
-            plt.fill_between(x, y - y * stdvs[0], y + y * stdvs[0], alpha=0.1)
+            plt.fill_between(x, y * np.exp(-stdvs[0]), y * np.exp(stdvs[0]), alpha=0.1)
         plt.legend()
         plt.xlabel("rrup")
         y = imt
