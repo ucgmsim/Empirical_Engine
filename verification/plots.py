@@ -59,6 +59,8 @@ fault.ztor = 4
 fault.rake = 30
 fault.dip = 45
 fault.width = 20
+
+# fixed magnitude, rrup range
 for i, im in enumerate(ims):
     for m, mag in enumerate(mws):
         fault.Mw = mag
@@ -66,46 +68,102 @@ for i, im in enumerate(ims):
             imt = "SA"
         else:
             imt = im
-        gmms = gmms_if
-        for g in gmms:
-            if type(g).__name__ == "MetaGSIM":
-                if imt not in [
-                    x.__name__ for x in g.DEFINED_FOR_INTENSITY_MEASURE_TYPES
-                ]:
-                    # model does not support IM
-                    continue
-            else:
-                if imt not in ["SA", "PGA"]:
-                    continue
-            fault.tect_type = gmms[g][1]
-            x = np.logspace(1, 3)
-            y = []
-            for rrup in x:
-                site.Rrup = rrup
-                fault.Rjb = rrup * 0.9
-                period = None if imt != "SA" else im
-                # but zhao expects a list?
-                if g == GMM.ZA_06:
-                    v = compute_gmm(fault, site, g, imt, period=[period])
-                    if imt == "PGA":
-                        # result
-                        v, stdvs = v
-                    else:
-                        # list of result for each period
-                        v, stdvs = v[0]
+        for gi, gmms in enumerate([gmms_if, gmms_sl]):
+            for g in gmms:
+                if type(g).__name__ == "MetaGSIM":
+                    if imt not in [
+                        x.__name__ for x in g.DEFINED_FOR_INTENSITY_MEASURE_TYPES
+                    ]:
+                        # model does not support IM
+                        continue
                 else:
-                    v, stdvs = compute_gmm(fault, site, g, imt, period=period)
-                y.append(v[0] if hasattr(v, "__len__") else v)
+                    if imt not in ["SA", "PGA"]:
+                        # empirical engine ones don't have PGV etc...
+                        # need to update as required
+                        continue
+                fault.tect_type = gmms[g][1]
+                x = np.logspace(1, 3)
+                y = []
+                for rrup in x:
+                    site.Rrup = rrup
+                    site.Rjb = rrup * 0.9
+                    period = None if imt != "SA" else im
+                    # but zhao expects a list?
+                    if g == GMM.ZA_06:
+                        v = compute_gmm(fault, site, g, imt, period=[period])
+                        if imt == "PGA":
+                            # result
+                            v, stdvs = v
+                        else:
+                            # list of result for each period
+                            v, stdvs = v[0]
+                    else:
+                        v, stdvs = compute_gmm(fault, site, g, imt, period=period)
+                    y.append(v[0] if hasattr(v, "__len__") else v)
+    
+                y = np.array(y)
+                plt.loglog(x, y, label=gmms[g][0])
+                plt.fill_between(x, y * np.exp(-stdvs[0]), y * np.exp(stdvs[0]), alpha=0.1)
+            plt.legend()
+            plt.xlabel("rrup")
+            y = imt
+            if imt == "SA":
+                y += " " + str(im)
+            plt.ylabel(y)
+            plt.title("Mw = " + str(mag))
+            plt.savefig(f"r{gi}{i}{m}.png")
+            plt.close()
 
-            y = np.array(y)
-            plt.loglog(x, y, label=gmms[g][0])
-            plt.fill_between(x, y * np.exp(-stdvs[0]), y * np.exp(stdvs[0]), alpha=0.1)
-        plt.legend()
-        plt.xlabel("rrup")
-        y = imt
-        if imt == "SA":
-            y += " " + str(im)
-        plt.ylabel(y)
-        plt.title("Mw = " + str(mag))
-        plt.savefig(f"{i}{m}.png")
-        plt.close()
+# fixed rrup, magnitude range
+for i, im in enumerate(ims):
+    for r, rrup in enumerate(rrs):
+        site.Rrup = rrup
+        site.Rjb = rrup * 0.9
+        if type(im).__name__ in ["int", "float"]:
+            imt = "SA"
+        else:
+            imt = im
+        for gi, gmms in enumerate([gmms_if, gmms_sl]):
+            for g in gmms:
+                if type(g).__name__ == "MetaGSIM":
+                    if imt not in [
+                        x.__name__ for x in g.DEFINED_FOR_INTENSITY_MEASURE_TYPES
+                    ]:
+                        # model does not support IM
+                        continue
+                else:
+                    if imt not in ["SA", "PGA"]:
+                        # empirical engine ones don't have PGV etc...
+                        # need to update as required
+                        continue
+                fault.tect_type = gmms[g][1]
+                x = np.linspace(6, 9)
+                y = []
+                for mag in x:
+                    fault.Mw = mag
+                    period = None if imt != "SA" else im
+                    # but zhao expects a list?
+                    if g == GMM.ZA_06:
+                        v = compute_gmm(fault, site, g, imt, period=[period])
+                        if imt == "PGA":
+                            # result
+                            v, stdvs = v
+                        else:
+                            # list of result for each period
+                            v, stdvs = v[0]
+                    else:
+                        v, stdvs = compute_gmm(fault, site, g, imt, period=period)
+                    y.append(v[0] if hasattr(v, "__len__") else v)
+    
+                y = np.array(y)
+                plt.loglog(x, y, label=gmms[g][0])
+                plt.fill_between(x, y * np.exp(-stdvs[0]), y * np.exp(stdvs[0]), alpha=0.1)
+            plt.legend()
+            plt.xlabel("Moment magnitude, Mw")
+            y = imt
+            if imt == "SA":
+                y += " " + str(im)
+            plt.ylabel(y)
+            plt.title("Rrup = " + str(rrup) + " km")
+            plt.savefig(f"m{gi}{i}{r}.png")
+            plt.close()
