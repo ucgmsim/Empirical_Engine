@@ -41,9 +41,20 @@ class Properties(object):
         pass
 
 
+def oq_mean_stddevs(model, sites, rup, dists, imr, stddev_types):
+    """
+    Calculate mean and standard deviations given openquake input structures.
+    """
+    mean, stddevs = model.get_mean_and_stddevs(sites, rup, dists, imr, stddev_types)
+    mean = exp(mean[0]) if hasattr(mean, "__len__") else exp(mean)
+    stddevs = [s[0] if hasattr(s, "__len__") else s for s in stddevs]
+
+    return mean, stddevs
+
+
 def oq_run(model, site, fault, im, period=None, **kwargs):
     """
-    Run an openquake model.
+    Run an openquake model using Empirical_Engine input structures.
     model: model or value from empirical.util.classdef.GMM or openquake class:
            GMM.P_20_SI GMM.P_20_SI.value gsim.parker_2020.ParkerEtAl2020SInter
     site / fault: instances from empirical.classdef
@@ -72,15 +83,6 @@ def oq_run(model, site, fault, im, period=None, **kwargs):
         assert fault.tect_type == TectType.ACTIVE_SHALLOW
     else:
         raise ValueError("unknown tectonic region: " + trt)
-
-    if period is not None:
-        assert imt.SA in model.DEFINED_FOR_INTENSITY_MEASURE_TYPES
-        periods = sorted([i.period for i in model.COEFFS.sa_coeffs.keys()])
-        imr = imt.SA(period=min(period, periods[-1]))
-    else:
-        imc = getattr(imt, im)
-        assert imc in model.DEFINED_FOR_INTENSITY_MEASURE_TYPES
-        imr = imc()
 
     stddev_types = []
     for st in [const.StdDev.TOTAL, const.StdDev.INTER_EVENT, const.StdDev.INTRA_EVENT]:
@@ -134,10 +136,25 @@ def oq_run(model, site, fault, im, period=None, **kwargs):
         else:
             raise ValueError("unknown dist property: " + dp)
 
-    mean, stddevs = model.get_mean_and_stddevs(sites, rup, dists, imr, stddev_types)
-    mean = exp(mean[0]) if hasattr(mean, "__len__") else exp(mean)
-    stddevs = [s[0] if hasattr(s, "__len__") else s for s in stddevs]
-    if period is not None and period > periods[-1]:
-        mean = mean * (periods[-1] / period) ** 2
-
-    return mean, stddevs
+    if period is not None:
+        assert imt.SA in model.DEFINED_FOR_INTENSITY_MEASURE_TYPES
+        # use sorted instead of max for full list
+        max_period = max([i.period for i in model.COEFFS.sa_coeffs.keys()])
+        single = False
+        if not hasattr(period, "__len__"):
+            single = True
+            period = [period]
+        results = []
+        for p in period:
+            imr = imt.SA(period=min(p, max_period))
+            m, s = oq_mean_stddevs(model, sites, rup, dists, imr, stddev_types)
+            if p > max_period:
+                m = m * (max_period / p) ** 2
+            results.append((m, s))
+        if single:
+            return results[0]
+        return results
+    else:
+        imc = getattr(imt, im)
+        assert imc in model.DEFINED_FOR_INTENSITY_MEASURE_TYPES
+        return oq_mean_stddevs(model, sites, rup, dists, imc(), stddev_types)

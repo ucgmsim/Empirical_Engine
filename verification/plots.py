@@ -1,9 +1,12 @@
 #!/usr/bin/env python
 """
 Plots of models over changes in parameters.
+Creates plots to be joined by plots_join.sh into PDFs.
 """
 
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 from empirical.util.classdef import Site, Fault, TectType, GMM
@@ -15,11 +18,14 @@ site = Site()
 fault = Fault()
 
 
+# IMs to loop through for magnitude and rrup scaling plots
 ims = ["PGA", "PGV", 0.1, 0.5, 0.75, 1, 3, 5]
+# rrup scaling plots fixed magnitudes
 mws = [8, 8.25, 8.5, 8.75, 9, 9.2]
+# magnitude scaling plots fixed rrups
 rrs = [25, 50, 75, 100, 300, 600]
 
-
+# set of subduction interface models
 gmms_if = {
     gsim.parker_2020.ParkerEtAl2020SInter: (
         "Parker 2020",
@@ -34,6 +40,7 @@ gmms_if = {
     GMM.ZA_06: ("Zhao 2006", TectType.SUBDUCTION_INTERFACE),
     GMM.BC_16: ("BC Hydro 2016", TectType.SUBDUCTION_INTERFACE),
 }
+# set of subduction slab models
 gmms_sl = {
     gsim.parker_2020.ParkerEtAl2020SSlab: ("Parker 2020", TectType.SUBDUCTION_SLAB),
     gsim.phung_2020.PhungEtAl2020SSlab: ("Phung 2020", TectType.SUBDUCTION_SLAB),
@@ -47,13 +54,10 @@ gmms_sl = {
 }
 
 
-site.Rrup = 232
-site.Rjb = 250
+# control parameters (unchanging)
 site.z1p0 = 80
 site.fpeak = np.array([12])
 site.z2p5 = 245
-fault.tect_type = TectType.SUBDUCTION_INTERFACE
-fault.Mw = 6.5
 fault.hdepth = 20
 fault.ztor = 4
 fault.rake = 30
@@ -187,7 +191,7 @@ for m, mag in enumerate([8, 9]):
                 x = np.logspace(-2, 1)
                 y = []
                 for period in x:
-                    # but zhao expects a list?
+                    # but zhao must have a list input
                     if g == GMM.ZA_06:
                         v = compute_gmm(fault, site, g, imt, period=[period])
                         if imt == "PGA":
