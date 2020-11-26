@@ -72,7 +72,7 @@ def bc_hydro_2016_subduction(siteprop, faultprop, im, period):
         period = [0]
     try:
         period[0]
-    except TypeError or IndexError:
+    except (TypeError, IndexError) as e:
         period = [period]
 
     M = faultprop.Mw

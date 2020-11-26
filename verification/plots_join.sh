@@ -10,3 +10,10 @@ for s in r m; do
         convert ${s}${t}{0..7}.png "${s}${t}.pdf"
     done
 done
+
+for t in {0..1}; do
+    convert "s${t}00.png" "s${t}01.png" "s${t}02.png" +append "s${t}0.png"
+    convert "s${t}10.png" "s${t}11.png" "s${t}12.png" +append "s${t}1.png"
+    convert "s${t}0.png" "s${t}1.png" -append "s${t}.png"
+    convert s${t}.png "s${t}.pdf"
+done

@@ -167,3 +167,54 @@ for i, im in enumerate(ims):
             plt.title("Rrup = " + str(rrup) + " km")
             plt.savefig(f"m{gi}{i}{r}.png")
             plt.close()
+
+# spectra with fixed rrup / magnitude
+imt = "SA"
+for m, mag in enumerate([8, 9]):
+    fault.Mw = mag
+    for r, rrup in enumerate([25, 50, 100]):
+        site.Rrup = rrup
+        site.Rjb = rrup * 0.9
+        for gi, gmms in enumerate([gmms_if, gmms_sl]):
+            for g in gmms:
+                if type(g).__name__ == "MetaGSIM":
+                    if imt not in [
+                        x.__name__ for x in g.DEFINED_FOR_INTENSITY_MEASURE_TYPES
+                    ]:
+                        # model does not support IM
+                        continue
+                fault.tect_type = gmms[g][1]
+                x = np.logspace(-2, 1)
+                y = []
+                for xx, period in enumerate(x):
+                    if type(g).__name__ == "MetaGSIM":
+                        periods = sorted([i.period for i in g.COEFFS.sa_coeffs.keys()])
+                        if period > periods[-1]:
+                            # above interpolation range
+                            x = x[:xx]
+                            break
+                    # but zhao expects a list?
+                    if g == GMM.ZA_06:
+                        v = compute_gmm(fault, site, g, imt, period=[period])
+                        if imt == "PGA":
+                            # result
+                            v, stdvs = v
+                        else:
+                            # list of result for each period
+                            v, stdvs = v[0]
+                    else:
+                        v, stdvs = compute_gmm(fault, site, g, imt, period=period)
+                    y.append(v[0] if hasattr(v, "__len__") else v)
+    
+                y = np.array(y)
+                plt.loglog(x, y, label=gmms[g][0])
+                plt.fill_between(x, y * np.exp(-stdvs[0]), y * np.exp(stdvs[0]), alpha=0.1)
+            plt.legend()
+            plt.xlabel("Oscillator period (s)")
+            y = imt
+            if imt == "SA":
+                y += " " + str(im)
+            plt.ylabel(y)
+            plt.title("Mw = " + str(mag)  + " Rrup = " + str(rrup) + " km")
+            plt.savefig(f"s{gi}{m}{r}.png")
+            plt.close()
