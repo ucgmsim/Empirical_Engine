@@ -5,6 +5,7 @@ import yaml
 
 from empirical.util import classdef
 from empirical.util.classdef import TectType, GMM, SiteClass, FaultStyle
+from empirical.util.openquake_wrapper import OQ_GMM, oq_run
 from empirical.GMM_models.Abrahamson_2018 import Abrahamson_2018
 from empirical.GMM_models.AfshariStewart_2016_Ds import Afshari_Stewart_2016_Ds
 from empirical.GMM_models.ASK_2014_nga import ASK_2014_nga
@@ -78,9 +79,14 @@ def determine_all_gmm(fault, im, tect_type_model_dict):
         return None
 
 
-def compute_gmm(fault, site, gmm, im, period=None):
+def compute_gmm(fault, site, gmm, im, period=None, **kwargs):
     if site.vs30 is None:
         site.vs30 = classdef.VS30_DEFAULT
+
+    # openquake models will check dependent parameters dynamically
+    # therefore placed before local checking of required parameters
+    if type(gmm).__name__ == "MetaGSIM" or gmm.value in OQ_GMM:
+        return oq_run(gmm, site, fault, im, period, **kwargs)
 
     if site.Rrup is None and gmm not in [GMM.A_18, GMM.BSSA_14, GMM.SB_13, GMM.BB_13]:
         print("Rrup is a required parameter for", gmm.name)

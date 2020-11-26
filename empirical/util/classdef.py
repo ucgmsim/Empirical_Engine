@@ -36,6 +36,7 @@ class Site:  # Class of site properties. initialize all attributes to None
         self.backarc = kwargs.get(
             "backarc", False
         )  # forearc/unknown = False, backarc = True
+        self.fpeak = None
 
 
 class Fault:  # Class of fault properties. initialize all attributes to None
@@ -77,6 +78,13 @@ class GMM(Enum):
     A_18 = 12
     SB_13 = 13
     BB_13 = 14
+    # openquake models below
+    # numbers to match empirical.util.openquake_wrapper.OQ_GMM
+    P_20_SI = 1012
+    P_20_SS = 1013
+    HA_20_CR = 1021
+    HA_20_SI = 1022
+    HA_20_SS = 1023
 
 
 class SiteClass(Enum):
