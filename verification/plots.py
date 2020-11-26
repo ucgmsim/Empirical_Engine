@@ -186,13 +186,7 @@ for m, mag in enumerate([8, 9]):
                 fault.tect_type = gmms[g][1]
                 x = np.logspace(-2, 1)
                 y = []
-                for xx, period in enumerate(x):
-                    if type(g).__name__ == "MetaGSIM":
-                        periods = sorted([i.period for i in g.COEFFS.sa_coeffs.keys()])
-                        if period > periods[-1]:
-                            # above interpolation range
-                            x = x[:xx]
-                            break
+                for period in x:
                     # but zhao expects a list?
                     if g == GMM.ZA_06:
                         v = compute_gmm(fault, site, g, imt, period=[period])

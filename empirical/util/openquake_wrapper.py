@@ -75,8 +75,8 @@ def oq_run(model, site, fault, im, period=None, **kwargs):
 
     if period is not None:
         assert imt.SA in model.DEFINED_FOR_INTENSITY_MEASURE_TYPES
-        # periods = sorted([i.period for i in model.COEFFS.sa_coeffs.keys()])
-        imr = imt.SA(period=period)
+        periods = sorted([i.period for i in model.COEFFS.sa_coeffs.keys()])
+        imr = imt.SA(period=min(period, periods[-1]))
     else:
         imc = getattr(imt, im)
         assert imc in model.DEFINED_FOR_INTENSITY_MEASURE_TYPES
@@ -137,5 +137,7 @@ def oq_run(model, site, fault, im, period=None, **kwargs):
     mean, stddevs = model.get_mean_and_stddevs(sites, rup, dists, imr, stddev_types)
     mean = exp(mean[0]) if hasattr(mean, "__len__") else exp(mean)
     stddevs = [s[0] if hasattr(s, "__len__") else s for s in stddevs]
+    if period is not None and period > periods[-1]:
+        mean = mean * (periods[-1] / period) ** 2
 
     return mean, stddevs
