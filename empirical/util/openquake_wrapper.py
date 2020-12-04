@@ -148,6 +148,7 @@ def oq_run(model, site, fault, im, period=None, **kwargs):
         for p in period:
             imr = imt.SA(period=min(p, max_period))
             m, s = oq_mean_stddevs(model, sites, rup, dists, imr, stddev_types)
+            m = np.exp(m)
             if p > max_period:
                 m = m * (max_period / p) ** 2
             results.append((m, s))
