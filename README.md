@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/ucgmsim/Empirical_Engine.svg?branch=master)](https://travis-ci.org/ucgmsim/Empirical_Engine)
+[![Build Status](http://13.238.107.244:8080/job/Empirical_Engine/badge/icon)](http://13.238.107.244:8080/job/Empirical_Engine)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 # Empirical_Engine
