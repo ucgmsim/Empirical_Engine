@@ -28,8 +28,6 @@ pipeline {
                 echo 'Run pytest'
 		sh """
 		source /var/lib/jenkins/py3env/bin/activate
-		cd ${env.WORKSPACE}
-		export PYTHONPATH=$PYTHONPATH:${env.WORKSPACE}
 		cd ${env.WORKSPACE}/empirical
   		pytest --black --ignore=test --ignore=GMM_models
   		cd test
