@@ -86,10 +86,10 @@ SUBDUCTION_SLAB:
       - Br_10 # These are only for shallow crustal in lieu of a more appropriate model
   PGA:
     geom:
-      - A_18 # ZA06 or BC16
+      - A_18 # ZA06 or BCH16
   pSA:
     geom:
-      - A_18 # ZA06 or BC16
+      - A_18 # ZA06 or BCH16
     rotd100_50:
       - SB_13
   CAV:
@@ -113,10 +113,10 @@ SUBDUCTION_INTERFACE:
       - Br_10 # These are only for shallow crustal in lieu of a more appropriate model
   PGA:
     geom:
-      - A_18 # ZA06 or BC16
+      - A_18 # ZA06 or BCH16
   pSA:
     geom:
-      - A_18 # ZA06 or BC16
+      - A_18 # ZA06 or BCH16
     rotd100_50:
       - SB_13
   CAV:
