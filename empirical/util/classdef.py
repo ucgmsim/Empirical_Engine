@@ -71,7 +71,7 @@ class GMM(Enum):
     BSSA_14 = 5
     MV_06 = 6
     ASK_14 = 7
-    BC_16 = 8
+    BCH_16 = 8
     CB_14 = 9
     CY_14 = 10
     CB_10 = 11
@@ -85,6 +85,9 @@ class GMM(Enum):
     HA_20_CR = 1021
     HA_20_SI = 1022
     HA_20_SS = 1023
+    G_17 = 1031
+    BC_16 = 1041
+    S16 = 1051
 
 
 class SiteClass(Enum):

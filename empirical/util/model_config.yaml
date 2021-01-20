@@ -6,7 +6,7 @@
 # CB_10 -- Campbell  Bozorgina 2010
 # AS_16 -- Afshari Stewart 2016
 # ASK_14 -- Abrahamson Silva Kamai 2014
-# BC_16 -- BC Hydro 2016
+# BCH_16 -- BC Hydro 2016
 # BSSA_14 -- Boore Stewart Seyhan Atkinson 2014
 # CB_14 -- Campbell Bozorgina 2014 NGA
 # CY_14 -- Chiou Youngso2014 NGA
@@ -20,15 +20,21 @@
 ACTIVE_SHALLOW:
   PGV:
     geom:
-    - Br_10 # Br_10 or BSSA_14 or CB_14 or CY_14 or ASK_14
+      - Br_10 # Br_10 or BSSA_14 or CB_14 or CY_14 or ASK_14
+    ver:
+      - BC_16 # S16 or G17
   PGA:
     geom:
-    - Br_10  # ZA_06 or Br_10 or BSSA_14 or CB_14 or CY_14 or ASK_14
+      - Br_10  # ZA_06 or Br_10 or BSSA_14 or CB_14 or CY_14 or ASK_14
+    ver:
+      - BC_16 # S16
   pSA:
     geom:
       - Br_10  # ZA_06 or Br_10 or BSSA_14 or CB_14 or CY_14 or ASK_14
     rotd100_50:
       - SB_13
+    ver:
+      - BC_16 # S16
   CAV:
     geom:
       - CB_10
