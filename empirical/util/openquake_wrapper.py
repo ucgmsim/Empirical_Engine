@@ -18,7 +18,7 @@ except ImportError:
     OQ = False
 
 # GMM numbers to match empirical.util.classdef.GMM
-OQ_GMM = [1012, 1013, 1021, 1022, 1023]
+OQ_GMM = [1012, 1013, 1021, 1022, 1023, 1031, 1041, 1051]
 if OQ:
     # model classes in order of empirical.util.classdef.GMM
     oq_models = [
@@ -27,6 +27,9 @@ if OQ:
         gsim.hassani_atkinson_2020.HassaniAtkinson2020Asc,
         gsim.hassani_atkinson_2020.HassaniAtkinson2020SInter,
         gsim.hassani_atkinson_2020.HassaniAtkinson2020SSlab,
+        gsim.gulerce_2017.GulerceEtAl2017,
+        gsim.bozorgnia_campbell_2016.BozorgniaCampbell2016,
+        gsim.stewart_2016.StewartEtAl2016,
     ]
     oq_models = dict(zip(OQ_GMM, oq_models))
 
@@ -148,6 +151,7 @@ def oq_run(model, site, fault, im, period=None, **kwargs):
         for p in period:
             imr = imt.SA(period=min(p, max_period))
             m, s = oq_mean_stddevs(model, sites, rup, dists, imr, stddev_types)
+            m = np.exp(m)
             if p > max_period:
                 m = m * (max_period / p) ** 2
             results.append((m, s))

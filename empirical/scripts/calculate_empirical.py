@@ -62,6 +62,10 @@ def create_fault_parameters(srf_info):
         print("tect_type not found assuming 'ACTIVE_SHALLOW'")
         fault.tect_type = TectType.ACTIVE_SHALLOW
     fault.hdepth = attrs["hdepth"]
+    if "width" in attrs:
+        fault.width = np.max(attrs["width"])
+    else:
+        fault.width = 0
     return fault
 
 
@@ -136,6 +140,7 @@ def calculate_empirical(
     max_rupture_distance,
     period,
     extended_period,
+    components,
 ):
     """Calculate empirical intensity measures"""
 
@@ -158,7 +163,7 @@ def calculate_empirical(
 
     for im in ims:
         for cur_gmm, component in empirical_factory.determine_all_gmm(
-            fault, im, tect_type_model_dict
+            fault, im, tect_type_model_dict, components
         ):
             # File & column names
             cur_filename = "{}_{}_{}.csv".format(identifier, cur_gmm.name, im)
@@ -180,7 +185,9 @@ def calculate_empirical(
             # Get & save the data
             cur_data = np.zeros((len(sites), len(cur_cols)), dtype=np.float)
             for ix, site in enumerate(sites):
-                values = empirical_factory.compute_gmm(fault, site, cur_gmm, im, period)
+                values = empirical_factory.compute_gmm(
+                    fault, site, cur_gmm, im, period if im in MULTI_VALUE_IMS else None
+                )
                 if im in MULTI_VALUE_IMS:
                     cur_data[ix, :] = np.ravel(
                         [
@@ -267,6 +274,18 @@ def load_args():
         help="Intensity measure(s) separated by a "
         "space(if more than one). eg: PGV PGA CAV.",
     )
+    # TODO: Put common argparse arguments between IM_calc and empirical in shared file
+    parser.add_argument(
+        "-comp",
+        "--components",
+        nargs="+",
+        choices=list(constants.Components.iterate_str_values()),
+        default=[constants.Components.cgeom.str_value],
+        help="Please provide the velocity/acc component(s) you want to calculate eg.geom."
+        " Available compoents are: {} components. Default is all components".format(
+            ",".join(constants.Components.iterate_str_values())
+        ),
+    )
     parser.add_argument("output", help="output directory")
     args = parser.parse_args()
     return args
@@ -288,6 +307,7 @@ def main():
         args.max_rupture_distance,
         args.period,
         args.extended_period,
+        args.components,
     )
 
 

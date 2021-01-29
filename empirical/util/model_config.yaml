@@ -6,7 +6,7 @@
 # CB_10 -- Campbell  Bozorgina 2010
 # AS_16 -- Afshari Stewart 2016
 # ASK_14 -- Abrahamson Silva Kamai 2014
-# BC_16 -- BC Hydro 2016
+# BCH_16 -- BC Hydro 2016 Subduction
 # BSSA_14 -- Boore Stewart Seyhan Atkinson 2014
 # CB_14 -- Campbell Bozorgina 2014 NGA
 # CY_14 -- Chiou Youngso2014 NGA
@@ -14,21 +14,36 @@
 # BB_13 -- Burks Baker 2013
 # A_18 -- Abrahamson 2018 Subduction
 
+### OpenQuake Models
+# P_20_SI -- Parker 2020 Subduction Interface
+# P_20_SS -- Parker 2020 Subduction Slab
+# HA_20_CR -- HAssaniAtkinson 2020 Shallow Crustal
+# HA_20_SI -- HAssaniAtkinson 2020 Suduction Interface
+# HA_20_SS -- HAssaniAtkinson 2020 Suduction Slab
 
+# G_17 -- Gulerce et al 2017 Vertical
+# BC_16 -- BorzorginaCampbell 2016 Vertical
+# S_16 -- Stewart et al 2016 Vertical
 
 # Options for each model are listed to the right
 ACTIVE_SHALLOW:
   PGV:
     geom:
-    - Br_10 # Br_10 or BSSA_14 or CB_14 or CY_14 or ASK_14
+      - Br_10 # Br_10 or BSSA_14 or CB_14 or CY_14 or ASK_14
+    ver:
+      - BC_16 # S_16 or G_17
   PGA:
     geom:
-    - Br_10  # ZA_06 or Br_10 or BSSA_14 or CB_14 or CY_14 or ASK_14
+      - Br_10  # ZA_06 or Br_10 or BSSA_14 or CB_14 or CY_14 or ASK_14
+    ver:
+      - BC_16 # S16
   pSA:
     geom:
       - Br_10  # ZA_06 or Br_10 or BSSA_14 or CB_14 or CY_14 or ASK_14
     rotd100_50:
       - SB_13
+    ver:
+      - BC_16 # S16
   CAV:
     geom:
       - CB_10
@@ -80,10 +95,10 @@ SUBDUCTION_SLAB:
       - Br_10 # These are only for shallow crustal in lieu of a more appropriate model
   PGA:
     geom:
-      - A_18 # ZA06 or BC16
+      - A_18 # ZA06 or BCH16
   pSA:
     geom:
-      - A_18 # ZA06 or BC16
+      - A_18 # ZA06 or BCH16
     rotd100_50:
       - SB_13
   CAV:
@@ -107,10 +122,10 @@ SUBDUCTION_INTERFACE:
       - Br_10 # These are only for shallow crustal in lieu of a more appropriate model
   PGA:
     geom:
-      - A_18 # ZA06 or BC16
+      - A_18 # ZA06 or BCH16
   pSA:
     geom:
-      - A_18 # ZA06 or BC16
+      - A_18 # ZA06 or BCH16
     rotd100_50:
       - SB_13
   CAV:

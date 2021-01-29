@@ -7,6 +7,12 @@ Empirical Engine - Empirical IM calculation
 ### Changed
 ### Added
 
+## [21.1.1] - 2021-01-21
+### Added
+  - Added OpenQuake compatibility layer
+  - Added OpenQuake models for ver component
+  - Added component selection to command line arguments
+
 ## [19.9.3] - 2020-02-11 -
 ### Added
   - Added RotD100/50 (rotd100_50) and inelastic to elastic spectral displacement ratio (IESDR) empiricals

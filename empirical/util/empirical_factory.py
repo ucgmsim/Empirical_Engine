@@ -58,7 +58,7 @@ def determine_gmm(fault, im, tect_type_model_dict):
     return determine_all_gmm(fault, im, tect_type_model_dict)[0]
 
 
-def determine_all_gmm(fault, im, tect_type_model_dict):
+def determine_all_gmm(fault, im, tect_type_model_dict, components=Components.cgeom):
     if fault.tect_type is None:
         print("tect-type not found assuming 'ACTIVE_SHALLOW'")
         tect_type = TectType.ACTIVE_SHALLOW.name
@@ -68,7 +68,10 @@ def determine_all_gmm(fault, im, tect_type_model_dict):
         comps = tect_type_model_dict[tect_type][im]
         models = []
         for comp in comps:
-            if tect_type_model_dict[tect_type][im][comp] is not None:
+            if (
+                comp in components
+                and tect_type_model_dict[tect_type][im][comp] is not None
+            ):
                 for model in tect_type_model_dict[tect_type][im][comp]:
                     models.append((GMM[model], Components.from_str(comp)))
         return models
@@ -141,7 +144,7 @@ def compute_gmm(fault, site, gmm, im, period=None, **kwargs):
             fault.faultstyle = FaultStyle.UNKNOWN
 
     if fault.tect_type is None:
-        if gmm in [GMM.A_18, GMM.BC_16]:
+        if gmm in [GMM.A_18, GMM.BCH_16]:
             fault.tect_type = TectType.SUBDUCTION_INTERFACE
         else:
             fault.tect_type = TectType.ACTIVE_SHALLOW
@@ -156,7 +159,7 @@ def compute_gmm(fault, site, gmm, im, period=None, **kwargs):
         return Afshari_Stewart_2016_Ds(site, fault, im)
     elif gmm is GMM.ASK_14:
         return ASK_2014_nga(site, fault, im=im, period=period)
-    elif gmm is GMM.BC_16:
+    elif gmm is GMM.BCH_16:
         return bc_hydro_2016_subduction(site, fault, im, period=period)
     elif gmm is GMM.Br_10:
         return Bradley_2010_Sa(site, fault, im, period)

@@ -38,7 +38,7 @@ gmms_if = {
         TectType.SUBDUCTION_INTERFACE,
     ),
     GMM.ZA_06: ("Zhao 2006", TectType.SUBDUCTION_INTERFACE),
-    GMM.BC_16: ("BC Hydro 2016", TectType.SUBDUCTION_INTERFACE),
+    GMM.BCH_16: ("BC Hydro 2016", TectType.SUBDUCTION_INTERFACE),
 }
 # set of subduction slab models
 gmms_sl = {
@@ -50,7 +50,7 @@ gmms_sl = {
         TectType.SUBDUCTION_SLAB,
     ),
     GMM.ZA_06: ("Zhao 2006", TectType.SUBDUCTION_SLAB),
-    GMM.BC_16: ("BC Hydro 2016", TectType.SUBDUCTION_SLAB),
+    GMM.BCH_16: ("BC Hydro 2016", TectType.SUBDUCTION_SLAB),
 }
 
 
