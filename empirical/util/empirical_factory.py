@@ -58,7 +58,9 @@ def determine_gmm(fault, im, tect_type_model_dict):
     return determine_all_gmm(fault, im, tect_type_model_dict)[0]
 
 
-def determine_all_gmm(fault, im, tect_type_model_dict, components=Components.cgeom):
+def determine_all_gmm(
+    fault, im, tect_type_model_dict, components=Components.cgeom.str_value
+):
     if fault.tect_type is None:
         print("tect-type not found assuming 'ACTIVE_SHALLOW'")
         tect_type = TectType.ACTIVE_SHALLOW.name
