@@ -87,7 +87,7 @@ class GMM(Enum):
     HA_20_SS = 1023
     G_17 = 1031
     BC_16 = 1041
-    S16 = 1051
+    S_16 = 1051
 
 
 class SiteClass(Enum):
