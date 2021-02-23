@@ -78,6 +78,8 @@ def oq_run(model, site, fault, im, period=None, **kwargs):
         model = oq_models[model](**kwargs)
 
     trt = model.DEFINED_FOR_TECTONIC_REGION_TYPE
+#    print(f"trt {trt}")
+#    print(f"fault.tect_type {fault.tect_type}")
     if trt == const.TRT.SUBDUCTION_INTERFACE:
         assert fault.tect_type == TectType.SUBDUCTION_INTERFACE
     elif trt == const.TRT.SUBDUCTION_INTRASLAB:
@@ -135,7 +137,7 @@ def oq_run(model, site, fault, im, period=None, **kwargs):
         elif dp == "rx":
             dists.rx = np.array([site.Rx])
         elif dp == "ry0":
-            dists.rx = np.array([site.Ry])
+            dists.ry0 = np.array([site.Ry])
         else:
             raise ValueError("unknown dist property: " + dp)
 
