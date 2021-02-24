@@ -68,6 +68,10 @@ def Abrahamson_2018(site, fault, im=None, periods=None, epistemic_adj=None):
     results = []
     if im == "PGA":
         periods = [0]
+    try:
+        periods[0]
+    except (TypeError, IndexError) as e:
+        periods = [periods]
 
     for t in periods:
         sorted_t = np.array(sorted(imt))
@@ -85,7 +89,7 @@ def Abrahamson_2018(site, fault, im=None, periods=None, epistemic_adj=None):
             result = interpolate_to_closest(t, t_high, t_low, a_high, a_low)
         results.append(result)
 
-    if im in ["PGA", "PGV"]:
+    if im in ["PGA", "PGV"] or len(periods) == 1:
         results = results[0]
 
     return results

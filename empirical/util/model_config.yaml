@@ -31,19 +31,22 @@ ACTIVE_SHALLOW:
     geom:
       - Br_10 # Br_10 or BSSA_14 or CB_14 or CY_14 or ASK_14
     ver:
-      - BC_16 # S_16 or G_17
+      - BC_16 # S_16
   PGA:
     geom:
       - Br_10  # ZA_06 or Br_10 or BSSA_14 or CB_14 or CY_14 or ASK_14
     ver:
       - BC_16 # S16
+      - S_16
   pSA:
     geom:
       - Br_10  # ZA_06 or Br_10 or BSSA_14 or CB_14 or CY_14 or ASK_14
     rotd100_50:
       - SB_13
     ver:
-      - BC_16 # S16
+      - BC_16 # S16 or G_17
+      - S_16
+      - G_17
   CAV:
     geom:
       - CB_10

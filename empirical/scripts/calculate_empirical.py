@@ -282,7 +282,7 @@ def load_args():
         choices=list(constants.Components.iterate_str_values()),
         default=[constants.Components.cgeom.str_value],
         help="Please provide the velocity/acc component(s) you want to calculate eg.geom."
-        " Available compoents are: {} components. Default is all components".format(
+        " Available compoents are: {} components. Default is geom".format(
             ",".join(constants.Components.iterate_str_values())
         ),
     )

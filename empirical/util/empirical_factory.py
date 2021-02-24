@@ -88,11 +88,6 @@ def compute_gmm(fault, site, gmm, im, period=None, **kwargs):
     if site.vs30 is None:
         site.vs30 = classdef.VS30_DEFAULT
 
-    # openquake models will check dependent parameters dynamically
-    # therefore placed before local checking of required parameters
-    if type(gmm).__name__ == "MetaGSIM" or gmm.value in OQ_GMM:
-        return oq_run(gmm, site, fault, im, period, **kwargs)
-
     if site.Rrup is None and gmm not in [GMM.A_18, GMM.BSSA_14, GMM.SB_13, GMM.BB_13]:
         print("Rrup is a required parameter for", gmm.name)
         exit()
@@ -102,6 +97,11 @@ def compute_gmm(fault, site, gmm, im, period=None, **kwargs):
 
     if site.z2p5 is None:
         site.z2p5 = classdef.estimate_z2p5(z1p0=site.z1p0, z1p5=site.z1p5)
+
+    # openquake models will check dependent parameters dynamically
+    # therefore placed before local checking of required parameters
+    if type(gmm).__name__ == "MetaGSIM" or gmm.value in OQ_GMM:
+        return oq_run(gmm, site, fault, im, period, **kwargs)
 
     if site.vs30measured is None:
         site.vs30measured = False  # assume not measured unless set

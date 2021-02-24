@@ -103,7 +103,7 @@ def oq_run(model, site, fault, im, period=None, **kwargs):
         elif sp == "z2pt5":
             sites.z2pt5 = np.array([site.z2p5])
         elif sp == "fpeak":
-            sites.fpeak = site.fpeak
+            sites.fpeak = np.array([site.fpeak])
         else:
             raise ValueError("unknown site property: " + sp)
 
@@ -135,7 +135,7 @@ def oq_run(model, site, fault, im, period=None, **kwargs):
         elif dp == "rx":
             dists.rx = np.array([site.Rx])
         elif dp == "ry0":
-            dists.rx = np.array([site.Ry])
+            dists.ry0 = np.array([site.Ry])
         else:
             raise ValueError("unknown dist property: " + dp)
 
@@ -151,7 +151,7 @@ def oq_run(model, site, fault, im, period=None, **kwargs):
         for p in period:
             imr = imt.SA(period=min(p, max_period))
             m, s = oq_mean_stddevs(model, sites, rup, dists, imr, stddev_types)
-            m = np.exp(m)
+            #m = np.exp(m)
             if p > max_period:
                 m = m * (max_period / p) ** 2
             results.append((m, s))
