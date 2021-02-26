@@ -89,7 +89,7 @@ def Abrahamson_2018(site, fault, im=None, periods=None, epistemic_adj=None):
             result = interpolate_to_closest(t, t_high, t_low, a_high, a_low)
         results.append(result)
 
-    if im in ["PGA", "PGV"] or len(periods) == 1:
+    if len(periods) == 1:
         results = results[0]
 
     return results

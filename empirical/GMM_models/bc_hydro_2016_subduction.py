@@ -1,5 +1,5 @@
-
 import math
+import numbers
 
 import numpy as np
 
@@ -70,10 +70,7 @@ def bc_hydro_2016_subduction(siteprop, faultprop, im, period):
     """
     if im == 'PGA':
         period = [0]
-    try:
-        period[0]
-    except (TypeError, IndexError) as e:
-        period = [period]
+    period = [period] if isinstance(period, numbers.Number) else period
 
     M = faultprop.Mw
     R = siteprop.Rrup
@@ -158,7 +155,7 @@ def bc_hydro_2016_subduction(siteprop, faultprop, im, period):
         sa_int = sa[0]
     sigma = compute_stdev()
 
-    if im == 'PGA' or len(period) == 1:
+    if len(period) == 1:
         return sa_int, sigma
     else:
         return list(zip(sa_int, [sigma] * len(sa_int)))
