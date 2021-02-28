@@ -129,7 +129,7 @@ def BSSA_2014_nga(siteprop, faultprop, im="pSA", period=None, region=0):
                 M, ip_T, siteprop.Rjb, faultprop.faultstyle, region, z1, vs30
             )
 
-    if not i:
+    if len(period) == 1:
         return median[0], sigma[0]
     return list(zip(median, sigma))
 

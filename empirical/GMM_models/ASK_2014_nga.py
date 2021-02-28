@@ -211,7 +211,7 @@ def ASK_2014_nga(
             ip_T = np.argmin(np.abs(periods - Ti))
             Sa[i], sigma[i, :] = sa_sigma(ip_T)
 
-    if not i:
+    if len(T) == 1:
         return Sa[0], sigma[0]
     else:
         return list(zip(Sa, sigma))

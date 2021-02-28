@@ -103,7 +103,7 @@ def oq_run(model, site, fault, im, period=None, **kwargs):
         elif sp == "z2pt5":
             sites.z2pt5 = np.array([site.z2p5])
         elif sp == "fpeak":
-            sites.fpeak = site.fpeak
+            sites.fpeak = np.array([site.fpeak])
         else:
             raise ValueError("unknown site property: " + sp)
 
@@ -151,7 +151,7 @@ def oq_run(model, site, fault, im, period=None, **kwargs):
         for p in period:
             imr = imt.SA(period=min(p, max_period))
             m, s = oq_mean_stddevs(model, sites, rup, dists, imr, stddev_types)
-            m = np.exp(m)
+            # interpolate pSA value up based on maximum available period
             if p > max_period:
                 m = m * (max_period / p) ** 2
             results.append((m, s))

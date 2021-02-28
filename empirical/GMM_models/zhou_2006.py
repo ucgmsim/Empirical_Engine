@@ -73,6 +73,10 @@ zeros = np.zeros(21)
 def Zhaoetal_2006_Sa(site, fault, im, periods=None):
     if im == "PGA":
         periods = [0]
+    try:
+        periods[0]
+    except (TypeError, IndexError) as e:
+        periods = [periods]
 
     results = []
     for period in periods:
@@ -103,7 +107,7 @@ def Zhaoetal_2006_Sa(site, fault, im, periods=None):
                 result = calculate_zhao(site, fault, period)
         results.append(result)
 
-    if im == "PGA":
+    if len(periods) == 1:
         results = results[0]
 
     return results

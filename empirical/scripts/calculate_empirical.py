@@ -281,10 +281,8 @@ def load_args():
         nargs="+",
         choices=list(constants.Components.iterate_str_values()),
         default=[constants.Components.cgeom.str_value],
-        help="Please provide the velocity/acc component(s) you want to calculate eg.geom."
-        " Available compoents are: {} components. Default is all components".format(
-            ",".join(constants.Components.iterate_str_values())
-        ),
+        help="The component(s) you want to calculate."
+        " Available components are: [%(choices)s]. Default is %(default)s",
     )
     parser.add_argument("output", help="output directory")
     args = parser.parse_args()

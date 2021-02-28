@@ -1,6 +1,8 @@
 from enum import Enum
 import numpy as np
 
+from qcore.constants import ExtendedEnum
+
 
 VS30_DEFAULT = 250
 
@@ -13,11 +15,11 @@ class Site:  # Class of site properties. initialize all attributes to None
             "rjb"
         )  # closest horizontal distance coseismic rupture (km)
         self.Rx = kwargs.get(
-            "rx", -1
+            "rx", -1.0
         )  # distance measured perpendicular to fault strike from surface projection of
         #                       # updip edge of the fault rupture (+ve in downdip dir) (km)
         self.Ry = kwargs.get(
-            "ry"
+            "ry", -1.0
         )  # horizontal distance off the end of the rupture measured parallel
         self.Rtvz = kwargs.get(
             "rtvz"
@@ -36,7 +38,7 @@ class Site:  # Class of site properties. initialize all attributes to None
         self.backarc = kwargs.get(
             "backarc", False
         )  # forearc/unknown = False, backarc = True
-        self.fpeak = None
+        self.fpeak = kwargs.get("fpeak", 0)
 
 
 class Fault:  # Class of fault properties. initialize all attributes to None
@@ -56,14 +58,14 @@ class Fault:  # Class of fault properties. initialize all attributes to None
         self.ztor = kwargs.get("ztor")  # depth to top of coseismic rupture (km)
 
 
-class TectType(Enum):
+class TectType(ExtendedEnum):
     ACTIVE_SHALLOW = 1
     VOLCANIC = 2
     SUBDUCTION_INTERFACE = 3
     SUBDUCTION_SLAB = 4
 
 
-class GMM(Enum):
+class GMM(ExtendedEnum):
     ZA_06 = 1
     Br_10 = 2
     AS_16 = 3

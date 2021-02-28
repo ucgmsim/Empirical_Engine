@@ -221,7 +221,7 @@ def CB_2014_nga(siteprop, faultprop, im=None, period=None, region=0, f_hw=None):
                 if Sa[i] < PGA and Ti < 0.25:
                     Sa[i] = PGA
 
-    if not i:
+    if len(T) == 1:
         return Sa[0], sigma[0]
     return list(zip(Sa, sigma))
 

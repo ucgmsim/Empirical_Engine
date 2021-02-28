@@ -46,6 +46,8 @@ def test_zhao_2006(set_up):
             FAULT.tect_type = TECT_TYPES[row["tect_type"]]
             SITE.Rrup = float(row["rrup"])
             SITE.siteclass = SITE_CLASSES[row["siteclass"]]
-            results = compute_gmm(FAULT, SITE, GMM.ZA_06, IM, [row["period"]])
+            results = [
+                compute_gmm(FAULT, SITE, GMM.ZA_06, IM, [row["period"]])
+            ]  # expects results in a list
             all_results.append(results)
     assert all_results == expected_results
