@@ -90,6 +90,8 @@ class GMM(ExtendedEnum):
     G_17 = 1031
     BC_16 = 1041
     S_16 = 1051
+    PH_20_CR = 1061
+    CH_20_CR = 1071
 
 
 class SiteClass(Enum):
