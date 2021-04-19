@@ -18,7 +18,22 @@ except ImportError:
     OQ = False
 
 # GMM numbers to match empirical.util.classdef.GMM
-OQ_GMM = [1012, 1013, 1021, 1022, 1023, 1031, 1041, 1051, 1061, 1071]
+OQ_GMM = [
+    1012,
+    1013,
+    1021,
+    1022,
+    1023,
+    1031,
+    1041,
+    1051,
+    1061,
+    1062,
+    1063,
+    1071,
+    1072,
+    1073,
+]
 if OQ:
     # model classes in order of empirical.util.classdef.GMM
     oq_models = [
@@ -31,7 +46,11 @@ if OQ:
         gsim.bozorgnia_campbell_2016.BozorgniaCampbell2016,
         gsim.stewart_2016.StewartEtAl2016,
         gsim.phung_2020.PhungEtAl2020Asc,
+        gsim.phung_2020.PhungEtAl2020SInter,
+        gsim.phung_2020.PhungEtAl2020SSlab,
         gsim.chao_2020.ChaoEtAl2020Asc,
+        gsim.chao_2020.ChaoEtAl2020SInter,
+        gsim.chao_2020.ChaoEtAl2020SSlab,
     ]
     oq_models = dict(zip(OQ_GMM, oq_models))
 
