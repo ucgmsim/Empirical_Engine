@@ -18,7 +18,22 @@ except ImportError:
     OQ = False
 
 # GMM numbers to match empirical.util.classdef.GMM
-OQ_GMM = [1012, 1013, 1021, 1022, 1023, 1031, 1041, 1051, 1061, 1062, 1063, 1071, 1072, 1073]
+OQ_GMM = [
+    1012,
+    1013,
+    1021,
+    1022,
+    1023,
+    1031,
+    1041,
+    1051,
+    1061,
+    1062,
+    1063,
+    1071,
+    1072,
+    1073,
+]
 if OQ:
     # model classes in order of empirical.util.classdef.GMM
     oq_models = [
