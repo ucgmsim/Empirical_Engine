@@ -12,6 +12,11 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     packages=setuptools.find_packages(),
+    package_data={
+        "empirical": [
+            "util/*.yaml",
+        ]
+    },
     scripts=[
         "empirical/scripts/calculate_empirical.py",
         "empirical/scripts/emp_aggregation.py",
