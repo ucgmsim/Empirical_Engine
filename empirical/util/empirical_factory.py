@@ -23,7 +23,7 @@ from qcore.constants import Components
 
 
 DEFAULT_MODEL_CONFIG_NAME = "model_config.yaml"
-DEFAULT_OQ_PARAM_CONFIG_NAME = "gmpe_params.yaml"
+DEFAULT_GMPE_PARAM_CONFIG_NAME = "gmpe_params.yaml"
 
 
 def read_model_dict(config=None):
@@ -38,7 +38,7 @@ def read_model_dict(config=None):
 def get_oq_model_params(config=None):
     if config is None:
         dir = os.path.dirname(__file__)
-        config = os.path.join(dir, DEFAULT_OQ_PARAM_CONFIG_NAME)
+        config = os.path.join(dir, DEFAULT_GMPE_PARAM_CONFIG_NAME)
 
     oq_model_params_dict = yaml.safe_load(open(config))
     return oq_model_params_dict
