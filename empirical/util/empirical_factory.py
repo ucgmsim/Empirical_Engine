@@ -23,7 +23,7 @@ from qcore.constants import Components
 
 
 DEFAULT_MODEL_CONFIG_NAME = "model_config.yaml"
-DEFAULT_OQ_PARAM_CONFIG_NAME = "oq_model_params.yaml"
+DEFAULT_OQ_PARAM_CONFIG_NAME = "gmpe_params.yaml"
 
 
 def read_model_dict(config=None):
