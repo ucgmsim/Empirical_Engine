@@ -22,14 +22,26 @@ from empirical.GMM_models.Burks_Baker_2013_iesdr import Burks_Baker_2013_iesdr
 from qcore.constants import Components
 
 
+DEFAULT_MODEL_CONFIG_NAME = "model_config.yaml"
+DEFAULT_OQ_PARAM_CONFIG_NAME = "oq_model_params.yaml"
+
+
 def read_model_dict(config=None):
     if config is None:
         dir = os.path.dirname(__file__)
-        config_file = os.path.join(dir, "model_config.yaml")
-    else:
-        config_file = config
-    model_dict = yaml.safe_load(open(config_file))
+        config = os.path.join(dir, DEFAULT_MODEL_CONFIG_NAME)
+
+    model_dict = yaml.safe_load(open(config))
     return model_dict
+
+
+def get_oq_model_params(config=None):
+    if config is None:
+        dir = os.path.dirname(__file__)
+        config = os.path.join(dir, DEFAULT_OQ_PARAM_CONFIG_NAME)
+
+    oq_model_params_dict = yaml.safe_load(open(config))
+    return oq_model_params_dict
 
 
 def get_models_from_dict(config):
@@ -40,7 +52,7 @@ def get_models_from_dict(config):
 
     if config is None:
         dir = os.path.dirname(__file__)
-        config = os.path.join(dir, "model_config.yaml")
+        config = os.path.join(dir, DEFAULT_MODEL_CONFIG_NAME)
 
     tect_type_model_dict = yaml.safe_load(open(config))
     return list(
