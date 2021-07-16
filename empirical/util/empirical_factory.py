@@ -22,14 +22,26 @@ from empirical.GMM_models.Burks_Baker_2013_iesdr import Burks_Baker_2013_iesdr
 from qcore.constants import Components
 
 
+DEFAULT_MODEL_CONFIG_NAME = "model_config.yaml"
+DEFAULT_GMPE_PARAM_CONFIG_NAME = "gmpe_params.yaml"
+
+
 def read_model_dict(config=None):
     if config is None:
         dir = os.path.dirname(__file__)
-        config_file = os.path.join(dir, "model_config.yaml")
-    else:
-        config_file = config
-    model_dict = yaml.safe_load(open(config_file))
+        config = os.path.join(dir, DEFAULT_MODEL_CONFIG_NAME)
+
+    model_dict = yaml.safe_load(open(config))
     return model_dict
+
+
+def get_oq_model_params(config=None):
+    if config is None:
+        dir = os.path.dirname(__file__)
+        config = os.path.join(dir, DEFAULT_GMPE_PARAM_CONFIG_NAME)
+
+    oq_model_params_dict = yaml.safe_load(open(config))
+    return oq_model_params_dict
 
 
 def get_models_from_dict(config):
@@ -40,7 +52,7 @@ def get_models_from_dict(config):
 
     if config is None:
         dir = os.path.dirname(__file__)
-        config = os.path.join(dir, "model_config.yaml")
+        config = os.path.join(dir, DEFAULT_MODEL_CONFIG_NAME)
 
     tect_type_model_dict = yaml.safe_load(open(config))
     return list(
@@ -156,23 +168,23 @@ def compute_gmm(fault, site, gmm, im, period=None, **kwargs):
         exit()
 
     if gmm is GMM.A_18:
-        return Abrahamson_2018(site, fault, im=im, periods=period)
+        return Abrahamson_2018(site, fault, im=im, periods=period, **kwargs)
     elif gmm is GMM.AS_16:
         return Afshari_Stewart_2016_Ds(site, fault, im)
     elif gmm is GMM.ASK_14:
-        return ASK_2014_nga(site, fault, im=im, period=period)
+        return ASK_2014_nga(site, fault, im=im, period=period, **kwargs)
     elif gmm is GMM.BCH_16:
         return bc_hydro_2016_subduction(site, fault, im, period=period)
     elif gmm is GMM.Br_10:
         return Bradley_2010_Sa(site, fault, im, period)
     elif gmm is GMM.BSSA_14:
-        return BSSA_2014_nga(site, fault, im=im, period=period)
+        return BSSA_2014_nga(site, fault, im=im, period=period, **kwargs)
     elif gmm is GMM.CB_12 or gmm is GMM.CB_10:
         return CampbellBozorgina(site, fault, im)
     elif gmm is GMM.CB_14:
-        return CB_2014_nga(site, fault, im=im, period=period)
+        return CB_2014_nga(site, fault, im=im, period=period, **kwargs)
     elif gmm is GMM.CY_14:
-        return CY_2014_nga(site, fault, im=im, period=period)
+        return CY_2014_nga(site, fault, im=im, period=period, **kwargs)
     elif gmm is GMM.MV_06:
         return McVerry_2006_Sa(site, fault, im=im, period=period)
     elif gmm is GMM.ZA_06:
@@ -180,7 +192,7 @@ def compute_gmm(fault, site, gmm, im, period=None, **kwargs):
     elif gmm is GMM.SB_13:
         return ShahiBaker_2013_RotD100_50(im, period)
     elif gmm is GMM.BB_13:
-        return Burks_Baker_2013_iesdr(period, fault)
+        return Burks_Baker_2013_iesdr(period, fault, **kwargs)
     else:
         raise ValueError("Invalid GMM")
 

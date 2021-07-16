@@ -141,6 +141,7 @@ def calculate_empirical(
     period,
     extended_period,
     components,
+    gmpe_param_config=None,
 ):
     """Calculate empirical intensity measures"""
 
@@ -160,8 +161,11 @@ def calculate_empirical(
 
     tect_type_model_dict = empirical_factory.read_model_dict(config_file)
     station_names = [site.name for site in sites] if stations is None else stations
-
+    # read openquake parameter config
+    # if gmpe_param_config == None, default config file will be used
+    gmpe_params_dict = empirical_factory.get_gmpe_params(gmpe_param_config)
     for im in ims:
+
         for cur_gmm, component in empirical_factory.determine_all_gmm(
             fault, im, tect_type_model_dict, components
         ):
@@ -185,8 +189,17 @@ def calculate_empirical(
             # Get & save the data
             cur_data = np.zeros((len(sites), len(cur_cols)), dtype=np.float)
             for ix, site in enumerate(sites):
+                if cur_gmm.name in gmpe_params_dict.keys():
+                    tmp_params_dict = gmpe_params_dict[cur_gmm.name]
+                else:
+                    tmp_params_dict = {}
                 values = empirical_factory.compute_gmm(
-                    fault, site, cur_gmm, im, period if im in MULTI_VALUE_IMS else None
+                    fault,
+                    site,
+                    cur_gmm,
+                    im,
+                    period if im in MULTI_VALUE_IMS else None,
+                    **tmp_params_dict,
                 )
                 if im in MULTI_VALUE_IMS:
                     cur_data[ix, :] = np.ravel(
@@ -284,6 +297,13 @@ def load_args():
         help="The component(s) you want to calculate."
         " Available components are: [%(choices)s]. Default is %(default)s",
     )
+
+    parser.add_argument(
+        "--gmpe_param_config",
+        default=None,
+        help="the file that contains the extra parameters openquake models",
+    )
+
     parser.add_argument("output", help="output directory")
     args = parser.parse_args()
     return args
@@ -306,6 +326,7 @@ def main():
         args.period,
         args.extended_period,
         args.components,
+        args.gmpe_param_config,
     )
 
 

@@ -1,0 +1,10 @@
+#model_name must match the name in classdef.GMM
+#
+#model_name:
+#   param_name: value
+
+P_20_SI:
+   # example: region : "Cascadia"
+   # for this model Null will make the model use c0 (default)
+   region: Null
+   saturation_region: Null
