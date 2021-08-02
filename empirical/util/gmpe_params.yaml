@@ -64,13 +64,29 @@ BB_13:
 # OpenQuake Models
 
 P_20_SI:
-   # type : Str
-   # options : 
-   # for this model Null will make the model use c0 (default)
-   region: Null
-   saturation_region: Null
-
+    # type : Str / None
+    # options : ["AK", "CAM", "SA", "TW", "Cascadia", "JP"] 
+    # Null will make the model use c0 (default)
+    region: Null
+    # type: Str / None
+    # options: ["Aleutian", "CAM_N", "CAM_S", "SA_N", "SA_S", "TW_E", "TW_W", "JP_Pac", "JP_Phi"]
+    # Null will make saturation_region=region
+    saturation_region: Null
+    # type Str / None
+    # options: ["out", "Seattle"] for region="Cascadia"
+    basin: Null
 P_20_SS:
+    # type : Str / None
+    # options : ["AK", "CAM", "SA", "TW", "Cascadia", "JP"] 
+    # for this model Null will make the model use c0 (default)
+    region: Null
+    # type: Str / None
+    # options: ["Aleutian", "CAM_N", "CAM_S", "SA_N", "SA_S", "TW_E", "TW_W", "JP_Pac", "JP_Phi"]
+    # Null will make saturation_region=region
+    saturation_region: Null
+    # type Str / None
+    # options: ["out", "Seattle"] for region="Cascadia"
+    basin: Null
     
 HA_20_CR
 HA_20_SI
