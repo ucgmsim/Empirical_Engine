@@ -3,8 +3,84 @@
 #model_name:
 #   param_name: value
 
+
+# Non-OpenQuake models
+# module without extra params:
+# ZA_06
+# Br_10  
+# AS_16  
+# CB_12  
+# MV_06  
+# BCH_16  
+# CB_10 
+# SB_13
+
+BSSA_14:
+    # type : int
+    # options : [0 (Global incl. Taiwan), 1 (California), 2 (Japan), 3 (China or Turkey), 4 (Italy)]
+    region: 0
+
+ASK_14:
+    # type : int
+    # options : [0 (Global), 1 (California), 2 (Japan), 3 (China), 4 (Italy), 5 (Turkey), 6 (Taiwan)]
+    region: 0
+    # type : Bool
+    # flag for hanging wall sites. Null = default
+    f_hw: Null
+    # type : Bool
+    # flag for aftershocks
+    f_as: 0
+
+CB_14:
+    # type : int
+    # options : [0 (Global incl. Taiwan), 1 (California), 2 (Japan), 3 (China or Turkey), 4 (Italy)]
+    region: 0
+    # type: Bool
+    # flag hanging wall effect. Null = default
+    h_hw: Null
+    
+CY_14:
+    # type: int
+    # options : [0 (Global), 1 (California), 2 (Japan), 3 (China), 4 (Italy), 5 (Turkey)]
+    region: 0
+    # type: Bool
+    # flag for hanging wall sites. Null = default
+    f_hw: Null
+
+A_18:
+    # type : Str / None
+    # epistemic_adj: None: disabled epistemic adjustment
+    #                "HIGH": subduction interface or in-slab GMPE with the positive epistemic adjustment factor applied
+    #                "LOW":  subduction interface or in-slab GMPE with the negative epistemic adjustment factor applied
+    epistemic_adj: Null
+
+    
+BB_13:
+    # default value set to a constant: _STRENGTH_REDUCTION_FACTORS=np.linspace(0.5, 9.5, 10)
+    # TODO: change default to None and retreat to the constant value if None
+    R_hat: [0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5 ] 
+
+
+# OpenQuake Models
+
 P_20_SI:
-   # example: region : "Cascadia"
+   # type : Str
+   # options : 
    # for this model Null will make the model use c0 (default)
    region: Null
    saturation_region: Null
+
+P_20_SS:
+    
+HA_20_CR
+HA_20_SI
+HA_20_SS
+G_17
+BC_16
+S_16
+PH_20_CR
+PH_20_SI
+PH_20_SS
+CH_20_CR
+CH_20_SI
+CH_20_SS
