@@ -63,13 +63,17 @@ BB_13:
 
 # OpenQuake Models
 
+# parker_2020
+# check gsim_aliases under parker_2020 for the full list of combinations
 P_20_SI:
     # type : Str / None
-    # options : ["AK", "CAM", "SA", "TW", "Cascadia", "JP"] 
+    # options : ["AK", "CAM", "SA", "TW"]
+    # options with basin: ["Cascadia", "JP"] 
     # Null will make the model use c0 (default)
     region: Null
     # type: Str / None
-    # options: ["Aleutian", "CAM_N", "CAM_S", "SA_N", "SA_S", "TW_E", "TW_W", "JP_Pac", "JP_Phi"]
+    # options: ["Aleutian", "CAM_N", "CAM_S", "SA_N", "SA_S", "TW_E", "TW_W"]
+    # options for region="JP":  ["JP_Pac", "JP_Phi"]
     # Null will make saturation_region=region
     saturation_region: Null
     # type Str / None
@@ -77,26 +81,107 @@ P_20_SI:
     basin: Null
 P_20_SS:
     # type : Str / None
-    # options : ["AK", "CAM", "SA", "TW", "Cascadia", "JP"] 
-    # for this model Null will make the model use c0 (default)
+    # options : ["AK", "CAM", "SA", "TW"] 
+    # options with basin: ["Cascadia", "JP"] 
+    # Null will make the model use c0 (default)
     region: Null
     # type: Str / None
-    # options: ["Aleutian", "CAM_N", "CAM_S", "SA_N", "SA_S", "TW_E", "TW_W", "JP_Pac", "JP_Phi"]
+    # options: ["Aleutian", "CAM_N", "CAM_S", "SA_N", "SA_S", "TW_E", "TW_W"]
+    # options for region="JP":  ["JP_Pac", "JP_Phi"]
     # Null will make saturation_region=region
     saturation_region: Null
     # type Str / None
     # options: ["out", "Seattle"] for region="Cascadia"
     basin: Null
+
+# hassani_atkinson_2020    
+HA_20_CR:
+    kappa: 0.04
+    backarc: 0
+    forearc_ne: 1
+    forearc_sw: 0
+
+HA_20_SI:
+    kappa: 0.04
+    backarc: 0
+    forearc_ne: 1
+    forearc_sw: 0
+
+HA_20_SS:
+    kappa: 0.04
+    backarc: 0
+    forearc_ne: 1
+    forearc_sw: 0
+
+# gulerce_2017
+# seems to have none
+#G_17:
+
+# bozorgnia_campbell_2016    
+# seems to have none
+#BC_16:
+
+# stewart_2016
+# seems to have none
+#S_16:
+
+#phung_2020
+PH_20_CR:
+    # type: Str
+    # options: ['glb', 'tw', 'ca', 'jp'] (global, Taiwan, California, Japan)
+    region: 'glb'
+    # type: Bool
+    # flag for aftershock. only works if region == 'tw'
+    aftershocks: False
+    # direct point parameter for directivity effect
+    d_dpp: 0
     
-HA_20_CR
-HA_20_SI
-HA_20_SS
-G_17
-BC_16
-S_16
-PH_20_CR
-PH_20_SI
-PH_20_SS
-CH_20_CR
-CH_20_SI
-CH_20_SS
+PH_20_SI:
+    # type: Str
+    # options: ['jptw', 'tw'] (Japan/Taiwan joined, Taiwan)
+    region: 'jptw'
+
+PH_20_SS:
+    # type: Str
+    # options: ['jptw', 'tw'] (Japan/Taiwan joined, Taiwan)
+    region: 'jptw'
+    
+
+# chao_2020
+CH_20_CR:
+    # type: Bool
+    # flags to switch between Manila or Ryukyu subduction zone
+    manila: False
+    # type: Bool
+    # flag for aftershocks or mainshocks 
+    aftershocks: False
+    # type: Bool
+    # flag for geology, True for KS17, False for seismic (receiver function)
+    # only used for inferred vs30, otherwise use vs30measured
+    geology: False
+    
+CH_20_SI:
+    # type: Bool
+    # flags to switch between Manila or Ryukyu subduction zone
+    manila: False
+    # type: Bool
+    # flag for aftershocks or mainshocks 
+    aftershocks: False
+    # type: Bool
+    # flag for geology, True for KS17, False for seismic (receiver function)
+    # only used for inferred vs30, otherwise use vs30measured
+    geology: False
+    
+
+CH_20_SS:
+    # type: Bool
+    # flags to switch between Manila or Ryukyu subduction zone
+    manila: False
+    # type: Bool
+    # flag for aftershocks or mainshocks 
+    aftershocks: False
+    # type: Bool
+    # flag for geology, True for KS17, False for seismic (receiver function)
+    # only used for inferred vs30, otherwise use vs30measured
+    geology: False
+
