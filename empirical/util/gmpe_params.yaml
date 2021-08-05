@@ -25,11 +25,11 @@ ASK_14:
     # options : [0 (Global), 1 (California), 2 (Japan), 3 (China), 4 (Italy), 5 (Turkey), 6 (Taiwan)]
     region: 0
     # type : Bool
-    # flag for hanging wall sites. Null = default
-    f_hw: Null
+    # flag for hanging wall sites. Default=0
+    f_hw: 0
     # type : Bool
     # flag for aftershocks
-    f_as: 0
+    f_as: Null
 
 CB_14:
     # type : int
@@ -37,7 +37,7 @@ CB_14:
     region: 0
     # type: Bool
     # flag hanging wall effect. Null = default
-    h_hw: Null
+    f_hw: Null
     
 CY_14:
     # type: int
