@@ -26,10 +26,10 @@ ASK_14:
     region: 0
     # type : Bool
     # flag for hanging wall sites. Default=0
-    f_hw: 0
+    f_hw: Null
     # type : Bool
     # flag for aftershocks
-    f_as: Null
+    f_as: 0
 
 CB_14:
     # type : int
