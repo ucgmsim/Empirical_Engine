@@ -25,7 +25,7 @@ ASK_14:
     # options : [0 (Global), 1 (California), 2 (Japan), 3 (China), 4 (Italy), 5 (Turkey), 6 (Taiwan)]
     region: 0
     # type : Bool
-    # flag for hanging wall sites. Default=0
+    # flag for hanging wall sites. Null = Default
     f_hw: Null
     # type : Bool
     # flag for aftershocks
