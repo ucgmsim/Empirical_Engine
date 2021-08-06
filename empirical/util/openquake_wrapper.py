@@ -185,7 +185,7 @@ def oq_run(model, site, fault, im, period=None, **kwargs):
         results = []
         for p in period:
             imr = imt.SA(period=min(p, max_period))
-            m, s = oq_mean_stddevs(model, site, rup, dists, imr, stddev_types)
+            m, s = oq_mean_stddevs(model, sites, rup, dists, imr, stddev_types)
             # interpolate pSA value up based on maximum available period
             if p > max_period:
                 m = m * (max_period / p) ** 2
