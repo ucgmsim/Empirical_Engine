@@ -96,6 +96,10 @@ class GMM(ExtendedEnum):
     CH_20_CR = 1071
     CH_20_SI = 1072
     CH_20_SS = 1073
+    AG_20_SI = 1081
+    AG_20_SS = 1082
+    K_20_SI = 1091
+    K_20_SS = 1092
 
 
 class SiteClass(Enum):

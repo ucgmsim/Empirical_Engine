@@ -11,6 +11,8 @@ from empirical.util.classdef import TectType
 try:
     # openquake constants and models
     from openquake.hazardlib import const, imt, gsim
+    from openquake.hazardlib.site import Site, SiteCollection
+    from openquake.hazardlib.geo import Point
 
     OQ = True
 except ImportError:
@@ -33,6 +35,11 @@ OQ_GMM = [
     1071,
     1072,
     1073,
+    1081,
+    1082,
+    1091,
+    1092,
+
 ]
 if OQ:
     # model classes in order of empirical.util.classdef.GMM
@@ -44,13 +51,17 @@ if OQ:
         gsim.hassani_atkinson_2020.HassaniAtkinson2020SSlab,
         gsim.gulerce_2017.GulerceEtAl2017,
         gsim.bozorgnia_campbell_2016.BozorgniaCampbell2016,
-        gsim.stewart_2016.StewartEtAl2016,
+        gsim.stewart_2016_vh.StewartEtAl2016VH,
         gsim.phung_2020.PhungEtAl2020Asc,
         gsim.phung_2020.PhungEtAl2020SInter,
         gsim.phung_2020.PhungEtAl2020SSlab,
         gsim.chao_2020.ChaoEtAl2020Asc,
         gsim.chao_2020.ChaoEtAl2020SInter,
         gsim.chao_2020.ChaoEtAl2020SSlab,
+        gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SInter,
+        gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SSlab,
+        gsim.kuehn_2020.KuehnEtAl2020SInter,
+        gsim.kuehn_2020.KuehnEtAl2020SSlab,
     ]
     oq_models = dict(zip(OQ_GMM, oq_models))
 
@@ -63,6 +74,9 @@ class Properties(object):
     def __init__(self):
         # this allows attaching arbitrary attributes to self later
         pass
+
+    def __len__(self):
+        return 1
 
 
 def oq_mean_stddevs(model, sites, rup, dists, imr, stddev_types):
@@ -113,20 +127,23 @@ def oq_run(model, site, fault, im, period=None, **kwargs):
         if st in model.DEFINED_FOR_STANDARD_DEVIATION_TYPES:
             stddev_types.append(st)
 
-    sites = Properties()
+    location = Point(0.0, 0.0, 0.0)  # Create a dummy location as OQ calculation doesn't use a location
+    oq_site = Site(location)
     for sp in model.REQUIRES_SITES_PARAMETERS:
         if sp == "vs30":
-            sites.vs30 = np.array([site.vs30])
+            oq_site.vs30 = np.array([site.vs30])
         elif sp == "vs30measured":
-            sites.vs30measured = np.array([site.vs30measured])
+            oq_site.vs30measured = np.array([site.vs30measured])
         elif sp == "z1pt0":
-            sites.z1pt0 = np.array([site.z1p0])
+            oq_site.z1pt0 = np.array([site.z1p0])
         elif sp == "z2pt5":
-            sites.z2pt5 = np.array([site.z2p5])
+            oq_site.z2pt5 = np.array([site.z2p5])
         elif sp == "fpeak":
-            sites.fpeak = np.array([site.fpeak])
+            oq_site.fpeak = np.array([site.fpeak])
         else:
             raise ValueError("unknown site property: " + sp)
+
+    sites = SiteCollection([oq_site])
 
     rup = Properties()
     for rp in model.REQUIRES_RUPTURE_PARAMETERS:
@@ -171,7 +188,7 @@ def oq_run(model, site, fault, im, period=None, **kwargs):
         results = []
         for p in period:
             imr = imt.SA(period=min(p, max_period))
-            m, s = oq_mean_stddevs(model, sites, rup, dists, imr, stddev_types)
+            m, s = oq_mean_stddevs(model, site, rup, dists, imr, stddev_types)
             # interpolate pSA value up based on maximum available period
             if p > max_period:
                 m = m * (max_period / p) ** 2
