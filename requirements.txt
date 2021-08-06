@@ -7,3 +7,4 @@ PyYAML
 scipy
 matplotlib
 xlrd>=1.0.0
+git+ssh://git@github.com:gem/oq-engine.git#egg=openquake
