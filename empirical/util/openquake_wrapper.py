@@ -75,9 +75,6 @@ class Properties(object):
         # this allows attaching arbitrary attributes to self later
         pass
 
-    def __len__(self):
-        return 1
-
 
 def oq_mean_stddevs(model, sites, rup, dists, imr, stddev_types):
     """
