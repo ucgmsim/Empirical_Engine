@@ -17,7 +17,7 @@ pipeline {
 		cd /tmp/${env.JOB_NAME}
 		rm -rf qcore
 		git clone https://github.com/ucgmsim/qcore.git
-		pip install --no-deps ./qcore/
+		pip install --no-deps ./qcore/ --no-data -e
 		ln -s $HOME/data/testing/Empirical_Engine/sample0 ${env.WORKSPACE}/empirical/test
 
 		"""
