@@ -39,7 +39,6 @@ OQ_GMM = [
     1082,
     1091,
     1092,
-
 ]
 if OQ:
     # model classes in order of empirical.util.classdef.GMM
@@ -124,7 +123,9 @@ def oq_run(model, site, fault, im, period=None, **kwargs):
         if st in model.DEFINED_FOR_STANDARD_DEVIATION_TYPES:
             stddev_types.append(st)
 
-    location = Point(0.0, 0.0, 0.0)  # Create a dummy location as OQ calculation doesn't use a location
+    location = Point(
+        0.0, 0.0, 0.0
+    )  # Create a dummy location as OQ calculation doesn't use a location
     oq_site = Site(location)
     for sp in model.REQUIRES_SITES_PARAMETERS:
         if sp == "vs30":
