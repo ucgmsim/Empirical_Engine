@@ -51,23 +51,12 @@ def main(mw, models, im_list, vs30, rrups, tect_type, output_dir):
 
             # Individual Model Plot
             fig, ax = plt.subplots()
+            ax.loglog(rrups, median_im, color="black", label=model.name)
             ax.loglog(
-                rrups,
-                median_im,
-                color="black",
-                label=model.name,
+                rrups, median_im * np.exp(-std_dev), color="black", linestyle="dashed"
             )
             ax.loglog(
-                rrups,
-                median_im * np.exp(-std_dev),
-                color="black",
-                linestyle="dashed",
-            )
-            ax.loglog(
-                rrups,
-                median_im * np.exp(std_dev),
-                color="black",
-                linestyle="dashed",
+                rrups, median_im * np.exp(std_dev), color="black", linestyle="dashed"
             )
             ax.set_xlabel("Rrup (km)")
             ax.set_ylabel(im.pretty_im_name())
@@ -77,11 +66,7 @@ def main(mw, models, im_list, vs30, rrups, tect_type, output_dir):
             ax.legend()
 
             # Aggregated model plot for each IM
-            ax_im.loglog(
-                rrups,
-                median_im,
-                label=model.name,
-            )
+            ax_im.loglog(rrups, median_im, label=model.name)
             ax_im.set_title(
                 f"Mw: {mw} dip: {fault.dip} rake: {fault.rake} hdepth: {fault.hdepth} - {tect_type}"
             )
