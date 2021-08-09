@@ -35,10 +35,10 @@ OQ_GMM = [
     1071,
     1072,
     1073,
-    1081,
     1082,
-    1091,
+    1083,
     1092,
+    1093,
 ]
 if OQ:
     # model classes in order of empirical.util.classdef.GMM
