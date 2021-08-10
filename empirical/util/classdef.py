@@ -100,6 +100,8 @@ class GMM(ExtendedEnum):
     AG_20_SS = 1083
     K_20_SI = 1092
     K_20_SS = 1093
+    K_20_SI_NZ = 2092
+    K_20_SS_NZ = 2093
 
 
 class SiteClass(Enum):
