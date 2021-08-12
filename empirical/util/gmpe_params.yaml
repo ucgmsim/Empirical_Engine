@@ -158,7 +158,7 @@ CH_20_CR:
     # type: Bool
     # flag for geology, True for KS17, False for seismic (receiver function)
     # only used for inferred vs30, otherwise use vs30measured
-    geology: False
+    geology: True
     
 CH_20_SI:
     # type: Bool
@@ -170,7 +170,7 @@ CH_20_SI:
     # type: Bool
     # flag for geology, True for KS17, False for seismic (receiver function)
     # only used for inferred vs30, otherwise use vs30measured
-    geology: False
+    geology: True
     
 
 CH_20_SS:
@@ -183,7 +183,7 @@ CH_20_SS:
     # type: Bool
     # flag for geology, True for KS17, False for seismic (receiver function)
     # only used for inferred vs30, otherwise use vs30measured
-    geology: False
+    geology: True
 
 
 #abrahamson_gulerce_2020
