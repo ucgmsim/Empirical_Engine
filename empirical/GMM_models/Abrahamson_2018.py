@@ -81,7 +81,7 @@ def Abrahamson_2018(site, fault, im=None, periods=None, epistemic_adj=None):
             result = calculate_Abrahamson(site, fault, closest_period, epistemic_adj)
         else:
             t_low = sorted_t[t >= sorted_t][-1]
-            t_high = sorted_t[t <= sorted_t][-1]
+            t_high = sorted_t[t <= sorted_t][0]
 
             a_low = calculate_Abrahamson(site, fault, t_low, epistemic_adj)
             a_high = calculate_Abrahamson(site, fault, t_high, epistemic_adj)
