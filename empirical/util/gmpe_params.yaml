@@ -185,3 +185,7 @@ CH_20_SS:
     # only used for inferred vs30, otherwise use vs30measured
     geology: False
 
+K_20_SI:
+    region: NZL
+K_20_SS:
+    region: NZL

@@ -37,6 +37,8 @@ OQ_GMM = [
     1073,
     1082,
     1083,
+    2082,
+    2083,
     1092,
     1093,
     2092,
@@ -59,6 +61,8 @@ if OQ:
         gsim.chao_2020.ChaoEtAl2020Asc,
         gsim.chao_2020.ChaoEtAl2020SInter,
         gsim.chao_2020.ChaoEtAl2020SSlab,
+        gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SInter,
+        gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SSlab,
         gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SInter,
         gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SSlab,
         gsim.kuehn_2020.KuehnEtAl2020SInter,
@@ -104,7 +108,7 @@ def oq_run(model, site, fault, im, period=None, **kwargs):
     if not OQ:
         raise ImportError("openquake is not installed, models not available")
 
-    if model == GMM.K_20_SI_NZ or model == GMM.K_20_SS_NZ:
+    if model in [GMM.K_20_SI_NZ, GMM.K_20_SS_NZ, GMM.AG_20_SI_NZ, GMM.AG_20_SS_NZ]:
         kwargs["region"] = "NZL"
 
     # model can be given multiple ways
