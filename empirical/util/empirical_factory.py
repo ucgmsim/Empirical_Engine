@@ -35,7 +35,7 @@ def read_model_dict(config=None):
     return model_dict
 
 
-def get_oq_model_params(config=None):
+def get_gmpe_params(config=None):
     if config is None:
         dir = os.path.dirname(__file__)
         config = os.path.join(dir, DEFAULT_GMPE_PARAM_CONFIG_NAME)
