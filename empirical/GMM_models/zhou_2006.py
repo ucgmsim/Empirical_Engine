@@ -123,6 +123,7 @@ def calculate_zhao(site, fault, period):
     fault_ssl = zeros
 
     p_fa = q_fa = w_fa = zeros
+    mc = 6.3  # mc defaults to 6.3, unless subduction slab
 
     if fault.tect_type == TectType.ACTIVE_SHALLOW:
         q_fa = Qc
@@ -143,6 +144,8 @@ def calculate_zhao(site, fault, period):
         q_fa = Qs
         w_fa = Ws
 
+        mc = 6.5
+
     site_c = zeros
     if site.siteclass == SiteClass.HARDROCK:
         site_c = CH
@@ -158,13 +161,12 @@ def calculate_zhao(site, fault, period):
 
     tau = get_tau(fault.tect_type)
 
-    return ZA06(i, m, h, r, fault_s, fault_ssl, p_fa, q_fa, w_fa, site_c, tau)
+    return ZA06(i, m, h, r, fault_s, fault_ssl, p_fa, q_fa, w_fa, site_c, tau, mc)
 
 
 #@numba.jit(nopython=True)
-def ZA06(i, m, h, r, fault_s, fault_ssl, p_fa, q_fa, w_fa, site_c, tau):
+def ZA06(i, m, h, r, fault_s, fault_ssl, p_fa, q_fa, w_fa, site_c, tau, mc):
     hc = 15
-    mc = 6.3
     r_star = r + c[i] * np.exp(d[i] * m)
     log_sa = (
         a[i] * m
