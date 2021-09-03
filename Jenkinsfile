@@ -1,51 +1,69 @@
 pipeline {
     agent any
     stages {
-        stage('Install dependencies') {
+
+        stage('Settin up env') {
             steps {
-                echo 'Install dependencies on Jenkins server (maybe unnecessary if test runs inside Docker)'
-
-		sh """
-		pwd
-		env
-		source /var/lib/jenkins/py3env/bin/activate
-		cd ${env.WORKSPACE}
-		pip install -r requirements.txt
-
-		echo ${env.JOB_NAME}
-		mkdir -p /tmp/${env.JOB_NAME}
-		cd /tmp/${env.JOB_NAME}
-		rm -rf qcore
-		git clone https://github.com/ucgmsim/qcore.git
-		cd qcore
-		python setup.py develop --no-data --no-deps
-		cd -
-		ln -s $HOME/data/testing/Empirical_Engine/sample0 ${env.WORKSPACE}/empirical/test
-
-		"""
+                echo "[[ Start virtual environment ]]"
+                sh """
+                    echo "[ Current directory ] : " `pwd`
+                    echo "[ Environment Variables ] "
+                    env
+# Each stage needs custom setting done again. By default /bin/python is used.
+                    source /var/lib/jenkins/py3env/bin/activate
+                    mkdir -p /tmp/${env.JOB_NAME}/${env.ghprbActualCommit}
+# I don't know how to create a variable within Jenkinsfile (please let me know)
+#                   export virtenv=/tmp/${env.JOB_NAME}/${env.ghprbActualCommit}/venv
+                    python -m venv /tmp/${env.JOB_NAME}/${env.ghprbActualCommit}/venv
+# activate new virtual env
+                    source /tmp/${env.JOB_NAME}/${env.ghprbActualCommit}/venv/bin/activate
+                    echo "[ Python used ] : " `which python`
+                    cd ${env.WORKSPACE}
+                    echo "[ Install dependencies ]"
+                    pip install -r requirements.txt
+                    echo "[ Install qcore ]"
+                    cd /tmp/${env.JOB_NAME}/${env.ghprbActualCommit}
+                    rm -rf qcore
+                    git clone https://github.com/ucgmsim/qcore.git
+                    cd qcore
+                    python setup.py develop --no-data --no-deps
+                """
             }
         }
+
         stage('Run regression tests') {
             steps {
-                echo 'Run pytest'
-		sh """
-		source /var/lib/jenkins/py3env/bin/activate
-		cd ${env.WORKSPACE}/empirical
-  		pytest --black --ignore=test --ignore=GMM_models
-  		cd test
-  		pytest -vs
-		"""
+                echo '[[ Run pytest ]]'
+                sh """
+# activate virtual environment again
+                    source /tmp/${env.JOB_NAME}/${env.ghprbActualCommit}/venv/bin/activate
+                    echo "[ Python used ] : " `which python`
+                    cd ${env.WORKSPACE}
+                    echo "[ Installing ${env.JOB_NAME} ]"
+                    python setup.py install
+                    echo "[ Linking test data ]"
+                    cd empirical/test
+                    rm -rf sample0
+                    mkdir sample0
+                    ln -s $HOME/data/testing/${env.JOB_NAME}/sample0/input sample0
+                    ln -s $HOME/data/testing/${env.JOB_NAME}/sample0/output sample0
+                    echo "[ Run test now ]"
+                    cd empricial
+                    pytest --black --ignore=test --ignore=GMM_models
+                    cd test
+                    pytest -vs
+
+                """
             }
         }
     }
 
     post {
-	always {
+        always {
                 echo 'Tear down the environments'
-		sh """
-		rm -rf /tmp/${env.JOB_NAME}/*
-		docker container prune -f
-		"""
+                sh """
+                    rm -rf /tmp/${env.JOB_NAME}/*
+                """
             }
     }
 }
