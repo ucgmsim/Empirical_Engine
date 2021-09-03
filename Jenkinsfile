@@ -39,8 +39,9 @@ pipeline {
                     source /tmp/${env.JOB_NAME}/${env.ghprbActualCommit}/venv/bin/activate
                     echo "[ Python used ] : " `which python`
                     cd ${env.WORKSPACE}
-                    echo "[ Installing ${env.JOB_NAME} ]"
-                    python setup.py install
+# Install is not possible as it the storage goes full
+#                    echo "[ Installing ${env.JOB_NAME} ]"
+#                    python setup.py install
                     echo "[ Linking test data ]"
                     cd empirical/test
                     rm -rf sample0
