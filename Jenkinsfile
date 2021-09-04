@@ -41,7 +41,7 @@ pipeline {
                     cd ${env.WORKSPACE}
 # Install is not possible as it the storage goes full
 #                    echo "[ Installing ${env.JOB_NAME} ]"
-#                    python setup.py install
+                    python setup.py install
                     echo "[ Linking test data ]"
                     cd empirical/test
                     rm -rf sample0
