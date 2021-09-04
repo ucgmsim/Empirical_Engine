@@ -49,7 +49,7 @@ pipeline {
                     ln -s $HOME/data/testing/${env.JOB_NAME}/sample0/input sample0
                     ln -s $HOME/data/testing/${env.JOB_NAME}/sample0/output sample0
                     echo "[ Run test now ]"
-                    cd empricial
+                    cd ${env.WORKSPACE}/empricial
                     pytest --black --ignore=test --ignore=GMM_models
                     cd test
                     pytest -vs
