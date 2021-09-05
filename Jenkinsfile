@@ -20,6 +20,7 @@ pipeline {
                     echo "[ Python used ] : " `which python`
                     cd ${env.WORKSPACE}
                     echo "[ Install dependencies ]"
+# This can cause storage going overflow. OpenQuake needs lots of temp storage
                     pip install -r requirements.txt
                     echo "[ Install qcore ]"
                     cd /tmp/${env.JOB_NAME}/${env.ghprbActualCommit}
@@ -39,8 +40,8 @@ pipeline {
                     source /tmp/${env.JOB_NAME}/${env.ghprbActualCommit}/venv/bin/activate
                     echo "[ Python used ] : " `which python`
                     cd ${env.WORKSPACE}
-# Install is not possible as it the storage goes full
-#                    echo "[ Installing ${env.JOB_NAME} ]"
+# Install may cause the storage going overflow
+                    echo "[ Installing ${env.JOB_NAME} ]"
                     python setup.py install
                     echo "[ Linking test data ]"
                     cd empirical/test
