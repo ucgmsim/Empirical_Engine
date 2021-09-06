@@ -65,7 +65,7 @@ pipeline {
         always {
                 echo 'Tear down the environments'
                 sh """
-                    rm -rf $TEMP_DIR
+#                    rm -rf $TEMP_DIR
                 """
             }
     }
