@@ -182,6 +182,8 @@ def oq_run(model, site, fault, im, period=None, **kwargs):
             dists.rx = np.array([site.Rx])
         elif dp == "ry0":
             dists.ry0 = np.array([site.Ry])
+        elif dp == "rvolc":
+            dists.rvolc = np.array([site.Rtvz])
         else:
             raise ValueError("unknown dist property: " + dp)
 
