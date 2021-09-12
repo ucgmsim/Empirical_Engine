@@ -39,6 +39,11 @@ OQ_GMM = [
     1083,
     1092,
     1093,
+    1102,
+    1103,
+    1111,
+    1112,
+    1113,
 ]
 if OQ:
     # model classes in order of empirical.util.classdef.GMM
@@ -61,6 +66,11 @@ if OQ:
         gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SSlab,
         gsim.kuehn_2020.KuehnEtAl2020SInter,
         gsim.kuehn_2020.KuehnEtAl2020SSlab,
+        gsim.si_2020.SiEtAl2020SInter,
+        gsim.si_2020.SiEtAl2020SSlab,
+        gsim.zhao_2016.ZhaoEtAl2016Asc,
+        gsim.zhao_2016.ZhaoEtAl2016SInter,
+        gsim.zhao_2016.ZhaoEtAl2016SSlab,
     ]
     oq_models = dict(zip(OQ_GMM, oq_models))
 
