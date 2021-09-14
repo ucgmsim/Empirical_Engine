@@ -43,6 +43,11 @@ OQ_GMM = [
     1093,
     2092,
     2093,
+    1102,
+    1103,
+    1111,
+    1112,
+    1113,
 ]
 if OQ:
     # model classes in order of empirical.util.classdef.GMM
@@ -69,6 +74,11 @@ if OQ:
         gsim.kuehn_2020.KuehnEtAl2020SSlab,
         gsim.kuehn_2020.KuehnEtAl2020SInter,
         gsim.kuehn_2020.KuehnEtAl2020SSlab,
+        gsim.si_2020.SiEtAl2020SInter,
+        gsim.si_2020.SiEtAl2020SSlab,
+        gsim.zhao_2016.ZhaoEtAl2016Asc,
+        gsim.zhao_2016.ZhaoEtAl2016SInter,
+        gsim.zhao_2016.ZhaoEtAl2016SSlab,
     ]
     oq_models = dict(zip(OQ_GMM, oq_models))
 
@@ -183,6 +193,8 @@ def oq_run(model, site, fault, im, period=None, **kwargs):
             dists.rx = np.array([site.Rx])
         elif dp == "ry0":
             dists.ry0 = np.array([site.Ry])
+        elif dp == "rvolc":
+            dists.rvolc = np.array([site.Rtvz])
         else:
             raise ValueError("unknown dist property: " + dp)
 
