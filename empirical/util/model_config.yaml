@@ -137,14 +137,7 @@ SUBDUCTION_INTERFACE:
       - A_18 # ZA06 or BCH16
   pSA:
     rotd50:
-      - ZA_06
-      - BCH_16 # ZA_06 or BCH_16
-      - A_18
-      - AG_20_SI
-      - AG_20_SI_NZ
-      - K_20_SI
-      - K_20_SI_NZ
-      - P_20_SI
+      - META
     geom:
       - A_18 # ZA06 or BCH16
     rotd100_50:
