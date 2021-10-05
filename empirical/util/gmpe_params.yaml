@@ -240,3 +240,14 @@ K_20_SS:
     m_b: Null
     # Number of standard deviations to multiply sigma mu for the epistemic uncertainty model
     sigma_mu_epsilon: 0.0
+
+META:
+    gmms:
+        ZA_06: 0.1
+        BCH_16: 0.05
+        A_18: 0.1
+        AG_20_SI: 0.075
+        AG_20_SI_NZ: 0.075
+        K_20_SI: 0.1
+        K_20_SI_NZ: 0.2
+        P_20_SI: 0.3
