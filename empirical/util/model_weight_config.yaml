@@ -1,0 +1,24 @@
+# Give weights to a set of gmpe models to calculate the weighted log mean
+# Each group of model weights in a component must add to 1.00
+SUBDUCTION_SLAB:
+  pSA:
+    rotd50:
+      ZA_06: 0.1
+      BCH_16: 0.05
+      A_18: 0.1
+      AG_20_SS: 0.075
+      AG_20_SS_NZ: 0.075
+      K_20_SS: 0.1
+      K_20_SS_NZ: 0.2
+      P_20_SS: 0.3
+SUBDUCTION_INTERFACE:
+  pSA:
+    rotd50:
+      ZA_06: 0.1
+      BCH_16: 0.05
+      A_18: 0.1
+      AG_20_SI: 0.075
+      AG_20_SI_NZ: 0.075
+      K_20_SI: 0.1
+      K_20_SI_NZ: 0.2
+      P_20_SI: 0.3
