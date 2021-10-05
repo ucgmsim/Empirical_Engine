@@ -76,7 +76,7 @@ def McVerry_2006_Sa(siteprop, faultprop, im=None, period=None):
         period = -1
     elif im == "PGA":
         period = 0
-    assert np.all(period <= (periods[-1] + 0.0001)), f"Requested period beyond max value ({periods[-1]}): {period}"
+    assert np.all(period <= (periods[-1] + 0.0001))
 
     # interpolate between periods if neccesary
     if not np.isclose(periods, period, atol=0.0001).any():
