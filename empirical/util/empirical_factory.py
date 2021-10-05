@@ -245,7 +245,11 @@ def compute_median_gmm(fault, site, gmms, weights, im, period=None, config=None,
     medians = []
     sigmas = []
     for gmm in gmms:
-        res = compute_gmm(fault, site, GMM[gmm], im, period, config, **kwargs)
+        if config is not None and gmm in config.keys():
+            tmp_params_dict = config[gmm]
+        else:
+            tmp_params_dict = {}
+        res = compute_gmm(fault, site, GMM[gmm], im, period, **tmp_params_dict, **kwargs)
         if isinstance(res, tuple):
             m = res[0]
             s = res[1][0]

@@ -259,17 +259,21 @@ def calculate_meta_empirical(
     # read openquake parameter config
     # if gmpe_param_config == None, default config file will be used
     gmpe_params_dict = empirical_factory.get_gmpe_params(gmpe_param_config)
-    tect_weights = empirical_factory.read_weight_dict(gmpe_weight_config)[fault.tect_type.name]
+    tect_weights = empirical_factory.read_weight_dict(gmpe_weight_config)[
+        fault.tect_type.name
+    ]
 
     for im in ims:
         # File & column names
         for component, gmms in empirical_factory.determine_all_comps(
-                fault, im, tect_type_model_dict, components
+            fault, im, tect_type_model_dict, components
         ):
             cur_filename = "{}_meta_{}.csv".format(identifier, im)
             cur_cols = []
             if im not in tect_weights or component.str_value not in tect_weights[im]:
-                print(f"No weights found for im {im} and component {component.str_value}. Not generating.")
+                print(
+                    f"No weights found for im {im} and component {component.str_value}. Not generating."
+                )
                 continue
             im_weights = [tect_weights[im][component.str_value][x] for x in gmms]
             if im in MULTI_VALUE_IMS:
@@ -290,9 +294,15 @@ def calculate_meta_empirical(
 
             for ix, site in enumerate(sites):
                 # print(fault, site)
-                values = empirical_factory.compute_median_gmm(fault, site, gmms, weights=im_weights, im=im,
-                                                              period=period if im in MULTI_VALUE_IMS else None,
-                                                              config=gmpe_params_dict)
+                values = empirical_factory.compute_median_gmm(
+                    fault,
+                    site,
+                    gmms,
+                    weights=im_weights,
+                    im=im,
+                    period=period if im in MULTI_VALUE_IMS else None,
+                    config=gmpe_params_dict,
+                )
                 if im in MULTI_VALUE_IMS:
                     # if len(values) > 1:
                     cur_data[ix, :] = np.ravel(
@@ -403,7 +413,6 @@ def load_args():
         "--median",
         action="store_true",
         help="Compute the weighted median empirical from a set of gmpes",
-
     )
 
     parser.add_argument(
