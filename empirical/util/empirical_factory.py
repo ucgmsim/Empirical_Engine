@@ -135,27 +135,6 @@ def determine_all_gmm(
         return []
 
 
-def determine_all_comps(
-    fault, im, tect_type_model_dict, components=Components.cgeom.str_value
-):
-    if fault.tect_type is None:
-        print("tect-type not found assuming 'ACTIVE_SHALLOW'")
-        tect_type = TectType.ACTIVE_SHALLOW.name
-    else:
-        tect_type = TectType(fault.tect_type).name
-    if tect_type in tect_type_model_dict and im in tect_type_model_dict[tect_type]:
-        return [
-            (Components.from_str(comp), tect_type_model_dict[tect_type][im][comp])
-            for comp in tect_type_model_dict[tect_type][im]
-            if comp in components
-            and tect_type_model_dict[tect_type][im][comp] is not None
-        ]
-    else:
-        print(
-            f"No valid empirical model found for im {im} with tectonic type {tect_type}"
-        )
-        return []
-
 def compute_gmm(fault, site, gmm, im, period=None, **kwargs):
     if site.vs30 is None:
         site.vs30 = classdef.VS30_DEFAULT
