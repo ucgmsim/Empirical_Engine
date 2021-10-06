@@ -24,11 +24,7 @@
                 K_20_SS: 0.175
                 K_20_SS_NZ: 0.175
         VOLCANIC:
-                Br_10: 0.2
-                ASK_14: 0.2
-                BSSA_14: 0.2
-                CB_14: 0.2
-                CY_14: 0.2
+                Br_10: 1.0
 PGV:
         ACTIVE_SHALLOW:
                 Br_10: 0.2
@@ -45,8 +41,4 @@ PGV:
                 AG_20_SS: 0.25
                 AG_20_SS_NZ: 0.25
         VOLCANIC:
-                Br_10: 0.2
-                ASK_14: 0.2
-                BSSA_14: 0.2
-                CB_14: 0.2
-                CY_14: 0.2
+                Br_10: 1.0

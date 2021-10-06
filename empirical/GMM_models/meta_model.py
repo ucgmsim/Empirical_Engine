@@ -22,8 +22,8 @@ def meta_model(fault, site, im, weights_path=None, period=None, config=None, **k
     :param weights_path: Path to the weights file
     :param im: The intensity measure to be calculated
     :param period: If the im takes a period, then this should be a list of periods to calculate the values for
-    :param config: A dictionary of any settings to be passed to the gmpe. Only used for openQuake models
-    :param kwargs: Any additional settings to be passed to the gmpe
+    :param config: A dictionary of any settings to be passed to subsequent gmpes
+    :param kwargs: Any additional settings to be passed to all gmpes
     :return: a list of (median, (total sigma, intramodel sigma, intermodel sigma)) nested tuples.
     Of length one or equal to the length of period
     """
@@ -53,13 +53,12 @@ def meta_model(fault, site, im, weights_path=None, period=None, config=None, **k
             fault, site, GMM[gmm], im, period, **tmp_params_dict, **kwargs
         )
         if isinstance(res, tuple):
-            m = res[0]
-            s = res[1][0]
+            median, (sigma, _, _) = res
         else:
-            m = [x[0] for x in res]
-            s = [x[1][0] for x in res]
-        medians.append(m)
-        sigmas.append(s)
+            median = [x[0] for x in res]
+            sigma = [x[1][0] for x in res]
+        medians.append(median)
+        sigmas.append(sigma)
 
     # Get values as arrays in log space
     logmedians = np.log(np.asarray(medians))
