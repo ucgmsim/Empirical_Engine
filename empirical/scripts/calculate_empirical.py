@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 
 from empirical.util import empirical_factory, classdef
-from empirical.util.classdef import Site, Fault, TectType
+from empirical.util.classdef import Site, Fault, TectType, GMM
 from empirical.GMM_models.Burks_Baker_2013_iesdr import _STRENGTH_REDUCTION_FACTORS
 
 from qcore import constants
@@ -193,6 +193,8 @@ def calculate_empirical(
                     tmp_params_dict = gmpe_params_dict[cur_gmm.name]
                 else:
                     tmp_params_dict = {}
+                if cur_gmm is GMM.META:
+                    tmp_params_dict["config"] = gmpe_params_dict
                 values = empirical_factory.compute_gmm(
                     fault,
                     site,
