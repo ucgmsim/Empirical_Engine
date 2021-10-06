@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from typing import Iterable
 
 import numpy as np
@@ -46,8 +47,8 @@ def read_gmm_weights(emp_weight_conf_ffp=None):
     :return: dictionary of im, tect-type, model weighting
     """
     if emp_weight_conf_ffp is None:
-        emp_weight_conf_ffp = DEFAULT_WEIGHT_CONFIG_NAME
-    emp_wc_dict_orig = load_yaml(emp_weight_conf_ffp)
+        emp_weight_conf_ffp = str(Path(__file__).parent/DEFAULT_WEIGHT_CONFIG_NAME)
+    emp_wc_dict_orig = yaml.load(open(emp_weight_conf_ffp), Loader=yaml.Loader)
     emp_wc_dict = {}
 
     for ims in emp_wc_dict_orig:

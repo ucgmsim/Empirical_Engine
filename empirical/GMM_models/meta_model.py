@@ -11,7 +11,7 @@ def load_weights(file_path, im, tect_type):
     """
     from empirical.util.empirical_factory import read_gmm_weights
 
-    return read_gmm_weights(file_path)[im][tect_type]
+    return read_gmm_weights(file_path)[im][tect_type.name]
 
 
 def meta_model(fault, site, im, weights_path=None, period=None, config=None, **kwargs):
