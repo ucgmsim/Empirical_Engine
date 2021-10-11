@@ -28,19 +28,19 @@
 # Options for each model are listed to the right
 ACTIVE_SHALLOW:
   PGV:
-    geom:
-      - Br_10 # Br_10 or BSSA_14 or CB_14 or CY_14 or ASK_14
+    rotd50:
+      - META
     ver:
       - BC_16 # S_16
   PGA:
-    geom:
-      - Br_10  # ZA_06 or Br_10 or BSSA_14 or CB_14 or CY_14 or ASK_14
+    rotd50:
+      - META
     ver:
       - BC_16 # S16
       - S_16
   pSA:
-    geom:
-      - Br_10  # ZA_06 or Br_10 or BSSA_14 or CB_14 or CY_14 or ASK_14
+    rotd50:
+      - META
     rotd100_50:
       - SB_13
     ver:
@@ -94,12 +94,14 @@ VOLCANIC:
       - BB_13
 SUBDUCTION_SLAB:
   PGV:
-    geom:
-      - Br_10 # These are only for shallow crustal in lieu of a more appropriate model
+    rotd50:
+      - META
   PGA:
-    geom:
-      - A_18 # ZA06 or BCH16
+    rotd50:
+      - META
   pSA:
+    rotd50:
+      - META
     geom:
       - A_18 # ZA06 or BCH16
     rotd100_50:
@@ -121,12 +123,14 @@ SUBDUCTION_SLAB:
       - BB_13
 SUBDUCTION_INTERFACE:
   PGV:
-    geom:
-      - Br_10 # These are only for shallow crustal in lieu of a more appropriate model
+    rotd50:
+      - META # These are only for shallow crustal in lieu of a more appropriate model
   PGA:
-    geom:
-      - A_18 # ZA06 or BCH16
+    rotd50:
+      - META # ZA06 or BCH16
   pSA:
+    rotd50:
+      - META
     geom:
       - A_18 # ZA06 or BCH16
     rotd100_50:

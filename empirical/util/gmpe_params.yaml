@@ -240,3 +240,8 @@ K_20_SS:
     m_b: Null
     # Number of standard deviations to multiply sigma mu for the epistemic uncertainty model
     sigma_mu_epsilon: 0.0
+
+META:
+    # Give an absolute path to the weights file
+    # Otherwise Null for the default
+    weights_path: Null
