@@ -137,27 +137,34 @@ def oq_run(model, site, fault, im, period=None, **kwargs):
         0.0, 0.0, 0.0
     )  # Create a dummy location as OQ calculation doesn't use a location
     oq_site = Site(location)
-    for sp in model.REQUIRES_SITES_PARAMETERS:
-        if sp == "vs30":
-            oq_site.vs30 = np.array([site.vs30])
-        elif sp == "vs30measured":
-            oq_site.vs30measured = np.array([site.vs30measured])
-        elif sp == "z1pt0":
-            oq_site.z1pt0 = np.array([site.z1p0])
-        elif sp == "z2pt5":
-            oq_site.z2pt5 = np.array([site.z2p5])
-        elif sp == "fpeak":
-            oq_site.fpeak = np.array([site.fpeak])
-        else:
-            raise ValueError("unknown site property: " + sp)
+    extra_site_parameters = set(model.REQUIRES_SITES_PARAMETERS).difference(["vs30", "vs30measured", "z1pt0", "z2pt5", "fpeak"])
+    if len(extra_site_parameters) > 0:
+        raise ValueError("unknown site property: " + extra_site_parameters)
+    else:
+        # if vs30 is not set a default vs30 value is used,
+        # z1p0/z2p5 are determined from vs30
+        # vs30 measured and fpeak have default values
+        oq_site.vs30 = np.array([site.vs30])
+        oq_site.vs30measured = np.array([site.vs30measured])
+        oq_site.z1pt0 = np.array([site.z1p0])
+        oq_site.z2pt5 = np.array([site.z2p5])
+        oq_site.fpeak = np.array([site.fpeak])
 
     sites = SiteCollection([oq_site])
 
     rup = Properties()
+    extra_rup_properties = set(model.REQUIRES_RUPTURE_PARAMETERS).difference(["dip", "rake", "hypo_depth", "mag", "width", "ztor"])
+    if len(extra_rup_properties) > 0:
+            raise ValueError("unknown rupture property: " + extra_rup_properties)
+
     for rp in model.REQUIRES_RUPTURE_PARAMETERS:
-        if rp == "dip":
-            rup.dip = fault.dip
-        elif rp == "hypo_depth":
+        check_param(model, rp)
+
+    if fault.dip:
+        rup.dip = fault.dip
+    if fault.hdepth:
+        rup.hypo_depth = fault.hdepth
+        if fault.hypo_depth:
             rup.hypo_depth = fault.hdepth
         elif rp == "mag":
             rup.mag = fault.Mw
@@ -170,7 +177,6 @@ def oq_run(model, site, fault, im, period=None, **kwargs):
         elif rp == "ztor":
             rup.ztor = fault.ztor
         else:
-            raise ValueError("unknown rupture property: " + rp)
 
     dists = Properties()
     for dp in model.REQUIRES_DISTANCES:
@@ -210,3 +216,8 @@ def oq_run(model, site, fault, im, period=None, **kwargs):
         imc = getattr(imt, im)
         assert imc in model.DEFINED_FOR_INTENSITY_MEASURE_TYPES
         return oq_mean_stddevs(model, sites, rup, dists, imc(), stddev_types)
+
+
+def check_param(model, rp):
+    if rp in model.REQUIRES_RUPTURE_PARAMETERS:
+        raise ValueError(f"{rp} is a required parameter for {model}")
