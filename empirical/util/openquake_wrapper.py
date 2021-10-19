@@ -6,7 +6,7 @@ from math import exp
 
 import numpy as np
 
-from empirical.util.classdef import TectType
+from empirical.util.classdef import TectType, GMM
 
 try:
     # openquake constants and models
@@ -37,8 +37,12 @@ OQ_GMM = [
     1073,
     1082,
     1083,
+    2082,
+    2083,
     1092,
     1093,
+    2092,
+    2093,
     1102,
     1103,
     1111,
@@ -64,6 +68,10 @@ if OQ:
         gsim.chao_2020.ChaoEtAl2020SSlab,
         gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SInter,
         gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SSlab,
+        gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SInter,
+        gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SSlab,
+        gsim.kuehn_2020.KuehnEtAl2020SInter,
+        gsim.kuehn_2020.KuehnEtAl2020SSlab,
         gsim.kuehn_2020.KuehnEtAl2020SInter,
         gsim.kuehn_2020.KuehnEtAl2020SSlab,
         gsim.si_2020.SiEtAl2020SInter,
@@ -109,6 +117,9 @@ def oq_run(model, site, fault, im, period=None, **kwargs):
     """
     if not OQ:
         raise ImportError("openquake is not installed, models not available")
+
+    if model in [GMM.K_20_SI_NZ, GMM.K_20_SS_NZ, GMM.AG_20_SI_NZ, GMM.AG_20_SS_NZ]:
+        kwargs["region"] = "NZL"
 
     # model can be given multiple ways
     if type(model).__name__ == "GMM":

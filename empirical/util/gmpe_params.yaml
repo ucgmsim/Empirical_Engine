@@ -185,7 +185,6 @@ CH_20_SS:
     # only used for inferred vs30, otherwise use vs30measured
     geology: True
 
-
 #abrahamson_gulerce_2020
 AG_20_SI:
     # type: Str
@@ -241,4 +240,8 @@ K_20_SS:
     m_b: Null
     # Number of standard deviations to multiply sigma mu for the epistemic uncertainty model
     sigma_mu_epsilon: 0.0
-        
+
+META:
+    # Give an absolute path to the weights file
+    # Otherwise Null for the default
+    weights_path: Null

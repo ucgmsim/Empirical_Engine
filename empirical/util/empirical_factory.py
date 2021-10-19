@@ -1,7 +1,11 @@
 import os
+from pathlib import Path
+from typing import Iterable
 
 import numpy as np
+import six
 import yaml
+from qcore.utils import load_yaml
 
 from empirical.util import classdef
 from empirical.util.classdef import TectType, GMM, SiteClass, FaultStyle
@@ -19,11 +23,46 @@ from empirical.GMM_models.McVerry_2006_Sa import McVerry_2006_Sa
 from empirical.GMM_models.zhou_2006 import Zhaoetal_2006_Sa
 from empirical.GMM_models.ShahiBaker_2013_RotD100_50 import ShahiBaker_2013_RotD100_50
 from empirical.GMM_models.Burks_Baker_2013_iesdr import Burks_Baker_2013_iesdr
+from empirical.GMM_models.meta_model import meta_model
 from qcore.constants import Components
 
 
 DEFAULT_MODEL_CONFIG_NAME = "model_config.yaml"
+DEFAULT_WEIGHT_CONFIG_NAME = "gmpe_weights.yaml"
 DEFAULT_GMPE_PARAM_CONFIG_NAME = "gmpe_params.yaml"
+
+
+def iterable_but_not_string(arg):
+    """
+    :param arg: object
+    :return: Returns True if arg is an iterable that isn't a string
+    """
+    return isinstance(arg, Iterable) and not isinstance(arg, six.string_types)
+
+
+def read_gmm_weights(emp_weight_conf_ffp=None):
+    """
+    Reads the weights into a "flat" dictionary
+    :param emp_weight_conf_ffp: ffp to yaml configuration file
+    :return: dictionary of im, tect-type, model weighting
+    """
+    if emp_weight_conf_ffp is None:
+        emp_weight_conf_ffp = str(Path(__file__).parent / DEFAULT_WEIGHT_CONFIG_NAME)
+    emp_wc_dict_orig = yaml.load(open(emp_weight_conf_ffp), Loader=yaml.Loader)
+    emp_wc_dict = {}
+
+    for ims in emp_wc_dict_orig:
+        im_list = ims if iterable_but_not_string(ims) else [ims]
+        for im in im_list:
+            emp_wc_dict[im] = {}
+            for tect_type in emp_wc_dict_orig[ims]:
+                tect_type_list = (
+                    tect_type if iterable_but_not_string(tect_type) else [tect_type]
+                )
+                for tt in tect_type_list:
+                    if tt not in emp_wc_dict:
+                        emp_wc_dict[im][tt] = emp_wc_dict_orig[ims][tect_type]
+    return emp_wc_dict
 
 
 def read_model_dict(config=None):
@@ -93,7 +132,7 @@ def determine_all_gmm(
         print(
             f"No valid empirical model found for im {im} with tectonic type {tect_type}"
         )
-        return None
+        return []
 
 
 def compute_gmm(fault, site, gmm, im, period=None, **kwargs):
@@ -193,6 +232,8 @@ def compute_gmm(fault, site, gmm, im, period=None, **kwargs):
         return ShahiBaker_2013_RotD100_50(im, period)
     elif gmm is GMM.BB_13:
         return Burks_Baker_2013_iesdr(period, fault, **kwargs)
+    elif gmm is GMM.META:
+        return meta_model(fault, site, im=im, period=period, **kwargs)
     else:
         raise ValueError("Invalid GMM")
 
