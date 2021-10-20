@@ -144,12 +144,9 @@ def oq_run(model, site, fault, im, period=None, **kwargs):
     if not OQ:
         raise ImportError("openquake is not installed, models not available")
 
-    if model in [GMM.K_20_NZ, GMM.AG_20_NZ]:
-        kwargs["region"] = "NZL"
-
     # model can be given multiple ways
     if type(model).__name__ == "GMM":
-            model = oq_models[model][fault.tect_type](**kwargs)
+        model = oq_models[model][fault.tect_type](**kwargs)
     elif type(model).__name__ == "MetaGSIM":
         model = model(**kwargs)
 

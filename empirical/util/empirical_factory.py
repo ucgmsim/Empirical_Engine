@@ -135,7 +135,18 @@ def determine_all_gmm(
         return []
 
 
-def compute_gmm(fault, site, gmm, im, period=None, **kwargs):
+def compute_gmm(fault, site, gmm, im, period=None, gmpe_param_config=None, **kwargs):
+
+    gmpe_params_dict = get_gmpe_params(gmpe_param_config)
+    if gmm.name in gmpe_params_dict.keys():
+        tmp_params_dict = gmpe_params_dict[gmm.name]
+    else:
+        tmp_params_dict = {}
+    if gmm is GMM.META:
+        tmp_params_dict["config"] = gmpe_params_dict
+    tmp_params_dict.update(kwargs)
+    kwargs = tmp_params_dict
+
     if site.vs30 is None:
         site.vs30 = classdef.VS30_DEFAULT
 

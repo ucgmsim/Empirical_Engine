@@ -60,12 +60,11 @@ BB_13:
     # TODO: change default to None and retreat to the constant value if None
     R_hat: [0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5 ] 
 
-
 # OpenQuake Models
 
 # parker_2020
 # check gsim_aliases under parker_2020 for the full list of combinations
-P_20_SI:
+P_20:
     # type : Str / None
     # options : ["AK", "CAM", "SA", "TW"]
     # options with basin: ["Cascadia", "JP"] 
@@ -79,35 +78,9 @@ P_20_SI:
     # type Str / None
     # options: ["out", "Seattle"] for region="Cascadia"
     basin: Null
-P_20_SS:
-    # type : Str / None
-    # options : ["AK", "CAM", "SA", "TW"] 
-    # options with basin: ["Cascadia", "JP"] 
-    # Null will make the model use c0 (default)
-    region: Null
-    # type: Str / None
-    # options: ["Aleutian", "CAM_N", "CAM_S", "SA_N", "SA_S", "TW_E", "TW_W"]
-    # options for region="JP":  ["JP_Pac", "JP_Phi"]
-    # Null will make saturation_region=region
-    saturation_region: Null
-    # type Str / None
-    # options: ["out", "Seattle"] for region="Cascadia"
-    basin: Null
 
 # hassani_atkinson_2020    
-HA_20_CR:
-    kappa: 0.04
-    backarc: 0
-    forearc_ne: 1
-    forearc_sw: 0
-
-HA_20_SI:
-    kappa: 0.04
-    backarc: 0
-    forearc_ne: 1
-    forearc_sw: 0
-
-HA_20_SS:
+HA_20:
     kappa: 0.04
     backarc: 0
     forearc_ne: 1
@@ -126,54 +99,18 @@ HA_20_SS:
 #S_16:
 
 #phung_2020
-PH_20_CR:
+PH_20:
     # type: Str
     # options: ['glb', 'tw', 'ca', 'jp'] (global, Taiwan, California, Japan)
-    region: 'glb'
+    region: Null
     # type: Bool
     # flag for aftershock. only works if region == 'tw'
     aftershocks: False
     # direct point parameter for directivity effect
     d_dpp: 0
-    
-PH_20_SI:
-    # type: Str
-    # options: ['jptw', 'tw'] (Japan/Taiwan joined, Taiwan)
-    region: 'jptw'
-
-PH_20_SS:
-    # type: Str
-    # options: ['jptw', 'tw'] (Japan/Taiwan joined, Taiwan)
-    region: 'jptw'
-    
 
 # chao_2020
-CH_20_CR:
-    # type: Bool
-    # flags to switch between Manila or Ryukyu subduction zone
-    manila: False
-    # type: Bool
-    # flag for aftershocks or mainshocks 
-    aftershocks: False
-    # type: Bool
-    # flag for geology, True for KS17, False for seismic (receiver function)
-    # only used for inferred vs30, otherwise use vs30measured
-    geology: True
-    
-CH_20_SI:
-    # type: Bool
-    # flags to switch between Manila or Ryukyu subduction zone
-    manila: False
-    # type: Bool
-    # flag for aftershocks or mainshocks 
-    aftershocks: False
-    # type: Bool
-    # flag for geology, True for KS17, False for seismic (receiver function)
-    # only used for inferred vs30, otherwise use vs30measured
-    geology: True
-    
-
-CH_20_SS:
+CH_20:
     # type: Bool
     # flags to switch between Manila or Ryukyu subduction zone
     manila: False
@@ -186,7 +123,7 @@ CH_20_SS:
     geology: True
 
 #abrahamson_gulerce_2020
-AG_20_SI:
+AG_20:
     # type: Str
     # options: ["GLO", "USA-AK", "CAS", "CAM", "JPN", "NZL", "SAM", "TWN"]
     region: "GLO"
@@ -201,10 +138,11 @@ AG_20_SI:
     # Number of standard deviations to multiply sigma mu for the epistemic uncertainty model
     sigma_mu_epsilon: 0.0
 
-AG_20_SS:
+#abrahamson_gulerce_2020
+AG_20_NZ:
     # type: Str
     # options: ["GLO", "USA-AK", "CAS", "CAM", "JPN", "NZL", "SAM", "TWN"]
-    region: "GLO"
+    region: "NZL"
     # type: Bool
     # flag for ergodic aleatory variability model
     ergodic: True
@@ -215,10 +153,9 @@ AG_20_SS:
     # type: float
     # Number of standard deviations to multiply sigma mu for the epistemic uncertainty model
     sigma_mu_epsilon: 0.0
-
 
 #kuehn_2020
-K_20_SI:
+K_20:
     # type: Str
     # options: ["GLO", "USA-AK", "CAS", "CAM", "JPN", "NZL", "SAM", "TWN"]
     region: "GLO"
@@ -229,11 +166,11 @@ K_20_SI:
     # Number of standard deviations to multiply sigma mu for the epistemic uncertainty model
     sigma_mu_epsilon: 0.0
 
-    
-K_20_SS:
+#kuehn_2020
+K_20_NZ:
     # type: Str
     # options: ["GLO", "USA-AK", "CAS", "CAM", "JPN", "NZL", "SAM", "TWN"]
-    region: "GLO"
+    region: "NZL"
     # type: Float
     # The magnitude scaling breakpoint.
     # Null == use default for region choosed
