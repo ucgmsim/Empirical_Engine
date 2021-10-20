@@ -9,7 +9,7 @@ from qcore.utils import load_yaml
 
 from empirical.util import classdef
 from empirical.util.classdef import TectType, GMM, SiteClass, FaultStyle
-from empirical.util.openquake_wrapper import OQ_GMM, oq_run
+from empirical.util import openquake_wrapper
 from empirical.GMM_models.Abrahamson_2018 import Abrahamson_2018
 from empirical.GMM_models.AfshariStewart_2016_Ds import Afshari_Stewart_2016_Ds
 from empirical.GMM_models.ASK_2014_nga import ASK_2014_nga
@@ -151,8 +151,8 @@ def compute_gmm(fault, site, gmm, im, period=None, **kwargs):
 
     # openquake models will check dependent parameters dynamically
     # therefore placed before local checking of required parameters
-    if type(gmm).__name__ == "MetaGSIM" or gmm.value in OQ_GMM:
-        return oq_run(gmm, site, fault, im, period, **kwargs)
+    if type(gmm).__name__ == "MetaGSIM" or gmm in openquake_wrapper.OQ_GMM_LIST:
+        return openquake_wrapper.oq_run(gmm, site, fault, im, period, **kwargs)
 
     if site.vs30measured is None:
         site.vs30measured = False  # assume not measured unless set
