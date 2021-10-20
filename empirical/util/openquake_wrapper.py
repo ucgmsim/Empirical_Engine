@@ -19,6 +19,10 @@ except ImportError:
     # fail silently, only an issue if openquake models wanted
     OQ = False
 
+SITE_PROPERTIES = [("vs30", "vs30"), ("vs30measured", "vs30measured"), ("z1pt0", "z1p0"), ("z2pt5", "z2p5"), ("fpeak", "fpeak")]
+RUPTURE_PROPERTIES = [("mag", "Mw"), ("rake", "rake"), ("width", "width"), ("ztor", "ztor")]
+DISTANCE_PROPERTIES = [("rrup", "Rrup"), ("rjb", "Rjb"), ("rx", "Rx"), ("ry0", "Ry"), ("rvolc", "Rtvz")]
+
 # GMM numbers to match empirical.util.classdef.GMM
 OQ_GMM = [
     1012,
@@ -151,58 +155,19 @@ def oq_run(model, site, fault, im, period=None, **kwargs):
     extra_site_parameters = set(model.REQUIRES_SITES_PARAMETERS).difference(["vs30", "vs30measured", "z1pt0", "z2pt5", "fpeak"])
     if len(extra_site_parameters) > 0:
         raise ValueError("unknown site property: " + extra_site_parameters)
-    else:
-        # if vs30 is not set a default vs30 value is used,
-        # z1p0/z2p5 are determined from vs30
-        # vs30 measured and fpeak have default values
-        oq_site.vs30 = np.array([site.vs30])
-        oq_site.vs30measured = np.array([site.vs30measured])
-        oq_site.z1pt0 = np.array([site.z1p0])
-        oq_site.z2pt5 = np.array([site.z2p5])
-        oq_site.fpeak = np.array([site.fpeak])
+    oq_site = check_properties(site, model, SITE_PROPERTIES, oq_site, np_array=True)
 
     sites = SiteCollection([oq_site])
 
-    rup = Properties()
     extra_rup_properties = set(model.REQUIRES_RUPTURE_PARAMETERS).difference(["dip", "rake", "hypo_depth", "mag", "width", "ztor"])
     if len(extra_rup_properties) > 0:
-            raise ValueError("unknown rupture property: " + extra_rup_properties)
+            raise ValueError("unknown rupture property: " + " ".join(extra_rup_properties))
+    rupture = check_properties(fault, model, RUPTURE_PROPERTIES, Properties())
 
-    for rp in model.REQUIRES_RUPTURE_PARAMETERS:
-        check_param(model, rp)
-
-    if fault.dip:
-        rup.dip = fault.dip
-    if fault.hdepth:
-        rup.hypo_depth = fault.hdepth
-        if fault.hypo_depth:
-            rup.hypo_depth = fault.hdepth
-        elif rp == "mag":
-            rup.mag = fault.Mw
-        elif rp == "rake":
-            # rake is used instead of classdef.Fault.faultstyle
-            # because different models have different rake cutoffs
-            rup.rake = fault.rake
-        elif rp == "width":
-            rup.width = fault.width
-        elif rp == "ztor":
-            rup.ztor = fault.ztor
-        else:
-
-    dists = Properties()
-    for dp in model.REQUIRES_DISTANCES:
-        if dp == "rrup":
-            dists.rrup = np.array([site.Rrup])
-        elif dp == "rjb":
-            dists.rjb = np.array([site.Rjb])
-        elif dp == "rx":
-            dists.rx = np.array([site.Rx])
-        elif dp == "ry0":
-            dists.ry0 = np.array([site.Ry])
-        elif dp == "rvolc":
-            dists.rvolc = np.array([site.Rtvz])
-        else:
-            raise ValueError("unknown dist property: " + dp)
+    extra_dist_properties = set(model.REQUIRES_DISTANCES).difference(["rrup", "rjb", "rx", "ry0", "rvolc"])
+    if len(extra_dist_properties) > 0:
+            raise ValueError("unknown distance property: " + " ".join(extra_dist_properties))
+    dists = check_properties(site, model, DISTANCE_PROPERTIES, Properties(), np_array=True)
 
     if period is not None:
         assert imt.SA in model.DEFINED_FOR_INTENSITY_MEASURE_TYPES
@@ -215,7 +180,7 @@ def oq_run(model, site, fault, im, period=None, **kwargs):
         results = []
         for p in period:
             imr = imt.SA(period=min(p, max_period))
-            m, s = oq_mean_stddevs(model, sites, rup, dists, imr, stddev_types)
+            m, s = oq_mean_stddevs(model, sites, rupture, dists, imr, stddev_types)
             # interpolate pSA value up based on maximum available period
             if p > max_period:
                 m = m * (max_period / p) ** 2
@@ -226,7 +191,17 @@ def oq_run(model, site, fault, im, period=None, **kwargs):
     else:
         imc = getattr(imt, im)
         assert imc in model.DEFINED_FOR_INTENSITY_MEASURE_TYPES
-        return oq_mean_stddevs(model, sites, rup, dists, imc(), stddev_types)
+        return oq_mean_stddevs(model, sites, rupture, dists, imc(), stddev_types)
+
+
+def check_properties(ee_object, model, properties, properties_obj, np_array=False):
+    for oq_property_name, ee_property_name in properties:
+        ee_property = getattr(ee_object, ee_property_name)
+        if ee_property:
+            setattr(properties_obj, oq_property_name, np.array([ee_property]) if np_array else ee_property)
+        else:
+            check_param(model, oq_property_name)
+    return properties_obj
 
 
 def check_param(model, rp):
