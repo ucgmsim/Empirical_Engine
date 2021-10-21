@@ -5,7 +5,6 @@ from typing import Iterable
 import numpy as np
 import six
 import yaml
-from qcore.utils import load_yaml
 
 from empirical.util import classdef
 from empirical.util.classdef import TectType, GMM, SiteClass, FaultStyle

@@ -170,7 +170,7 @@ def oq_run(model, site, fault, im, period=None, **kwargs):
     )  # Create a dummy location as OQ calculation doesn't use a location
     oq_site = Site(location)
     extra_site_parameters = set(model.REQUIRES_SITES_PARAMETERS).difference(
-        ["vs30", "vs30measured", "z1pt0", "z2pt5", "fpeak"]
+        list(zip(*SITE_PROPERTIES))[0]
     )
     if len(extra_site_parameters) > 0:
         raise ValueError("unknown site property: " + extra_site_parameters)
@@ -179,14 +179,14 @@ def oq_run(model, site, fault, im, period=None, **kwargs):
     sites = SiteCollection([oq_site])
 
     extra_rup_properties = set(model.REQUIRES_RUPTURE_PARAMETERS).difference(
-        ["dip", "rake", "hypo_depth", "mag", "width", "ztor"]
+        list(zip(*RUPTURE_PROPERTIES))[0]
     )
     if len(extra_rup_properties) > 0:
         raise ValueError("unknown rupture property: " + " ".join(extra_rup_properties))
     rupture = check_properties(fault, model, RUPTURE_PROPERTIES, Properties())
 
     extra_dist_properties = set(model.REQUIRES_DISTANCES).difference(
-        ["rrup", "rjb", "rx", "ry0", "rvolc"]
+        list(zip(*DISTANCE_PROPERTIES))[0]
     )
     if len(extra_dist_properties) > 0:
         raise ValueError(

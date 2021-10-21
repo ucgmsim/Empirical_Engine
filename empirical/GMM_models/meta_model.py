@@ -34,8 +34,7 @@ def meta_model(fault, site, im, weights_path=None, period=None, config=None, **k
 
     # Load the models and weights, then make sure they correspond
     gmms = load_weights(weights_path, im, fault.tect_type)
-    models = list(gmms.keys())
-    weights = [gmms[x] for x in models]
+    models, weights = zip(*gmms.items())
     assert np.isclose(np.sum(weights), 1, atol=0.01), (
         f"Weights don't add to 1 ({np.sum(weights)} is more than 0.01 "
         f"away from 1). Check your gmpe weights file. "
