@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 
 from empirical.util import empirical_factory, classdef
-from empirical.util.classdef import Site, Fault, TectType
+from empirical.util.classdef import Site, Fault, TectType, GMM
 from empirical.GMM_models.Burks_Baker_2013_iesdr import _STRENGTH_REDUCTION_FACTORS
 
 from qcore import constants
@@ -161,9 +161,6 @@ def calculate_empirical(
 
     tect_type_model_dict = empirical_factory.read_model_dict(config_file)
     station_names = [site.name for site in sites] if stations is None else stations
-    # read openquake parameter config
-    # if gmpe_param_config == None, default config file will be used
-    gmpe_params_dict = empirical_factory.get_gmpe_params(gmpe_param_config)
     for im in ims:
 
         for cur_gmm, component in empirical_factory.determine_all_gmm(
@@ -189,17 +186,13 @@ def calculate_empirical(
             # Get & save the data
             cur_data = np.zeros((len(sites), len(cur_cols)), dtype=np.float)
             for ix, site in enumerate(sites):
-                if cur_gmm.name in gmpe_params_dict.keys():
-                    tmp_params_dict = gmpe_params_dict[cur_gmm.name]
-                else:
-                    tmp_params_dict = {}
                 values = empirical_factory.compute_gmm(
                     fault,
                     site,
                     cur_gmm,
                     im,
                     period if im in MULTI_VALUE_IMS else None,
-                    **tmp_params_dict,
+                    gmpe_param_config,
                 )
                 if im in MULTI_VALUE_IMS:
                     cur_data[ix, :] = np.ravel(
@@ -256,6 +249,7 @@ def load_args():
     parser.add_argument(
         "-rm",
         "--max_rupture_distance",
+        type=float,
         help="Only calculate empiricals for stations "
         "that are within X distance to rupture",
     )

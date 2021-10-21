@@ -1,7 +1,7 @@
 from enum import Enum
 import numpy as np
 
-from qcore.constants import ExtendedEnum
+from qcore.constants import ExtendedEnum, ExtendedStrEnum
 
 
 VS30_DEFAULT = 250
@@ -40,6 +40,12 @@ class Site:  # Class of site properties. initialize all attributes to None
         )  # forearc/unknown = False, backarc = True
         self.fpeak = kwargs.get("fpeak", 0)
 
+    def __str__(self):
+        return f"rrup: {self.Rrup}, rjb: {self.Rjb}"
+
+    def __repr__(self):
+        return self.__str__()
+
 
 class Fault:  # Class of fault properties. initialize all attributes to None
     def __init__(self, **kwargs):
@@ -57,6 +63,12 @@ class Fault:  # Class of fault properties. initialize all attributes to None
         self.zbot = kwargs.get("zbot")  # depth to the bottom of the seismogenic crust
         self.ztor = kwargs.get("ztor")  # depth to top of coseismic rupture (km)
 
+    def __str__(self):
+        return f"dip: {self.dip}, faultstyle: {self.faultstyle}, hdepth: {self.hdepth}, mw: {self.Mw}, rake: {self.rake},  tect_type: {self.tect_type}, width: {self.width}, zbot: {self.zbot}, ztor: {self.ztor}"
+
+    def __repr__(self):
+        return self.__str__()
+
 
 class TectType(ExtendedEnum):
     ACTIVE_SHALLOW = 1
@@ -65,46 +77,36 @@ class TectType(ExtendedEnum):
     SUBDUCTION_SLAB = 4
 
 
-class GMM(ExtendedEnum):
-    ZA_06 = 1
-    Br_10 = 2
-    AS_16 = 3
-    CB_12 = 4
-    BSSA_14 = 5
-    MV_06 = 6
-    ASK_14 = 7
-    BCH_16 = 8
-    CB_14 = 9
-    CY_14 = 10
-    CB_10 = 11
-    A_18 = 12
-    SB_13 = 13
-    BB_13 = 14
+class GMM(ExtendedStrEnum):
+    META = 0, "Meta model"
+    ZA_06 = 1, "Z06"
+    Br_10 = 2, "B10"
+    AS_16 = 3, "AS16"
+    CB_12 = 4, "CB12"
+    BSSA_14 = 5, "BSSA14"
+    MV_06 = 6, "M06"
+    ASK_14 = 7, "ASK14"
+    BCH_16 = 8, "A16"
+    CB_14 = 9, "CB14"
+    CY_14 = 10, "CY14"
+    CB_10 = 11, "CB10"
+    A_18 = 12, "A18"
+    SB_13 = 13, "SB13"
+    BB_13 = 14, "BB13"
     # openquake models below
-    # numbers to match empirical.util.openquake_wrapper.OQ_GMM
-    P_20_SI = 1012
-    P_20_SS = 1013
-    HA_20_CR = 1021
-    HA_20_SI = 1022
-    HA_20_SS = 1023
-    G_17 = 1031
-    BC_16 = 1041
-    S_16 = 1051
-    PH_20_CR = 1061
-    PH_20_SI = 1062
-    PH_20_SS = 1063
-    CH_20_CR = 1071
-    CH_20_SI = 1072
-    CH_20_SS = 1073
-    AG_20_SI = 1082
-    AG_20_SS = 1083
-    K_20_SI = 1092
-    K_20_SS = 1093
-    Si_20_SI = 1102
-    Si_20_SS = 1103
-    Z_16_CR = 1111
-    Z_16_SI = 1112
-    Z_16_SS = 1113
+    P_20 = 101, "P20"
+    HA_20 = 102, "HA20"
+    G_17 = 103, "G17"
+    BC_16 = 104, "BC16"
+    S_16 = 105, "S16"
+    Ph_20 = 106, "Ph20"
+    Ch_20 = 1071, "C20"
+    AG_20 = 108, "AG20 (global)"
+    K_20 = 109, "K20 (global)"
+    K_20_NZ = 209, "K20 (NZ)"
+    AG_20_NZ = 208, "AG20 (NZ)"
+    Si_20 = 110, "S20 (NZ)"
+    Z_16 = 111, "Z16"
 
 
 class SiteClass(Enum):

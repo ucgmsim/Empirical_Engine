@@ -1,11 +1,14 @@
 import os
+from pathlib import Path
+from typing import Iterable
 
 import numpy as np
+import six
 import yaml
 
 from empirical.util import classdef
 from empirical.util.classdef import TectType, GMM, SiteClass, FaultStyle
-from empirical.util.openquake_wrapper import OQ_GMM, oq_run
+from empirical.util import openquake_wrapper
 from empirical.GMM_models.Abrahamson_2018 import Abrahamson_2018
 from empirical.GMM_models.AfshariStewart_2016_Ds import Afshari_Stewart_2016_Ds
 from empirical.GMM_models.ASK_2014_nga import ASK_2014_nga
@@ -19,11 +22,46 @@ from empirical.GMM_models.McVerry_2006_Sa import McVerry_2006_Sa
 from empirical.GMM_models.zhou_2006 import Zhaoetal_2006_Sa
 from empirical.GMM_models.ShahiBaker_2013_RotD100_50 import ShahiBaker_2013_RotD100_50
 from empirical.GMM_models.Burks_Baker_2013_iesdr import Burks_Baker_2013_iesdr
+from empirical.GMM_models.meta_model import meta_model
 from qcore.constants import Components
 
 
 DEFAULT_MODEL_CONFIG_NAME = "model_config.yaml"
+DEFAULT_WEIGHT_CONFIG_NAME = "gmpe_weights.yaml"
 DEFAULT_GMPE_PARAM_CONFIG_NAME = "gmpe_params.yaml"
+
+
+def iterable_but_not_string(arg):
+    """
+    :param arg: object
+    :return: Returns True if arg is an iterable that isn't a string
+    """
+    return isinstance(arg, Iterable) and not isinstance(arg, six.string_types)
+
+
+def read_gmm_weights(emp_weight_conf_ffp=None):
+    """
+    Reads the weights into a "flat" dictionary
+    :param emp_weight_conf_ffp: ffp to yaml configuration file
+    :return: dictionary of im, tect-type, model weighting
+    """
+    if emp_weight_conf_ffp is None:
+        emp_weight_conf_ffp = str(Path(__file__).parent / DEFAULT_WEIGHT_CONFIG_NAME)
+    emp_wc_dict_orig = yaml.load(open(emp_weight_conf_ffp), Loader=yaml.Loader)
+    emp_wc_dict = {}
+
+    for ims in emp_wc_dict_orig:
+        im_list = ims if iterable_but_not_string(ims) else [ims]
+        for im in im_list:
+            emp_wc_dict[im] = {}
+            for tect_type in emp_wc_dict_orig[ims]:
+                tect_type_list = (
+                    tect_type if iterable_but_not_string(tect_type) else [tect_type]
+                )
+                for tt in tect_type_list:
+                    if tt not in emp_wc_dict:
+                        emp_wc_dict[im][tt] = emp_wc_dict_orig[ims][tect_type]
+    return emp_wc_dict
 
 
 def read_model_dict(config=None):
@@ -93,10 +131,21 @@ def determine_all_gmm(
         print(
             f"No valid empirical model found for im {im} with tectonic type {tect_type}"
         )
-        return None
+        return []
 
 
-def compute_gmm(fault, site, gmm, im, period=None, **kwargs):
+def compute_gmm(fault, site, gmm, im, period=None, gmpe_param_config=None, **kwargs):
+
+    gmpe_params_dict = get_gmpe_params(gmpe_param_config)
+    if gmm.name in gmpe_params_dict.keys():
+        tmp_params_dict = gmpe_params_dict[gmm.name]
+    else:
+        tmp_params_dict = {}
+    if gmm is GMM.META:
+        tmp_params_dict["config"] = gmpe_params_dict
+    tmp_params_dict.update(kwargs)
+    kwargs = tmp_params_dict
+
     if site.vs30 is None:
         site.vs30 = classdef.VS30_DEFAULT
 
@@ -112,8 +161,8 @@ def compute_gmm(fault, site, gmm, im, period=None, **kwargs):
 
     # openquake models will check dependent parameters dynamically
     # therefore placed before local checking of required parameters
-    if type(gmm).__name__ == "MetaGSIM" or gmm.value in OQ_GMM:
-        return oq_run(gmm, site, fault, im, period, **kwargs)
+    if type(gmm).__name__ == "MetaGSIM" or gmm in openquake_wrapper.OQ_GMM_LIST:
+        return openquake_wrapper.oq_run(gmm, site, fault, im, period, **kwargs)
 
     if site.vs30measured is None:
         site.vs30measured = False  # assume not measured unless set
@@ -193,6 +242,8 @@ def compute_gmm(fault, site, gmm, im, period=None, **kwargs):
         return ShahiBaker_2013_RotD100_50(im, period)
     elif gmm is GMM.BB_13:
         return Burks_Baker_2013_iesdr(period, fault, **kwargs)
+    elif gmm is GMM.META:
+        return meta_model(fault, site, im=im, period=period, **kwargs)
     else:
         raise ValueError("Invalid GMM")
 
