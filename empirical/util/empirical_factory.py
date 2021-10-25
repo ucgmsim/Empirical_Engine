@@ -27,8 +27,8 @@ from qcore.constants import Components
 
 
 DEFAULT_MODEL_CONFIG_NAME = "model_config.yaml"
-DEFAULT_WEIGHT_CONFIG_NAME = "gmpe_weights.yaml"
-DEFAULT_GMPE_PARAM_CONFIG_NAME = "gmpe_params.yaml"
+DEFAULT_WEIGHT_CONFIG_NAME = "gmm_weights.yaml"
+DEFAULT_GMM_PARAM_CONFIG_NAME = "gmm_params.yaml"
 
 
 def iterable_but_not_string(arg):
@@ -73,10 +73,10 @@ def read_model_dict(config=None):
     return model_dict
 
 
-def get_gmpe_params(config=None):
+def get_gmm_params(config=None):
     if config is None:
         dir = os.path.dirname(__file__)
-        config = os.path.join(dir, DEFAULT_GMPE_PARAM_CONFIG_NAME)
+        config = os.path.join(dir, DEFAULT_GMM_PARAM_CONFIG_NAME)
 
     oq_model_params_dict = yaml.safe_load(open(config))
     return oq_model_params_dict
@@ -134,9 +134,9 @@ def determine_all_gmm(
         return []
 
 
-def compute_gmm(fault, site, gmm, im, period=None, gmpe_param_config=None, **kwargs):
+def compute_gmm(fault, site, gmm, im, period=None, gmm_param_config=None, **kwargs):
 
-    gmpe_params_dict = get_gmpe_params(gmpe_param_config)
+    gmpe_params_dict = get_gmm_params(gmm_param_config)
     if gmm.name in gmpe_params_dict.keys():
         tmp_params_dict = gmpe_params_dict[gmm.name]
     else:

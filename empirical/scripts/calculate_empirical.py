@@ -141,7 +141,7 @@ def calculate_empirical(
     period,
     extended_period,
     components,
-    gmpe_param_config=None,
+    gmm_param_config=None,
 ):
     """Calculate empirical intensity measures"""
 
@@ -192,7 +192,7 @@ def calculate_empirical(
                     cur_gmm,
                     im,
                     period if im in MULTI_VALUE_IMS else None,
-                    gmpe_param_config,
+                    gmm_param_config,
                 )
                 if im in MULTI_VALUE_IMS:
                     cur_data[ix, :] = np.ravel(
@@ -293,9 +293,9 @@ def load_args():
     )
 
     parser.add_argument(
-        "--gmpe_param_config",
+        "--gmm_param_config",
         default=None,
-        help="the file that contains the extra parameters openquake models",
+        help="the file that contains the extra parameters for models",
     )
 
     parser.add_argument("output", help="output directory")
@@ -320,7 +320,7 @@ def main():
         args.period,
         args.extended_period,
         args.components,
-        args.gmpe_param_config,
+        args.gmm_param_config,
     )
 
 
