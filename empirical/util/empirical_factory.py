@@ -46,7 +46,9 @@ def read_gmm_weights(emp_weight_conf_ffp=None):
     :return: dictionary of im, tect-type, model weighting
     """
     if emp_weight_conf_ffp is None:
-        emp_weight_conf_ffp = str(Path(__file__).parent / DEFAULT_GMM_WEIGHT_CONFIG_NAME)
+        emp_weight_conf_ffp = str(
+            Path(__file__).parent / DEFAULT_GMM_WEIGHT_CONFIG_NAME
+        )
     emp_wc_dict_orig = yaml.load(open(emp_weight_conf_ffp), Loader=yaml.Loader)
     emp_wc_dict = {}
 
