@@ -136,13 +136,13 @@ def determine_all_gmm(
 
 def compute_gmm(fault, site, gmm, im, period=None, gmm_param_config=None, **kwargs):
 
-    gmpe_params_dict = get_gmm_params(gmm_param_config)
-    if gmm.name in gmpe_params_dict.keys():
-        tmp_params_dict = gmpe_params_dict[gmm.name]
+    gmm_params_dict = get_gmm_params(gmm_param_config)
+    if gmm.name in gmm_params_dict.keys():
+        tmp_params_dict = gmm_params_dict[gmm.name]
     else:
         tmp_params_dict = {}
     if gmm is GMM.META:
-        tmp_params_dict["config"] = gmpe_params_dict
+        tmp_params_dict["config"] = gmm_params_dict
     tmp_params_dict.update(kwargs)
     kwargs = tmp_params_dict
 
