@@ -26,8 +26,8 @@ from empirical.GMM_models.meta_model import meta_model
 from qcore.constants import Components
 
 
-DEFAULT_MODEL_CONFIG_NAME = "model_config.yaml"
-DEFAULT_WEIGHT_CONFIG_NAME = "gmm_weights.yaml"
+DEFAULT_GMM_CONFIG_NAME = "model_config.yaml"
+DEFAULT_GMM_WEIGHT_CONFIG_NAME = "gmm_weights.yaml"
 DEFAULT_GMM_PARAM_CONFIG_NAME = "gmm_params.yaml"
 
 
@@ -46,7 +46,7 @@ def read_gmm_weights(emp_weight_conf_ffp=None):
     :return: dictionary of im, tect-type, model weighting
     """
     if emp_weight_conf_ffp is None:
-        emp_weight_conf_ffp = str(Path(__file__).parent / DEFAULT_WEIGHT_CONFIG_NAME)
+        emp_weight_conf_ffp = str(Path(__file__).parent / DEFAULT_GMM_WEIGHT_CONFIG_NAME)
     emp_wc_dict_orig = yaml.load(open(emp_weight_conf_ffp), Loader=yaml.Loader)
     emp_wc_dict = {}
 
@@ -67,7 +67,7 @@ def read_gmm_weights(emp_weight_conf_ffp=None):
 def read_model_dict(config=None):
     if config is None:
         dir = os.path.dirname(__file__)
-        config = os.path.join(dir, DEFAULT_MODEL_CONFIG_NAME)
+        config = os.path.join(dir, DEFAULT_GMM_CONFIG_NAME)
 
     model_dict = yaml.safe_load(open(config))
     return model_dict
@@ -90,7 +90,7 @@ def get_models_from_dict(config):
 
     if config is None:
         dir = os.path.dirname(__file__)
-        config = os.path.join(dir, DEFAULT_MODEL_CONFIG_NAME)
+        config = os.path.join(dir, DEFAULT_GMM_CONFIG_NAME)
 
     tect_type_model_dict = yaml.safe_load(open(config))
     return list(
