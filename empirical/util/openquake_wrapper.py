@@ -31,6 +31,7 @@ RUPTURE_PROPERTIES = [
     ("rake", "rake"),
     ("width", "width"),
     ("ztor", "ztor"),
+    ("hypo_depth", "hdepth"),
 ]
 DISTANCE_PROPERTIES = [
     ("rrup", "Rrup"),

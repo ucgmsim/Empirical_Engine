@@ -26,9 +26,9 @@ from empirical.GMM_models.meta_model import meta_model
 from qcore.constants import Components
 
 
-DEFAULT_MODEL_CONFIG_NAME = "model_config.yaml"
-DEFAULT_WEIGHT_CONFIG_NAME = "gmpe_weights.yaml"
-DEFAULT_GMPE_PARAM_CONFIG_NAME = "gmpe_params.yaml"
+DEFAULT_GMM_CONFIG_NAME = "model_config.yaml"
+DEFAULT_GMM_WEIGHT_CONFIG_NAME = "gmm_weights.yaml"
+DEFAULT_GMM_PARAM_CONFIG_NAME = "gmm_params.yaml"
 
 
 def iterable_but_not_string(arg):
@@ -46,7 +46,9 @@ def read_gmm_weights(emp_weight_conf_ffp=None):
     :return: dictionary of im, tect-type, model weighting
     """
     if emp_weight_conf_ffp is None:
-        emp_weight_conf_ffp = str(Path(__file__).parent / DEFAULT_WEIGHT_CONFIG_NAME)
+        emp_weight_conf_ffp = str(
+            Path(__file__).parent / DEFAULT_GMM_WEIGHT_CONFIG_NAME
+        )
     emp_wc_dict_orig = yaml.load(open(emp_weight_conf_ffp), Loader=yaml.Loader)
     emp_wc_dict = {}
 
@@ -67,16 +69,16 @@ def read_gmm_weights(emp_weight_conf_ffp=None):
 def read_model_dict(config=None):
     if config is None:
         dir = os.path.dirname(__file__)
-        config = os.path.join(dir, DEFAULT_MODEL_CONFIG_NAME)
+        config = os.path.join(dir, DEFAULT_GMM_CONFIG_NAME)
 
     model_dict = yaml.safe_load(open(config))
     return model_dict
 
 
-def get_gmpe_params(config=None):
+def get_gmm_params(config=None):
     if config is None:
         dir = os.path.dirname(__file__)
-        config = os.path.join(dir, DEFAULT_GMPE_PARAM_CONFIG_NAME)
+        config = os.path.join(dir, DEFAULT_GMM_PARAM_CONFIG_NAME)
 
     oq_model_params_dict = yaml.safe_load(open(config))
     return oq_model_params_dict
@@ -90,7 +92,7 @@ def get_models_from_dict(config):
 
     if config is None:
         dir = os.path.dirname(__file__)
-        config = os.path.join(dir, DEFAULT_MODEL_CONFIG_NAME)
+        config = os.path.join(dir, DEFAULT_GMM_CONFIG_NAME)
 
     tect_type_model_dict = yaml.safe_load(open(config))
     return list(
@@ -134,15 +136,15 @@ def determine_all_gmm(
         return []
 
 
-def compute_gmm(fault, site, gmm, im, period=None, gmpe_param_config=None, **kwargs):
+def compute_gmm(fault, site, gmm, im, period=None, gmm_param_config=None, **kwargs):
 
-    gmpe_params_dict = get_gmpe_params(gmpe_param_config)
-    if gmm.name in gmpe_params_dict.keys():
-        tmp_params_dict = gmpe_params_dict[gmm.name]
+    gmm_params_dict = get_gmm_params(gmm_param_config)
+    if gmm.name in gmm_params_dict.keys():
+        tmp_params_dict = gmm_params_dict[gmm.name]
     else:
         tmp_params_dict = {}
     if gmm is GMM.META:
-        tmp_params_dict["config"] = gmpe_params_dict
+        tmp_params_dict["config"] = gmm_params_dict
     tmp_params_dict.update(kwargs)
     kwargs = tmp_params_dict
 
