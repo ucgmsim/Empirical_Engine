@@ -1,4 +1,4 @@
-[![Build Status](http://13.238.107.244:8080/job/Empirical_Engine/badge/icon?build=last:${params.ghprbActualCommit=master})](http://13.238.107.244:8080/job/Empirical_Engine)
+[![Build Status](https://quakecoresoft.canterbury.ac.nz/jenkins/job/Empirical_Engine/badge/icon?build=last:${params.ghprbActualCommit=master})](https://quakecoresoft.canterbury.ac.nz/jenkins/job/Empirical_Engine)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 # Empirical_Engine
