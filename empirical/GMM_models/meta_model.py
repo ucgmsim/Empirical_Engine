@@ -46,8 +46,6 @@ def meta_model(fault, site, im, weights_path=None, period=None, config=None, **k
     sigmas = []
 
     for gmm in models:
-        # if im == "pSA" and str(fault.tect_type) == "SUBDUCTION_SLAB":
-        #     breakpoint()
         if config is not None and gmm in config.keys():
             tmp_params_dict = config[gmm]
         else:
@@ -96,6 +94,4 @@ def meta_model(fault, site, im, weights_path=None, period=None, config=None, **k
     else:
         res = [(e_medians, (e_sigmas, sigma_average, sigma_intermodel))]
 
-    if not isinstance(res, list):
-        print(res)
     return res
