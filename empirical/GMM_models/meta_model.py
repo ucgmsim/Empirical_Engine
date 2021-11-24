@@ -50,7 +50,6 @@ def meta_model(fault, site, im, weights_path=None, period=None, config=None, **k
             tmp_params_dict = config[gmm]
         else:
             tmp_params_dict = {}
-
         res = compute_gmm(
             fault, site, GMM[gmm], im, period, **tmp_params_dict, **kwargs
         )
