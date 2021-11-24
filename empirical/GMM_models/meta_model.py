@@ -53,7 +53,6 @@ def meta_model(fault, site, im, weights_path=None, period=None, config=None, **k
         res = compute_gmm(
             fault, site, GMM[gmm], im, period, **tmp_params_dict, **kwargs
         )
-
         if isinstance(res, tuple):
             median, (sigma, _, _) = res
             median = median[0] if isinstance(median, Iterable) else median
