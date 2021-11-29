@@ -185,6 +185,8 @@ def oq_run(model, site, fault, im, period=None, **kwargs):
     if len(extra_rup_properties) > 0:
         raise ValueError("unknown rupture property: " + " ".join(extra_rup_properties))
     rupture = check_properties(fault, model, RUPTURE_PROPERTIES, Properties())
+    # Openquake requiring occurrence_rate attribute to exist
+    rupture.occurrence_rate = None
 
     extra_dist_properties = set(model.REQUIRES_DISTANCES).difference(
         list(zip(*DISTANCE_PROPERTIES))[0]
