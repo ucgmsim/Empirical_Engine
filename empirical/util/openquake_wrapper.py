@@ -227,7 +227,7 @@ def oq_run(model, site, fault, im, period=None, **kwargs):
 def check_properties(ee_object, model, properties, properties_obj, np_array=False):
     for oq_property_name, ee_property_name in properties:
         ee_property = getattr(ee_object, ee_property_name)
-        if ee_property:
+        if ee_property is not None:
             setattr(
                 properties_obj,
                 oq_property_name,
