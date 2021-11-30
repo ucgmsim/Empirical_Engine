@@ -98,8 +98,8 @@ def McVerry_2006_Sa(siteprop, faultprop, im=None, period=None):
             # linear interpolation
             x = T_low, T_hi
 
-            SA = interp1(period, x, (SA_low, SA_high))
-            sigma_SA = [interp1(x, sigma_SA_lh[i], period) for i in range(3)]
+            SA = np.interp(period, x, (SA_low, SA_high))
+            sigma_SA = [np.interp(period, x, sigma_SA_lh[i]) for i in range(3)]
 
         return SA, sigma_SA
 
