@@ -1,3 +1,5 @@
+from collections.abc import Iterable
+
 import numpy as np
 
 
@@ -53,9 +55,14 @@ def meta_model(fault, site, im, weights_path=None, period=None, config=None, **k
         )
         if isinstance(res, tuple):
             median, (sigma, _, _) = res
+            median = median[0] if isinstance(median, Iterable) else median
         else:
-            median = [x[0] for x in res]
-            sigma = [x[1][0] for x in res]
+            if len(res) == 1:
+                median, (sigma, _, _) = res[0]
+            else:
+                median, sigma_tuple = zip(*res)
+                sigma, __, __ = zip(*sigma_tuple)
+
         medians.append(median)
         sigmas.append(sigma)
 
