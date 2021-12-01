@@ -1,6 +1,6 @@
 pytest>=3.5.0
 pytest-black
-numpy==1.19
+numpy
 numba>=0.48.0
 pandas==1.2
 PyYAML
