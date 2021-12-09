@@ -19,6 +19,7 @@ except ImportError:
     # fail silently, only an issue if openquake models wanted
     OQ = False
 
+#(oq_property name, ee_property_name)
 SITE_PROPERTIES = [
     ("vs30", "vs30"),
     ("vs30measured", "vs30measured"),
@@ -176,6 +177,8 @@ def oq_run(model, site, fault, im, period=None, **kwargs):
     if len(extra_site_parameters) > 0:
         raise ValueError("unknown site property: " + extra_site_parameters)
     oq_site = check_properties(site, model, SITE_PROPERTIES, oq_site, np_array=True)
+    if hasattr(oq_site, "z1pt0"):
+        oq_site.z1pt0 *= 1000
 
     sites = SiteCollection([oq_site])
 
@@ -187,7 +190,6 @@ def oq_run(model, site, fault, im, period=None, **kwargs):
     rupture = check_properties(fault, model, RUPTURE_PROPERTIES, Properties())
     # Openquake requiring occurrence_rate attribute to exist
     rupture.occurrence_rate = None
-
     extra_dist_properties = set(model.REQUIRES_DISTANCES).difference(
         list(zip(*DISTANCE_PROPERTIES))[0]
     )
