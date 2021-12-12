@@ -19,7 +19,7 @@ except ImportError:
     # fail silently, only an issue if openquake models wanted
     OQ = False
 
-#(oq_property name, ee_property_name)
+# (oq_property name, ee_property_name)
 SITE_PROPERTIES = [
     ("vs30", "vs30"),
     ("vs30measured", "vs30measured"),
