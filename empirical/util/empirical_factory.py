@@ -237,7 +237,7 @@ def compute_gmm(fault, site, gmm, im, period=None, gmm_param_config=None, **kwar
     elif gmm is GMM.CY_14:
         return CY_2014_nga(site, fault, im=im, period=period, **kwargs)
     elif gmm is GMM.MV_06:
-        return McVerry_2006_Sa(site, fault, im=im, period=period)
+        return McVerry_2006_Sa(site, fault, im=im, periods=period)
     elif gmm is GMM.ZA_06:
         return Zhaoetal_2006_Sa(site, fault, im, period)
     elif gmm is GMM.SB_13:
@@ -251,13 +251,13 @@ def compute_gmm(fault, site, gmm, im, period=None, gmm_param_config=None, **kwar
 
 
 def determine_siteclass(vs30):
-    if vs30 < 200:
+    if vs30 <= 200:
         return SiteClass.SOFTSOIL
-    elif vs30 < 300:
+    elif vs30 <= 300:
         return SiteClass.MEDIUMSOIL
-    elif vs30 < 600:
+    elif vs30 <= 600:
         return SiteClass.HARDSOIL
-    elif vs30 < 1100:
+    elif vs30 <= 1100:
         return SiteClass.ROCK
     else:
         return SiteClass.HARDROCK

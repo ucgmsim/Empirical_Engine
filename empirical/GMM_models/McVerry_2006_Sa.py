@@ -1,11 +1,11 @@
 import numpy as np
 
-from empirical.util.classdef import FaultStyle
+from empirical.util.classdef import FaultStyle, interpolate_to_closest
 
 
 # parameters - first column corresponds to the 'prime' values
 # fmt: off
-periods = np.array([-1.0, 0.0, 0.075, 0.1, 0.2, 0.3, 0.4, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0])
+period_list = np.array([-1.0, 0.0, 0.075, 0.1, 0.2, 0.3, 0.4, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0])
 C1 = [0.14274, 0.07713, 1.22050, 1.53365, 1.22565, 0.21124, -0.10541, -0.14260, -0.65968, -0.51404, -0.95399, -1.24167, -1.56570]
 C3AS = [0.0, 0.0, 0.03, 0.028, -0.0138, -0.036, -0.0518, -0.0635, -0.0862, -0.102, -0.12, -0.12, -0.17260]
 C4AS = -0.144
@@ -34,7 +34,7 @@ Tau = [0.2677, 0.2469, 0.3139, 0.3017, 0.2583, 0.1967, 0.1802, 0.1440, 0.1871, 0
 # fmt: on
 
 
-def McVerry_2006_Sa(siteprop, faultprop, im=None, period=None):
+def McVerry_2006_Sa(siteprop, faultprop, im=None, periods=None):
     """
     puropse: provide the geometric mean and dispersion in the McVerry attenuation
     relationship for a given M,R and faulting style, soil conditions etc
@@ -68,53 +68,61 @@ def McVerry_2006_Sa(siteprop, faultprop, im=None, period=None):
                     sigma_SA[1] = interevent std
                     sigma_SA[2] = intraevent std
     """
+    if im == "PGV":
+        periods = [-1]
+    elif im == "PGA":
+        periods = [0]
+
+    try:
+        periods[0]
+    except (TypeError, IndexError):
+        periods = [periods]
+
+    results = []
+    max_period = period_list[-1]
+    for period in periods:
+        if period > max_period:
+            McVerry_max = McVerry06(siteprop, faultprop, max_period)
+            median_max = McVerry_max[0]
+            median = median_max * (max_period / period) ** 2
+            result = (median, McVerry_max[1])
+
+        # interpolate between periods if neccesary
+        elif not np.isclose(period_list, period, atol=0.0001).any():
+            p = np.argmin(period_list < period)
+            assert p > 0
+            T_low = period_list[p - 1]
+            T_hi = period_list[p]
+
+            McVerry_low = McVerry06(siteprop, faultprop, period=T_low)
+            McVerry_high = McVerry06(siteprop, faultprop, period=T_hi)
+
+            result = interpolate_to_closest(period, T_hi, T_low, McVerry_high, McVerry_low)
+        else:
+            result = McVerry06(siteprop, faultprop, period=period)
+
+        results.append(result)
+
+    if len(periods) == 1:
+        results = results[0]
+
+    return results
+
+
+def McVerry06(siteprop, faultprop, period):
     M = faultprop.Mw
     R = siteprop.Rrup
-    # not sure about this because it is not documented
-    if im == "PGV":
-        period = -1
-    elif im == "PGA":
-        period = 0
-    assert np.all(period <= (periods[-1] + 0.0001)), f"Requested period beyond max value ({periods[-1]}): {period}"
-
-    # interpolate between periods if neccesary
-    if not np.isclose(periods, period, atol=0.0001).any():
-        p = np.argmin(periods < period)
-        assert p > 0
-        T_low = periods[p - 1]
-        T_hi = periods[p]
-
-        SA_low, sigma_SA_low = McVerry_2006_Sa(siteprop, faultprop, period=T_low)
-        SA_high, sigma_SA_high = McVerry_2006_Sa(siteprop, faultprop, period=T_hi)
-
-        sigma_SA_lh = np.array([sigma_SA_low, sigma_SA_high]).T
-        if T_low > 0:
-            # log interpolation
-            x = np.log(T_low), np.log(T_hi)
-
-            SA = np.exp(np.interp(np.log(period), x, (np.log(SA_low), np.log(SA_high))))
-            sigma_SA = [np.interp(np.log(period), x, sigma_SA_lh[i]) for i in range(3)]
-        else:
-            # linear interpolation
-            x = T_low, T_hi
-
-            SA = np.interp(period, x, (SA_low, SA_high))
-            sigma_SA = [np.interp(period, x, sigma_SA_lh[i]) for i in range(3)]
-
-        return SA, sigma_SA
 
     # Identify the period
-    i = np.argmin(np.abs(periods - period))
-
+    i = np.argmin(np.abs(period_list - period))
     # site class
-    delC = int(siteprop.siteclass.value == "C")
-    delD = int(siteprop.siteclass.value == "D")
+    delC = int(350 < siteprop.vs30 < 500 )
+    delD = int(siteprop.vs30 < 350)
 
     # Rtvz, volcanic path term doesn't matter with subduction slab
     Rtvz = siteprop.Rtvz if faultprop.faultstyle != FaultStyle.SLAB else 0
     # CS, crustal event
     CS = faultprop.faultstyle in [FaultStyle.SLAB, FaultStyle.INTERFACE]
-
     if not CS:
         CN = -1 if faultprop.faultstyle is FaultStyle.NORMAL else 0
         CR = {
@@ -170,9 +178,7 @@ def McVerry_2006_Sa(siteprop, faultprop, im=None, period=None):
         )
 
     Sa = cd(i) * cd(0) / cd(1)
-
     sigma_SA = compute_stdev(M, i)
-
     return Sa, sigma_SA
 
 

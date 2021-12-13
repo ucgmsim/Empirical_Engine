@@ -15,6 +15,10 @@ rrups = [0, 30, 800]
 faultstyles = [FaultStyle.NORMAL, FaultStyle.REVERSE, FaultStyle.OBLIQUE, FaultStyle.STRIKESLIP, FaultStyle.INTERFACE, FaultStyle.SLAB]
 rtvzs = [82.24, 2.244]
 hcs = [4.422, 39.24]
+# instead of testing with site-classes testing with vs30 based - vs30 values for [Rock, Rock, soil, soft soil, rock]
+# site class E previously didn't have special behaviour but now would be considered soft soil in the classification
+vs30s = [501, 501, 499, 349, 501]
+
 
 answers = np.fromfile(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'mv2006.f32'), dtype=np.float32)
 
@@ -26,8 +30,8 @@ def test_run():
     for p in periods:
         for m in mags:
             fault.Mw = m
-            for s in SiteClass:
-                site.siteclass = s
+            for s in vs30s:
+                site.vs30 = s
                 for r in rrups:
                     site.Rrup = r
                     for f in faultstyles:
@@ -37,7 +41,7 @@ def test_run():
                             for h in hcs:
                                 fault.hdepth = h
 
-                                sa, sigma = McVerry_2006_Sa(site, fault, period=p)
+                                sa, sigma = McVerry_2006_Sa(site, fault, periods=p)
                                 assert np.isclose(sa, answers[a])
                                 assert np.isclose(sigma, answers[a + 1:a + 4]).all()
                                 a += 4
