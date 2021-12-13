@@ -115,7 +115,7 @@ def calculate_Abrahamson(site, fault, period, epistemic_adj):
                 eadj = sinter_low[C]
     elif fault.tect_type == TectType.SUBDUCTION_SLAB:
         base = a1[C] + a4[C] * (C1slab - c1inter[C]) + a10
-        base_pga = a1[C] + a4[C_PGA] * (C1slab - c1inter[C_PGA]) + a10
+        base_pga = a1[C_PGA] + a4[C_PGA] * (C1slab - c1inter[C_PGA]) + a10
         if fault.ztor <= 100.0:
             depth = a11[C] * (fault.ztor - 60.0)
             depth_pga = a11[C_PGA] * (fault.ztor - 60.0)
