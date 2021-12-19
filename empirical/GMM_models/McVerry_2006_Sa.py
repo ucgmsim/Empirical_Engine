@@ -116,8 +116,13 @@ def McVerry06(siteprop, faultprop, period):
     # Identify the period
     i = np.argmin(np.abs(period_list - period))
     # site class
-    delC = int(350 < siteprop.vs30 < 500 )
-    delD = int(siteprop.vs30 < 350)
+    delC, delD = 0, 0
+    if hasattr(siteprop, "siteclass") and siteprop.siteclass is not None:
+        delC = int(siteprop.siteclass.value == "C")
+        delD = int(siteprop.siteclass.value == "D")
+    else:
+        delC = int(360 <= siteprop.vs30 < 760)
+        delD = int(siteprop.vs30 < 360)
 
     # Rtvz, volcanic path term doesn't matter with subduction slab
     Rtvz = siteprop.Rtvz if faultprop.faultstyle != FaultStyle.SLAB else 0

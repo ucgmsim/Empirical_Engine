@@ -169,7 +169,7 @@ def compute_gmm(fault, site, gmm, im, period=None, gmm_param_config=None, **kwar
     if site.vs30measured is None:
         site.vs30measured = False  # assume not measured unless set
 
-    if site.siteclass is None:
+    if site.siteclass is None and gmm == GMM.ZA_06:
         site.siteclass = determine_siteclass(site.vs30)
 
     if site.Rtvz is None or site.Rtvz <= 0 or np.isnan(site.Rtvz):

@@ -17,7 +17,7 @@ rtvzs = [82.24, 2.244]
 hcs = [4.422, 39.24]
 # instead of testing with site-classes testing with vs30 based - vs30 values for [Rock, Rock, soil, soft soil, rock]
 # site class E previously didn't have special behaviour but now would be considered soft soil in the classification
-vs30s = [501, 501, 499, 349, 501]
+vs30s = [761, 761, 499, 349, 761]
 
 
 answers = np.fromfile(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'mv2006.f32'), dtype=np.float32)
