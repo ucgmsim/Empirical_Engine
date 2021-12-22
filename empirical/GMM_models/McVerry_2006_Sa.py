@@ -1,6 +1,6 @@
 import numpy as np
 
-from empirical.util.classdef import FaultStyle, interpolate_to_closest
+from empirical.util.classdef import FaultStyle, interpolate_to_closest, SiteClass
 
 
 # parameters - first column corresponds to the 'prime' values
@@ -97,7 +97,9 @@ def McVerry_2006_Sa(siteprop, faultprop, im=None, periods=None):
             McVerry_low = McVerry06(siteprop, faultprop, period=T_low)
             McVerry_high = McVerry06(siteprop, faultprop, period=T_hi)
 
-            result = interpolate_to_closest(period, T_hi, T_low, McVerry_high, McVerry_low)
+            result = interpolate_to_closest(
+                period, T_hi, T_low, McVerry_high, McVerry_low
+            )
         else:
             result = McVerry06(siteprop, faultprop, period=period)
 
@@ -118,8 +120,9 @@ def McVerry06(siteprop, faultprop, period):
     # site class
     delC, delD = 0, 0
     if hasattr(siteprop, "siteclass") and siteprop.siteclass is not None:
-        delC = int(siteprop.siteclass.value == "C")
-        delD = int(siteprop.siteclass.value == "D")
+        assert siteprop.siteclass in SiteClass
+        delC = int(siteprop.siteclass == SiteClass("C"))
+        delD = int(siteprop.siteclass in [SiteClass("D"), SiteClass("E")])
     else:
         delC = int(360 <= siteprop.vs30 < 760)
         delD = int(siteprop.vs30 < 360)
