@@ -1,4 +1,5 @@
 import os
+from copy import copy
 from pathlib import Path
 from typing import Iterable
 
@@ -137,6 +138,13 @@ def determine_all_gmm(
 
 
 def compute_gmm(fault, site, gmm, im, period=None, gmm_param_config=None, **kwargs):
+    """
+    Makes a copy of the fault / site object as some modifications are done.
+
+    NOTE: the site/fault object you pass into this function may be modified before calculation of the GMM
+
+    :return: Mean and standard deviation calculated for a given IM and GMM
+    """
     site = copy(site)
     fault = copy(fault)
     gmm_params_dict = get_gmm_params(gmm_param_config)
