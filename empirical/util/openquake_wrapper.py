@@ -176,7 +176,14 @@ def oq_run(model, site, fault, im, period=None, **kwargs):
     )
     if len(extra_site_parameters) > 0:
         raise ValueError("unknown site property: " + extra_site_parameters)
-    oq_site = check_properties(site, model, SITE_PROPERTIES, oq_site, np_array=True)
+    oq_site = check_properties(
+        site,
+        model,
+        model.REQUIRES_SITES_PARAMETERS,
+        SITE_PROPERTIES,
+        oq_site,
+        np_array=True,
+    )
     if hasattr(oq_site, "z1pt0"):
         oq_site.z1pt0 *= 1000
 
@@ -187,7 +194,13 @@ def oq_run(model, site, fault, im, period=None, **kwargs):
     )
     if len(extra_rup_properties) > 0:
         raise ValueError("unknown rupture property: " + " ".join(extra_rup_properties))
-    rupture = check_properties(fault, model, RUPTURE_PROPERTIES, Properties())
+    rupture = check_properties(
+        fault,
+        model,
+        model.REQUIRES_RUPTURE_PARAMETERS,
+        RUPTURE_PROPERTIES,
+        Properties(),
+    )
     # Openquake requiring occurrence_rate attribute to exist
     rupture.occurrence_rate = None
     extra_dist_properties = set(model.REQUIRES_DISTANCES).difference(
@@ -198,7 +211,12 @@ def oq_run(model, site, fault, im, period=None, **kwargs):
             "unknown distance property: " + " ".join(extra_dist_properties)
         )
     dists = check_properties(
-        site, model, DISTANCE_PROPERTIES, Properties(), np_array=True
+        site,
+        model,
+        model.REQUIRES_DISTANCES,
+        DISTANCE_PROPERTIES,
+        Properties(),
+        np_array=True,
     )
 
     if period is not None:
@@ -226,7 +244,9 @@ def oq_run(model, site, fault, im, period=None, **kwargs):
         return oq_mean_stddevs(model, sites, rupture, dists, imc(), stddev_types)
 
 
-def check_properties(ee_object, model, properties, properties_obj, np_array=False):
+def check_properties(
+    ee_object, model, model_requirements, properties, properties_obj, np_array=False
+):
     for oq_property_name, ee_property_name in properties:
         ee_property = getattr(ee_object, ee_property_name)
         if ee_property is not None:
@@ -236,10 +256,10 @@ def check_properties(ee_object, model, properties, properties_obj, np_array=Fals
                 np.array([ee_property]) if np_array else ee_property,
             )
         else:
-            check_param(model, oq_property_name)
+            check_param(model_requirements, oq_property_name, model)
     return properties_obj
 
 
-def check_param(model, rp):
-    if rp in model.REQUIRES_RUPTURE_PARAMETERS:
+def check_param(model_requirements, rp, model):
+    if rp in model_requirements:
         raise ValueError(f"{rp} is a required parameter for {model}")
