@@ -7,6 +7,7 @@ Currently, focussing on implementing Bradley model only
 from math import exp
 
 import numpy as np
+import pandas as pd
 
 from empirical.util.classdef import TectType, GMM
 
@@ -15,6 +16,7 @@ try:
     from openquake.hazardlib import const, imt, gsim
     from openquake.hazardlib.site import Site, SiteCollection
     from openquake.hazardlib.geo import Point
+    from openquake.hazardlib.contexts import RuptureContext
 
     OQ = True
 except ImportError:
@@ -58,7 +60,7 @@ OQ_GMM_LIST = [
     GMM.K_20_NZ,
     GMM.Si_20,
     GMM.Z_16,
-    GMM.Br_13
+    GMM.Br_13,
 ]
 if OQ:
     oq_models = {
@@ -111,38 +113,29 @@ if OQ:
             TectType.SUBDUCTION_SLAB: gsim.zhao_2016.ZhaoEtAl2016SSlab,
             TectType.SUBDUCTION_INTERFACE: gsim.zhao_2016.ZhaoEtAl2016SInter,
         },
-        GMM.Br_13: {
-            TectType.ACTIVE_SHALLOW: gsim.bradley_2013.Bradley2013
-        }
+        GMM.Br_13: {TectType.ACTIVE_SHALLOW: gsim.bradley_2013.Bradley2013},
     }
 
 
-class Properties(object):
-    """
-    Stores values for sites, rup and dists.
-    """
-
-    def __init__(self):
-        # this allows attaching arbitrary attributes to self later
-        pass
-
-
-def oq_mean_stddevs(model, sites, rup, dists, imr, stddev_types):
+def oq_mean_stddevs(model, ctx, imr, stddev_types):
     """
     Calculate mean and standard deviations given openquake input structures.
     """
-    mean, stddevs = model.get_mean_and_stddevs(sites, rup, dists, imr, stddev_types)
-    mean = exp(mean[0]) if hasattr(mean, "__len__") else exp(mean)
-    stddevs = [s[0] if hasattr(s, "__len__") else s for s in stddevs]
+    mean, stddevs = model.get_mean_and_stddevs(ctx, ctx, ctx, imr, stddev_types)
+    mean_stddev_dict = {"mean": mean}
+    for idx, std_dev in enumerate(stddev_types):
+        mean_stddev_dict[f"std_{std_dev}"] = stddevs[idx]
 
-    return mean, stddevs
+    df = pd.DataFrame(mean_stddev_dict)
+    return df
 
 
-def oq_run(model, site, fault, im, period=None, **kwargs):
+def oq_run(model, rupture_df, im, period=None, **kwargs):
     """
     Run an openquake model using Empirical_Engine input structures.
     model: model or value from empirical.util.classdef.GMM or openquake class:
            GMM.P_20 gsim.parker_2020.ParkerEtAl2020SInter
+    rupture_df: Rupture DF
     site / fault: instances from empirical.classdef -- A tect_type must be able to be set to retrieve the correct model
     im: intensity measure name
     period: for spectral acceleration, openquake tables automatically
@@ -152,77 +145,37 @@ def oq_run(model, site, fault, im, period=None, **kwargs):
     if not OQ:
         raise ImportError("openquake is not installed, models not available")
 
-    # model can be given multiple ways
-    if type(model).__name__ == "GMM":
-        model = oq_models[model][fault.tect_type](**kwargs)
-    elif type(model).__name__ == "MetaGSIM":
-        model = model(**kwargs)
-
-    trt = model.DEFINED_FOR_TECTONIC_REGION_TYPE
-    if trt == const.TRT.SUBDUCTION_INTERFACE:
-        assert fault.tect_type == TectType.SUBDUCTION_INTERFACE
-    elif trt == const.TRT.SUBDUCTION_INTRASLAB:
-        assert fault.tect_type == TectType.SUBDUCTION_SLAB
-    elif trt == const.TRT.ACTIVE_SHALLOW_CRUST:
-        assert fault.tect_type == TectType.ACTIVE_SHALLOW
-    else:
-        raise ValueError("unknown tectonic region: " + trt)
+    model = model(**kwargs)
 
     stddev_types = []
     for st in [const.StdDev.TOTAL, const.StdDev.INTER_EVENT, const.StdDev.INTRA_EVENT]:
         if st in model.DEFINED_FOR_STANDARD_DEVIATION_TYPES:
             stddev_types.append(st)
 
-    location = Point(
-        0.0, 0.0, 0.0
-    )  # Create a dummy location as OQ calculation doesn't use a location
-    oq_site = Site(location)
-    extra_site_parameters = set(model.REQUIRES_SITES_PARAMETERS).difference(
-        list(zip(*SITE_PROPERTIES))[0]
-    )
-    if len(extra_site_parameters) > 0:
-        raise ValueError("unknown site property: " + extra_site_parameters)
-    oq_site = check_properties(
-        site,
-        model,
-        model.REQUIRES_SITES_PARAMETERS,
-        SITE_PROPERTIES,
-        oq_site,
-        np_array=True,
-    )
-    if hasattr(oq_site, "z1pt0"):
-        oq_site.z1pt0 *= 1000
-
-    sites = SiteCollection([oq_site])
-
-    extra_rup_properties = set(model.REQUIRES_RUPTURE_PARAMETERS).difference(
-        list(zip(*RUPTURE_PROPERTIES))[0]
-    )
-    if len(extra_rup_properties) > 0:
-        raise ValueError("unknown rupture property: " + " ".join(extra_rup_properties))
-    rupture = check_properties(
-        fault,
-        model,
-        model.REQUIRES_RUPTURE_PARAMETERS,
-        RUPTURE_PROPERTIES,
-        Properties(),
-    )
-    # Openquake requiring occurrence_rate attribute to exist
-    rupture.occurrence_rate = None
-    extra_dist_properties = set(model.REQUIRES_DISTANCES).difference(
-        list(zip(*DISTANCE_PROPERTIES))[0]
-    )
-    if len(extra_dist_properties) > 0:
-        raise ValueError(
-            "unknown distance property: " + " ".join(extra_dist_properties)
+    rupture = RuptureContext(
+        (
+            # Sites
+            # Create a dummy location as OQ calculation doesn't use a location
+            ("location", Point(0.0, 0.0, 0.0)),
+            ("vs30", rupture_df.vs30.values),
+            ("z1pt0", rupture_df.z1pt0.values),
+            ("z2pt5", rupture_df.z2pt5.values),
+            # Site itself, doesn't require vs30measured but needed for Rr_13
+            ("vs30measured", rupture_df.vs30measured.values),
+            # Distances
+            ("rrup", rupture_df.rrup.values),
+            ("rjb", rupture_df.rjb.values),
+            ("rx", rupture_df.rx.values),
+            ("rvolc", rupture_df.rvolc.values),
+            # Rupture
+            ("mag", rupture_df.mag.values),
+            ("rake", rupture_df.rake.values),
+            ("dip", rupture_df.dip.values),
+            ("ztor", rupture_df.ztor.values),
+            ("hypo_depth", rupture_df.hypo_depth.values),
+            # Openquake requiring occurrence_rate attribute to exist
+            ("occurrence_rate", None),
         )
-    dists = check_properties(
-        site,
-        model,
-        model.REQUIRES_DISTANCES,
-        DISTANCE_PROPERTIES,
-        Properties(),
-        np_array=True,
     )
 
     if period is not None:
@@ -236,7 +189,7 @@ def oq_run(model, site, fault, im, period=None, **kwargs):
         results = []
         for p in period:
             imr = imt.SA(period=min(p, max_period))
-            m, s = oq_mean_stddevs(model, sites, rupture, dists, imr, stddev_types)
+            m, s = oq_mean_stddevs(model, rupture, imr, stddev_types)
             # interpolate pSA value up based on maximum available period
             if p > max_period:
                 m = m * (max_period / p) ** 2
@@ -247,25 +200,4 @@ def oq_run(model, site, fault, im, period=None, **kwargs):
     else:
         imc = getattr(imt, im)
         assert imc in model.DEFINED_FOR_INTENSITY_MEASURE_TYPES
-        return oq_mean_stddevs(model, sites, rupture, dists, imc(), stddev_types)
-
-
-def check_properties(
-    ee_object, model, model_requirements, properties, properties_obj, np_array=False
-):
-    for oq_property_name, ee_property_name in properties:
-        ee_property = getattr(ee_object, ee_property_name)
-        if ee_property is not None:
-            setattr(
-                properties_obj,
-                oq_property_name,
-                np.array([ee_property]) if np_array else ee_property,
-            )
-        else:
-            check_param(model_requirements, oq_property_name, model)
-    return properties_obj
-
-
-def check_param(model_requirements, rp, model):
-    if rp in model_requirements:
-        raise ValueError(f"{rp} is a required parameter for {model}")
+        return oq_mean_stddevs(model, rupture, imc(), stddev_types)
