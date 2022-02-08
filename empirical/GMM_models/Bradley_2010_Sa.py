@@ -251,7 +251,7 @@ def calculate_Bradley(siteprop, faultprop, period):
     rjb = siteprop.Rjb
     rx = siteprop.Rx
     vs30 = siteprop.vs30
-    z10 = siteprop.z1p0  # Convert from km to m
+    z10 = siteprop.z1p0 * 1000  # Convert from km to m
     delta = faultprop.dip  # dip in degrees
     lambda_ = (
         faultprop.rake
