@@ -4,12 +4,7 @@ Can import without openquake but using openquake models will raise ImportError.
 
 Currently, focussing on implementing Bradley model only
 """
-from math import exp
-
-import numpy as np
 import pandas as pd
-
-from empirical.util.classdef import TectType, GMM
 
 try:
     # openquake constants and models
@@ -22,24 +17,6 @@ try:
 except ImportError:
     # fail silently, only an issue if openquake models wanted
     OQ = False
-
-# (oq_property name, ee_property_name)
-CTX_PROPERTIES = [
-    ("vs30", "vs30"),
-    ("vs30measured", "vs30measured"),
-    ("z1pt0", "z1p0"),
-    ("z2pt5", "z2p5"),
-    ("mag", "Mw"),
-    ("rake", "rake"),
-    ("dip", "dip"),
-    ("ztor", "ztor"),
-    ("hypo_depth", "hdepth"),
-    ("rrup", "Rrup"),
-    ("rjb", "Rjb"),
-    ("rx", "Rx"),
-    ("ry0", "Ry"),
-    ("rvolc", "Rtvz"),
-]
 
 
 def oq_mean_stddevs(model, ctx, imr, stddev_types):
