@@ -124,19 +124,21 @@ def oq_mean_stddevs(model, ctx, imr, stddev_types):
     mean, stddevs = model.get_mean_and_stddevs(ctx, ctx, ctx, imr, stddev_types)
     mean_stddev_dict = {"mean": mean}
     for idx, std_dev in enumerate(stddev_types):
-        mean_stddev_dict[f"std_{std_dev}"] = stddevs[idx]
+        mean_stddev_dict[f"std_{std_dev.split()[0]}"] = stddevs[idx]
 
-    df = pd.DataFrame(mean_stddev_dict)
-    return df
+    return pd.DataFrame(mean_stddev_dict)
 
 
 def oq_run(model, rupture_df, im, period=None, **kwargs):
     """
-    Run an openquake model using Empirical_Engine input structures.
-    model: model or value from empirical.util.classdef.GMM or openquake class:
-           GMM.P_20 gsim.parker_2020.ParkerEtAl2020SInter
-    rupture_df: Rupture DF
-    site / fault: instances from empirical.classdef -- A tect_type must be able to be set to retrieve the correct model
+    Run an openquake model with dataframe
+    model: OQ models
+        Only support Bradley_2013 for now
+    rupture_df: Rupture DF and it's a single new-style context OQ uses
+        Columns for properties. E.g., vs30, z1pt0, rrup, rjb, mag, rake, dip....
+        Rows be the separate site-fault pairs
+        But Site information must be identical across the rows,
+        only the faults can be different
     im: intensity measure name
     period: for spectral acceleration, openquake tables automatically
             interpolate values between specified values, fails if outside range
@@ -160,7 +162,6 @@ def oq_run(model, rupture_df, im, period=None, **kwargs):
             ("vs30", rupture_df.vs30.values),
             ("z1pt0", rupture_df.z1pt0.values),
             ("z2pt5", rupture_df.z2pt5.values),
-            # Site itself, doesn't require vs30measured but needed for Rr_13
             ("vs30measured", rupture_df.vs30measured.values),
             # Distances
             ("rrup", rupture_df.rrup.values),
