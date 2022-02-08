@@ -8,8 +8,7 @@ import pandas as pd
 
 try:
     # openquake constants and models
-    from openquake.hazardlib import const, imt, gsim
-    from openquake.hazardlib.site import Site, SiteCollection
+    from openquake.hazardlib import const, imt
     from openquake.hazardlib.geo import Point
     from openquake.hazardlib.contexts import RuptureContext
 
@@ -77,13 +76,13 @@ def oq_run(model, rupture_df, im, period=None, **kwargs):
             "unknown distance property: " + " ".join(extra_dist_properties)
         )
 
-    rupture = RuptureContext(
+    rupture_ctx = RuptureContext(
         (
             # Sites
             # Create a dummy location as OQ calculation doesn't use a location
             ("location", Point(0.0, 0.0, 0.0)),
             ("vs30", rupture_df.vs30.values),
-            ("z1pt0", rupture_df.z1pt0.values),
+            ("z1pt0", rupture_df.z1pt0.values * 1000),  # Convert from km to m
             ("z2pt5", rupture_df.z2pt5.values),
             ("vs30measured", rupture_df.vs30measured.values),
             # Distances
@@ -113,7 +112,7 @@ def oq_run(model, rupture_df, im, period=None, **kwargs):
         results = []
         for p in period:
             imr = imt.SA(period=min(p, max_period))
-            result = oq_mean_stddevs(model, rupture, imr, stddev_types)
+            result = oq_mean_stddevs(model, rupture_ctx, imr, stddev_types)
             # interpolate pSA value up based on maximum available period
             if p > max_period:
                 result.update(
@@ -126,4 +125,4 @@ def oq_run(model, rupture_df, im, period=None, **kwargs):
     else:
         imc = getattr(imt, im)
         assert imc in model.DEFINED_FOR_INTENSITY_MEASURE_TYPES
-        return oq_mean_stddevs(model, rupture, imc(), stddev_types)
+        return oq_mean_stddevs(model, rupture_ctx, imc(), stddev_types)
