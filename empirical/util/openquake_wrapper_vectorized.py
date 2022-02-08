@@ -24,21 +24,16 @@ except ImportError:
     OQ = False
 
 # (oq_property name, ee_property_name)
-SITE_PROPERTIES = [
+CTX_PROPERTIES = [
     ("vs30", "vs30"),
     ("vs30measured", "vs30measured"),
     ("z1pt0", "z1p0"),
     ("z2pt5", "z2p5"),
-    ("fpeak", "fpeak"),
-]
-RUPTURE_PROPERTIES = [
     ("mag", "Mw"),
     ("rake", "rake"),
-    ("width", "width"),
+    ("dip", "dip"),
     ("ztor", "ztor"),
     ("hypo_depth", "hdepth"),
-]
-DISTANCE_PROPERTIES = [
     ("rrup", "Rrup"),
     ("rjb", "Rjb"),
     ("rx", "Rx"),
@@ -153,6 +148,27 @@ def oq_run(model, rupture_df, im, period=None, **kwargs):
     for st in [const.StdDev.TOTAL, const.StdDev.INTER_EVENT, const.StdDev.INTRA_EVENT]:
         if st in model.DEFINED_FOR_STANDARD_DEVIATION_TYPES:
             stddev_types.append(st)
+
+    # Check if df contains what we need
+    extra_site_parameters = set(model.REQUIRES_SITES_PARAMETERS).difference(
+        list(rupture_df.columns.values)
+    )
+    if len(extra_site_parameters) > 0:
+        raise ValueError("unknown site property: " + extra_site_parameters)
+
+    extra_rup_properties = set(model.REQUIRES_RUPTURE_PARAMETERS).difference(
+        list(rupture_df.columns.values)
+    )
+    if len(extra_rup_properties) > 0:
+        raise ValueError("unknown rupture property: " + " ".join(extra_rup_properties))
+
+    extra_dist_properties = set(model.REQUIRES_DISTANCES).difference(
+        list(rupture_df.columns.values)
+    )
+    if len(extra_dist_properties) > 0:
+        raise ValueError(
+            "unknown distance property: " + " ".join(extra_dist_properties)
+        )
 
     rupture = RuptureContext(
         (
