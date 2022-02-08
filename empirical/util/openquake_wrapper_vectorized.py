@@ -105,21 +105,21 @@ def oq_run(model, rupture_df, im, period=None, **kwargs):
             # Sites
             # Create a dummy location as OQ calculation doesn't use a location
             ("location", Point(0.0, 0.0, 0.0)),
-            ("vs30", rupture_df.loc[:, "vs30"].values),
-            ("z1pt0", rupture_df.loc[:, "z1pt0"].values),
-            ("z2pt5", rupture_df.loc[:, "z2pt5"].values),
-            ("vs30measured", rupture_df.loc[:, "vs30measured"].values),
+            ("vs30", rupture_df.vs30.values),
+            ("z1pt0", rupture_df.z1pt0.values),
+            ("z2pt5", rupture_df.z2pt5.values),
+            ("vs30measured", rupture_df.vs30measured.values),
             # Distances
-            ("rrup", rupture_df.loc[:, "rrup"].values),
-            ("rjb", rupture_df.loc[:, "rjb"].values),
-            ("rx", rupture_df.loc[:, "rx"].values),
-            ("rvolc", rupture_df.loc[:, "rvolc"].values),
+            ("rrup", rupture_df.rrup.values),
+            ("rjb", rupture_df.rjb.values),
+            ("rx", rupture_df.rx.values),
+            ("rvolc", rupture_df.rvolc.values),
             # Rupture
-            ("mag", rupture_df.loc[:, "mag"].values),
-            ("rake", rupture_df.loc[:, "rake"].values),
-            ("dip", rupture_df.loc[:, "dip"].values),
-            ("ztor", rupture_df.loc[:, "ztor"].values),
-            ("hypo_depth", rupture_df.loc[:, "hypo_depth"].values),
+            ("mag", rupture_df.mag.values),
+            ("rake", rupture_df.rake.values),
+            ("dip", rupture_df.dip.values),
+            ("ztor", rupture_df.ztor.values),
+            ("hypo_depth", rupture_df.hypo_depth.values),
             # Openquake requiring occurrence_rate attribute to exist
             ("occurrence_rate", None),
         )
@@ -140,9 +140,7 @@ def oq_run(model, rupture_df, im, period=None, **kwargs):
             # interpolate pSA value up based on maximum available period
             if p > max_period:
                 result.update(
-                    pd.Series(
-                        result.loc[:, "mean"] * (max_period / p) ** 2, name="mean"
-                    )
+                    pd.Series(result.get("mean") * (max_period / p) ** 2, name="mean")
                 )
             results.append(result)
         if single:
