@@ -313,8 +313,6 @@ def B10(hw, m, rjb, rrup, rtvz, rx, vs30, z1p0, ztor, deltar, f_inferred, f_meas
     )
     # reference Sa on rock (Vs=1130m/s)
     Sa1130 = np.exp(term1 + term2 + term5 + term6 + term7 + term8 + term9 + term10)
-    # print("Similart to ln_y_ref?")
-    # breakpoint()
     # Modification 4: Rock amplification
     if period == 0:
         v1 = 1800
@@ -333,12 +331,9 @@ def B10(hw, m, rjb, rrup, rtvz, rx, vs30, z1p0, ztor, deltar, f_inferred, f_meas
             )
             * np.log((Sa1130 + phi4[i]) / phi4[i])
     )
-    # Check term13
     term13 = phi5[i] * (
             1.0 - 1.0 / np.cosh(phi6[i] * max(0, z1p0 - phi7[i]))
     ) + phi8[i] / np.cosh(0.15 * max(0, z1p0 - 15))
-    # print("Simliar to mean")
-    # breakpoint()
     # Compute median
     sa = np.exp(np.log(Sa1130) + term11 + term12 + term13)
     # Compute standard deviation
@@ -364,6 +359,5 @@ def compute_stdev(f_inferred, f_measured, m, sa_1130, vs30, i):
     sigma_inter = (1.0 + NL0) * tau  # 1
     sigma_intra = sigma  # 2
     sigma_SA = [sigma_total, sigma_inter, sigma_intra]
-    # breakpoint()
 
     return sigma_SA
