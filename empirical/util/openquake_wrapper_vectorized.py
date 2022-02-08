@@ -33,13 +33,13 @@ def oq_mean_stddevs(model, ctx, imr, stddev_types):
 def oq_run(model, rupture_df, im, period=None, **kwargs):
     """
     Run an openquake model with dataframe
-    model: OQ models
+    model: OQ model
         Only support Bradley_2013 for now
-    rupture_df: Rupture DF and it's a single new-style context OQ uses
+    rupture_df: Rupture DF
         Columns for properties. E.g., vs30, z1pt0, rrup, rjb, mag, rake, dip....
         Rows be the separate site-fault pairs
         But Site information must be identical across the rows,
-        only the faults can be different
+        only the faults can be different.
     im: intensity measure name
     period: for spectral acceleration, openquake tables automatically
             interpolate values between specified values, fails if outside range
@@ -55,21 +55,22 @@ def oq_run(model, rupture_df, im, period=None, **kwargs):
         if st in model.DEFINED_FOR_STANDARD_DEVIATION_TYPES:
             stddev_types.append(st)
 
-    # Check if df contains what we need
+    # Check if df contains what model requires
+    rupture_ctx_properties = list(rupture_df.columns.values)
     extra_site_parameters = set(model.REQUIRES_SITES_PARAMETERS).difference(
-        list(rupture_df.columns.values)
+        rupture_ctx_properties
     )
     if len(extra_site_parameters) > 0:
         raise ValueError("unknown site property: " + extra_site_parameters)
 
     extra_rup_properties = set(model.REQUIRES_RUPTURE_PARAMETERS).difference(
-        list(rupture_df.columns.values)
+        rupture_ctx_properties
     )
     if len(extra_rup_properties) > 0:
         raise ValueError("unknown rupture property: " + " ".join(extra_rup_properties))
 
     extra_dist_properties = set(model.REQUIRES_DISTANCES).difference(
-        list(rupture_df.columns.values)
+        rupture_ctx_properties
     )
     if len(extra_dist_properties) > 0:
         raise ValueError(
