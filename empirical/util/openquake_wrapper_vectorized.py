@@ -1,6 +1,5 @@
 """
-Wrapper for openquake models.
-Can import without openquake but using openquake models will raise ImportError.
+Wrapper for openquake vectorized models.
 
 Currently, focussing on implementing Bradley model only
 """
