@@ -77,6 +77,9 @@ def oq_run(model, rupture_df, im, period=None, **kwargs):
             "unknown distance property: " + " ".join(extra_dist_properties)
         )
 
+    """Hard coded for now but instead of having hard coded properties,
+    perhaps we can do loop over the DF's column values to create tuples dynamically?
+    """
     rupture_ctx = RuptureContext(
         (
             # Sites
