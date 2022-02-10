@@ -5,19 +5,11 @@ Currently, focussing on implementing Bradley model only
 """
 import pandas as pd
 
-try:
-    # openquake constants and models
-    from openquake.hazardlib import const, imt, gsim
-    from openquake.hazardlib.geo import Point
-    from openquake.hazardlib.contexts import RuptureContext
+from openquake.hazardlib import const, imt, gsim
+from openquake.hazardlib.contexts import RuptureContext
 
-    OQ = True
-except ImportError:
-    # fail silently, only an issue if openquake models wanted
-    OQ = False
 
-if OQ:
-    oq_models = {"Br_13": gsim.bradley_2013.Bradley2013}
+OQ_MODELS = {"Br_13": gsim.bradley_2013.Bradley2013}
 
 
 def convert_im_label(imr):
@@ -55,10 +47,7 @@ def oq_run(model, rupture_df, im, period=None, **kwargs):
             interpolate values between specified values, fails if outside range
     kwargs: pass extra (model specific) parameters to models
     """
-    if not OQ:
-        raise ImportError("openquake is not installed, models not available")
-
-    model = oq_models[model](**kwargs)
+    model = OQ_MODELS[model](**kwargs)
 
     stddev_types = []
     for st in [const.StdDev.TOTAL, const.StdDev.INTER_EVENT, const.StdDev.INTRA_EVENT]:
@@ -87,6 +76,10 @@ def oq_run(model, rupture_df, im, period=None, **kwargs):
             "unknown distance property: " + " ".join(extra_dist_properties)
         )
 
+    # Make a copy in case the original rupture_df used with other functions
+    copied_rupture_df = rupture_df.copy()
+    # Convert z1pt0 from km to m
+    copied_rupture_df["z1pt0"] *= 1000
     # OQ's single new-style context which contains all site, distance and rupture's information
     rupture_ctx = RuptureContext(
         tuple(
@@ -94,14 +87,8 @@ def oq_run(model, rupture_df, im, period=None, **kwargs):
                 # Openquake requiring occurrence_rate attribute to exist
                 ("occurrence_rate", None),
                 *(
-                    (
-                        column,
-                        # Convert z1pt0 from km to m
-                        rupture_df.loc[:, column].values * 1000
-                        if column == "z1pt0"
-                        else rupture_df.loc[:, column].values,
-                    )
-                    for column in rupture_df.columns.values
+                    (column, copied_rupture_df.loc[:, column].values,)
+                    for column in copied_rupture_df.columns.values
                 ),
             ]
         )
