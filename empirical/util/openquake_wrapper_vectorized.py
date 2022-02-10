@@ -7,7 +7,7 @@ import pandas as pd
 
 try:
     # openquake constants and models
-    from openquake.hazardlib import const, imt
+    from openquake.hazardlib import const, imt, gsim
     from openquake.hazardlib.geo import Point
     from openquake.hazardlib.contexts import RuptureContext
 
@@ -16,15 +16,26 @@ except ImportError:
     # fail silently, only an issue if openquake models wanted
     OQ = False
 
+if OQ:
+    oq_models = {"Br_13": gsim.bradley_2013.Bradley2013}
+
+
+def convert_im_label(imr):
+    """Convert OQ's SA(period) to the internal naming, pSA_period"""
+    imt_tuple = imt.imt2tup(imr.string)
+    return imr if len(imt_tuple) == 1 else f"pSA_{imt_tuple[-1]}"
+
 
 def oq_mean_stddevs(model, ctx, imr, stddev_types):
     """
     Calculate mean and standard deviations given openquake input structures.
     """
     mean, stddevs = model.get_mean_and_stddevs(ctx, ctx, ctx, imr, stddev_types)
-    mean_stddev_dict = {"mean": mean}
+    mean_stddev_dict = {f"{convert_im_label(imr)}_mean": mean}
     for idx, std_dev in enumerate(stddev_types):
-        mean_stddev_dict[f"std_{std_dev.split()[0]}"] = stddevs[idx]
+        mean_stddev_dict[f"{convert_im_label(imr)}_std_{std_dev.split()[0]}"] = stddevs[
+            idx
+        ]
 
     return pd.DataFrame(mean_stddev_dict)
 
@@ -32,7 +43,7 @@ def oq_mean_stddevs(model, ctx, imr, stddev_types):
 def oq_run(model, rupture_df, im, period=None, **kwargs):
     """
     Run an openquake model with dataframe
-    model: OQ model
+    model: OQ model name, string
         Only support Bradley_2013 for now
     rupture_df: Rupture DF
         Columns for properties. E.g., vs30, z1pt0, rrup, rjb, mag, rake, dip....
@@ -47,7 +58,7 @@ def oq_run(model, rupture_df, im, period=None, **kwargs):
     if not OQ:
         raise ImportError("openquake is not installed, models not available")
 
-    model = model(**kwargs)
+    model = oq_models[model](**kwargs)
 
     stddev_types = []
     for st in [const.StdDev.TOTAL, const.StdDev.INTER_EVENT, const.StdDev.INTRA_EVENT]:
@@ -76,31 +87,23 @@ def oq_run(model, rupture_df, im, period=None, **kwargs):
             "unknown distance property: " + " ".join(extra_dist_properties)
         )
 
-    """Hard coded for now but instead of having hard coded properties,
-    perhaps we can do loop over the DF's column values to create tuples dynamically?
-    """
+    # OQ's single new-style context which contains all site, distance and rupture's information
     rupture_ctx = RuptureContext(
-        (
-            # Sites
-            # Create a dummy location as OQ calculation doesn't use a location
-            ("location", Point(0.0, 0.0, 0.0)),
-            ("vs30", rupture_df.vs30.values),
-            ("z1pt0", rupture_df.z1pt0.values * 1000),  # Convert from km to m
-            ("z2pt5", rupture_df.z2pt5.values),
-            ("vs30measured", rupture_df.vs30measured.values),
-            # Distances
-            ("rrup", rupture_df.rrup.values),
-            ("rjb", rupture_df.rjb.values),
-            ("rx", rupture_df.rx.values),
-            ("rvolc", rupture_df.rvolc.values),
-            # Rupture
-            ("mag", rupture_df.mag.values),
-            ("rake", rupture_df.rake.values),
-            ("dip", rupture_df.dip.values),
-            ("ztor", rupture_df.ztor.values),
-            ("hypo_depth", rupture_df.hypo_depth.values),
-            # Openquake requiring occurrence_rate attribute to exist
-            ("occurrence_rate", None),
+        tuple(
+            [
+                # Openquake requiring occurrence_rate attribute to exist
+                ("occurrence_rate", None),
+                *(
+                    (
+                        column,
+                        # Convert z1pt0 from km to m
+                        rupture_df.loc[:, column].values * 1000
+                        if column == "z1pt0"
+                        else rupture_df.loc[:, column].values,
+                    )
+                    for column in rupture_df.columns.values
+                ),
+            ]
         )
     )
 
@@ -124,7 +127,7 @@ def oq_run(model, rupture_df, im, period=None, **kwargs):
             results.append(result)
         if single:
             return results[0]
-        return results
+        return pd.concat(results, axis=1)
     else:
         imc = getattr(imt, im)
         assert imc in model.DEFINED_FOR_INTENSITY_MEASURE_TYPES
