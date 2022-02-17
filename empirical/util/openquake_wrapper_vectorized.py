@@ -1,40 +1,58 @@
-"""
-Wrapper for openquake vectorized models.
+"""Wrapper for openquake vectorized models."""
+from typing import List
 
-Currently, focussing on implementing Bradley model only
-"""
 import pandas as pd
 
-from openquake.hazardlib import const, imt, gsim
-from openquake.hazardlib.contexts import RuptureContext
+from openquake.hazardlib import const, imt, gsim, contexts
 
 
-OQ_MODELS = {"Br_13": gsim.bradley_2013.Bradley2013}
+OQ_MODELS = {
+    "Br_13": gsim.bradley_2013.Bradley2013,
+    "ASK_14": gsim.abrahamson_2014.AbrahamsonEtAl2014,
+    "BSSA_14": gsim.boore_2014.BooreEtAl2014,
+    "CY_14": gsim.chiou_youngs_2014.ChiouYoungs2014,
+    "Z_06": gsim.zhao_2006.ZhaoEtAl2006Asc,
+    "P_20": gsim.parker_2020.ParkerEtAl2020SInter,
+    "K_20": gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SInter,
+    "AG_20": gsim.kuehn_2020.KuehnEtAl2020SInter,
+}
 
 
-def convert_im_label(imr):
-    """Convert OQ's SA(period) to the internal naming, pSA_period"""
-    imt_tuple = imt.imt2tup(imr.string)
-    return imr if len(imt_tuple) == 1 else f"pSA_{imt_tuple[-1]}"
-
-
-def oq_mean_stddevs(model, ctx, imr, stddev_types):
+def convert_im_label(im: imt):
+    """Convert OQ's SA(period) to the internal naming, pSA_period
+    im: imt
     """
-    Calculate mean and standard deviations given openquake input structures.
+    imt_tuple = imt.imt2tup(im.string)
+    return im if len(imt_tuple) == 1 else f"pSA_{imt_tuple[-1]}"
+
+
+def oq_mean_stddevs(
+    model: gsim, ctx: contexts.RuptureContext, im: imt, stddev_types: List
+):
+    """Calculate mean and standard deviations given openquake input structures.
+    model: OQ Model
+    ctx: contexts.RuptureContext
+        OQ RuptureContext that contains the following information
+        - Site
+        - Distance
+        - Rupture
+    im: imt
+    stddev_types: List
     """
-    mean, stddevs = model.get_mean_and_stddevs(ctx, ctx, ctx, imr, stddev_types)
-    mean_stddev_dict = {f"{convert_im_label(imr)}_mean": mean}
+    mean, stddevs = model.get_mean_and_stddevs(ctx, ctx, ctx, im, stddev_types)
+    mean_stddev_dict = {f"{convert_im_label(im)}_mean": mean}
     for idx, std_dev in enumerate(stddev_types):
-        mean_stddev_dict[f"{convert_im_label(imr)}_std_{std_dev.split()[0]}"] = stddevs[
+        mean_stddev_dict[f"{convert_im_label(im)}_std_{std_dev.split()[0]}"] = stddevs[
             idx
         ]
 
     return pd.DataFrame(mean_stddev_dict)
 
 
-def oq_run(model, rupture_df, im, period=None, **kwargs):
-    """
-    Run an openquake model with dataframe
+def oq_run(
+    model: str, rupture_df: pd.DataFrame, im: str, period: List = None, **kwargs
+):
+    """Run an openquake model with dataframe
     model: OQ model name, string
         Only support Bradley_2013 for now
     rupture_df: Rupture DF
@@ -81,13 +99,19 @@ def oq_run(model, rupture_df, im, period=None, **kwargs):
     # Convert z1pt0 from km to m
     copied_rupture_df["z1pt0"] *= 1000
     # OQ's single new-style context which contains all site, distance and rupture's information
-    rupture_ctx = RuptureContext(
+    rupture_ctx = contexts.RuptureContext(
         tuple(
             [
                 # Openquake requiring occurrence_rate attribute to exist
                 ("occurrence_rate", None),
+                # sids is basically the number of sites provide
+                # each row of DF is site & rupture pair
+                ("sids", [None] * len(rupture_df.index)),
                 *(
-                    (column, copied_rupture_df.loc[:, column].values,)
+                    (
+                        column,
+                        copied_rupture_df.loc[:, column].values,
+                    )
                     for column in copied_rupture_df.columns.values
                 ),
             ]
@@ -104,8 +128,8 @@ def oq_run(model, rupture_df, im, period=None, **kwargs):
             period = [period]
         results = []
         for p in period:
-            imr = imt.SA(period=min(p, max_period))
-            result = oq_mean_stddevs(model, rupture_ctx, imr, stddev_types)
+            im = imt.SA(period=min(p, max_period))
+            result = oq_mean_stddevs(model, rupture_ctx, im, stddev_types)
             # interpolate pSA value up based on maximum available period
             if p > max_period:
                 result.update(
