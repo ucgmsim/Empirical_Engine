@@ -9,6 +9,7 @@ from openquake.hazardlib import const, imt, gsim, contexts
 OQ_MODELS = {
     "Br_13": gsim.bradley_2013.Bradley2013,
     "ASK_14": gsim.abrahamson_2014.AbrahamsonEtAl2014,
+    "CB_14": gsim.campbell_bozorgnia_2014.CampbellBozorgnia2014,
     "BSSA_14": gsim.boore_2014.BooreEtAl2014,
     "CY_14": gsim.chiou_youngs_2014.ChiouYoungs2014,
     "Z_06": gsim.zhao_2006.ZhaoEtAl2006Asc,
@@ -106,12 +107,9 @@ def oq_run(
                 ("occurrence_rate", None),
                 # sids is basically the number of sites provided
                 # each row of DF is site & rupture pair
-                ("sids", [None] * len(rupture_df.index)),
+                ("sids", [0] * len(rupture_df.index)),
                 *(
-                    (
-                        column,
-                        copied_rupture_df.loc[:, column].values,
-                    )
+                    (column, copied_rupture_df.loc[:, column].values,)
                     for column in copied_rupture_df.columns.values
                 ),
             ]
@@ -121,7 +119,11 @@ def oq_run(
     if period is not None:
         assert imt.SA in model.DEFINED_FOR_INTENSITY_MEASURE_TYPES
         # use sorted instead of max for full list
-        max_period = max([i.period for i in model.COEFFS.sa_coeffs.keys()])
+        max_period = (
+            max([i.period for i in model.COEFFS.sa_coeffs.keys()])
+            if not isinstance(model, gsim.zhao_2006.ZhaoEtAl2006Asc)
+            else max([i.period for i in model.COEFFS_ASC.sa_coeffs.keys()])
+        )
         single = False
         if not hasattr(period, "__len__"):
             single = True
