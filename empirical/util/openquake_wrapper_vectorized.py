@@ -104,7 +104,7 @@ def oq_run(
             [
                 # Openquake requiring occurrence_rate attribute to exist
                 ("occurrence_rate", None),
-                # sids is basically the number of sites provide
+                # sids is basically the number of sites provided
                 # each row of DF is site & rupture pair
                 ("sids", [None] * len(rupture_df.index)),
                 *(
