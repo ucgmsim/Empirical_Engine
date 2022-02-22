@@ -15,7 +15,9 @@ OQ_MODELS = {
     "Z_06": gsim.zhao_2006.ZhaoEtAl2006Asc,
     "P_20": gsim.parker_2020.ParkerEtAl2020SInter,
     "K_20": gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SInter,
+    "K_20_NZ": gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SInter,
     "AG_20": gsim.kuehn_2020.KuehnEtAl2020SInter,
+    "AG_20_NZ": gsim.kuehn_2020.KuehnEtAl2020SInter,
 }
 
 
@@ -66,7 +68,11 @@ def oq_run(
             interpolate values between specified values, fails if outside range
     kwargs: pass extra (model specific) parameters to models
     """
-    model = OQ_MODELS[model](**kwargs)
+    model = (
+        OQ_MODELS[model](**kwargs)
+        if not model.endswith("_NZ")
+        else OQ_MODELS[model](region="NZL", **kwargs)
+    )
 
     stddev_types = []
     for st in [const.StdDev.TOTAL, const.StdDev.INTER_EVENT, const.StdDev.INTRA_EVENT]:
