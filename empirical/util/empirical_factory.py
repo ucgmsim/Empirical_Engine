@@ -179,7 +179,7 @@ def compute_gmm(fault, site, gmm, im, period=None, gmm_param_config=None, **kwar
             site.Rtvz = 0
 
     if site.Rjb is None:
-        site.Rjb = np.sqrt(site.Rrup ** 2 - fault.ztor ** 2)
+        site.Rjb = np.sqrt(site.Rrup**2 - fault.ztor**2)
 
     if fault.Mw is None and gmm not in [GMM.SB_13]:
         print("Moment magnitude is a required parameter")
