@@ -9,7 +9,7 @@ from empirical.util.classdef import TectType, GMM
 
 
 OQ_MODELS = {
-    GMM.Br_13: {TectType.ACTIVE_SHALLOW: gsim.bradley_2013.Bradley2013},
+    GMM.Br_10: {TectType.ACTIVE_SHALLOW: gsim.bradley_2013.Bradley2013},
     GMM.ASK_14: {TectType.ACTIVE_SHALLOW: gsim.abrahamson_2014.AbrahamsonEtAl2014},
     GMM.CB_14: {
         TectType.ACTIVE_SHALLOW: gsim.campbell_bozorgnia_2014.CampbellBozorgnia2014
