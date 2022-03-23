@@ -14,10 +14,10 @@ OQ_MODELS = {
     "CY_14": gsim.chiou_youngs_2014.ChiouYoungs2014,
     "Z_06": gsim.zhao_2006.ZhaoEtAl2006Asc,
     "P_20": gsim.parker_2020.ParkerEtAl2020SInter,
-    "K_20": gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SInter,
-    "K_20_NZ": gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SInter,
-    "AG_20": gsim.kuehn_2020.KuehnEtAl2020SInter,
-    "AG_20_NZ": gsim.kuehn_2020.KuehnEtAl2020SInter,
+    "K_20": gsim.kuehn_2020.KuehnEtAl2020SInter,
+    "K_20_NZ": gsim.kuehn_2020.KuehnEtAl2020SInter,
+    "AG_20": gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SInter,
+    "AG_20_NZ": gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SInter,
 }
 
 SPT_STD_DEVS = [const.StdDev.TOTAL, const.StdDev.INTER_EVENT, const.StdDev.INTRA_EVENT]
@@ -48,12 +48,17 @@ def oq_mean_stddevs(
     im: imt.IMT
     stddev_types: Sequence[const.StdDev]
     """
-    mean, stddevs = model.get_mean_and_stddevs(ctx, ctx, ctx, im, stddev_types)
-    mean_stddev_dict = {f"{convert_im_label(im)}_mean": mean}
+    # contexts.get_mean_stds returns ndarray, size of 4
+    # mean, std_total, std_inter and std_intra
+    # std_devs order may vary
+    results = contexts.get_mean_stds(model, ctx, [im])
+
+    mean_stddev_dict = {f"{convert_im_label(im)}_mean": results[0][0]}
     for idx, std_dev in enumerate(stddev_types):
-        mean_stddev_dict[f"{convert_im_label(im)}_std_{std_dev.split()[0]}"] = stddevs[
-            idx
-        ]
+        # std_devs are index between 1 and 3 from results
+        mean_stddev_dict[f"{convert_im_label(im)}_std_{std_dev.split()[0]}"] = results[
+            idx + 1
+        ][0]
 
     return pd.DataFrame(mean_stddev_dict)
 
