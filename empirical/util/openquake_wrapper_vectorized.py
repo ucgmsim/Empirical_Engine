@@ -71,12 +71,17 @@ def oq_mean_stddevs(
     im: imt.IMT
     stddev_types: Sequence[const.StdDev]
     """
-    mean, stddevs = model.get_mean_and_stddevs(ctx, ctx, ctx, im, stddev_types)
-    mean_stddev_dict = {f"{convert_im_label(im)}_mean": mean}
+    # contexts.get_mean_stds returns ndarray, size of 4
+    # mean, std_total, std_inter and std_intra
+    # std_devs order may vary
+    results = contexts.get_mean_stds(model, ctx, [im])
+
+    mean_stddev_dict = {f"{convert_im_label(im)}_mean": results[0][0]}
     for idx, std_dev in enumerate(stddev_types):
-        mean_stddev_dict[f"{convert_im_label(im)}_std_{std_dev.split()[0]}"] = stddevs[
-            idx
-        ]
+        # std_devs are index between 1 and 3 from results
+        mean_stddev_dict[f"{convert_im_label(im)}_std_{std_dev.split()[0]}"] = results[
+            idx + 1
+        ][0]
 
     return pd.DataFrame(mean_stddev_dict)
 
