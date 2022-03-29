@@ -1,23 +1,46 @@
 """Wrapper for openquake vectorized models."""
 from typing import Sequence
+from enum import Enum
 
 import pandas as pd
-
 from openquake.hazardlib import const, imt, gsim, contexts
+
+from empirical.util.classdef import TectType, GMM
 
 
 OQ_MODELS = {
-    "Br_13": gsim.bradley_2013.Bradley2013,
-    "ASK_14": gsim.abrahamson_2014.AbrahamsonEtAl2014,
-    "CB_14": gsim.campbell_bozorgnia_2014.CampbellBozorgnia2014,
-    "BSSA_14": gsim.boore_2014.BooreEtAl2014,
-    "CY_14": gsim.chiou_youngs_2014.ChiouYoungs2014,
-    "Z_06": gsim.zhao_2006.ZhaoEtAl2006Asc,
-    "P_20": gsim.parker_2020.ParkerEtAl2020SInter,
-    "K_20": gsim.kuehn_2020.KuehnEtAl2020SInter,
-    "K_20_NZ": gsim.kuehn_2020.KuehnEtAl2020SInter,
-    "AG_20": gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SInter,
-    "AG_20_NZ": gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SInter,
+    GMM.Br_10: {TectType.ACTIVE_SHALLOW: gsim.bradley_2013.Bradley2013},
+    GMM.ASK_14: {TectType.ACTIVE_SHALLOW: gsim.abrahamson_2014.AbrahamsonEtAl2014},
+    GMM.CB_14: {
+        TectType.ACTIVE_SHALLOW: gsim.campbell_bozorgnia_2014.CampbellBozorgnia2014
+    },
+    GMM.BSSA_14: {TectType.ACTIVE_SHALLOW: gsim.boore_2014.BooreEtAl2014},
+    GMM.CY_14: {TectType.ACTIVE_SHALLOW: gsim.chiou_youngs_2014.ChiouYoungs2014},
+    GMM.ZA_06: {
+        TectType.ACTIVE_SHALLOW: gsim.zhao_2006.ZhaoEtAl2006Asc,
+        TectType.SUBDUCTION_SLAB: gsim.zhao_2006.ZhaoEtAl2006SSlab,
+        TectType.SUBDUCTION_INTERFACE: gsim.zhao_2006.ZhaoEtAl2006SInter,
+    },
+    GMM.P_20: {
+        TectType.SUBDUCTION_SLAB: gsim.parker_2020.ParkerEtAl2020SSlab,
+        TectType.SUBDUCTION_INTERFACE: gsim.parker_2020.ParkerEtAl2020SInter,
+    },
+    GMM.K_20: {
+        TectType.SUBDUCTION_SLAB: gsim.kuehn_2020.KuehnEtAl2020SSlab,
+        TectType.SUBDUCTION_INTERFACE: gsim.kuehn_2020.KuehnEtAl2020SInter,
+    },
+    GMM.K_20_NZ: {
+        TectType.SUBDUCTION_SLAB: gsim.kuehn_2020.KuehnEtAl2020SSlab,
+        TectType.SUBDUCTION_INTERFACE: gsim.kuehn_2020.KuehnEtAl2020SInter,
+    },
+    GMM.AG_20: {
+        TectType.SUBDUCTION_SLAB: gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SSlab,
+        TectType.SUBDUCTION_INTERFACE: gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SInter,
+    },
+    GMM.AG_20_NZ: {
+        TectType.SUBDUCTION_SLAB: gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SSlab,
+        TectType.SUBDUCTION_INTERFACE: gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SInter,
+    },
 }
 
 SPT_STD_DEVS = [const.StdDev.TOTAL, const.StdDev.INTER_EVENT, const.StdDev.INTRA_EVENT]
@@ -64,15 +87,19 @@ def oq_mean_stddevs(
 
 
 def oq_run(
-    model: str,
+    model: Enum,
+    tect_type: Enum,
     rupture_df: pd.DataFrame,
     im: str,
     period: Sequence[int] = None,
     **kwargs,
 ):
     """Run an openquake model with dataframe
-    model: string
+    model: Enum
         OQ model name
+    tect_type: Enum
+        One of the tectonic types from
+        ACTIVE_SHALLOW, SUBDUCTION_SLAB and SUBDUCTION_INTERFACE
     rupture_df: Rupture DF
         Columns for properties. E.g., vs30, z1pt0, rrup, rjb, mag, rake, dip....
         Rows be the separate site-fault pairs
@@ -86,10 +113,21 @@ def oq_run(
     kwargs: pass extra (model specific) parameters to models
     """
     model = (
-        OQ_MODELS[model](**kwargs)
-        if not model.endswith("_NZ")
-        else OQ_MODELS[model](region="NZL", **kwargs)
+        OQ_MODELS[model][tect_type](**kwargs)
+        if not model.name.endswith("_NZ")
+        else OQ_MODELS[model][tect_type](region="NZL", **kwargs)
     )
+
+    # Check the given tect_type with its model's tect type
+    trt = model.DEFINED_FOR_TECTONIC_REGION_TYPE
+    if trt == const.TRT.SUBDUCTION_INTERFACE:
+        assert tect_type == TectType.SUBDUCTION_INTERFACE
+    elif trt == const.TRT.SUBDUCTION_INTRASLAB:
+        assert tect_type == TectType.SUBDUCTION_SLAB
+    elif trt == const.TRT.ACTIVE_SHALLOW_CRUST:
+        assert tect_type == TectType.ACTIVE_SHALLOW
+    else:
+        raise ValueError("unknown tectonic region: " + trt)
 
     stddev_types = [
         std for std in SPT_STD_DEVS if std in model.DEFINED_FOR_STANDARD_DEVIATION_TYPES
@@ -147,7 +185,14 @@ def oq_run(
         # use sorted instead of max for full list
         max_period = (
             max([i.period for i in model.COEFFS.sa_coeffs.keys()])
-            if not isinstance(model, gsim.zhao_2006.ZhaoEtAl2006Asc)
+            if not isinstance(
+                model,
+                (
+                    gsim.zhao_2006.ZhaoEtAl2006Asc,
+                    gsim.zhao_2006.ZhaoEtAl2006SSlab,
+                    gsim.zhao_2006.ZhaoEtAl2006SInter,
+                ),
+            )
             else max([i.period for i in model.COEFFS_ASC.sa_coeffs.keys()])
         )
         single = False
