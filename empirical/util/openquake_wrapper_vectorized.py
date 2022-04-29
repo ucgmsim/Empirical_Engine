@@ -108,20 +108,20 @@ def interpolate_to_closest(
 
     # Create new DFs by columns from low_y and high_y
     mean_df = pd.DataFrame().assign(
-        low=low_y.loc[:, low_y.columns.str.endswith("mean")].iloc[:, 0],
-        high=high_y.loc[:, high_y.columns.str.endswith("mean")].iloc[:, 0],
+        low=np.exp(low_y.loc[:, low_y.columns.str.endswith("mean")].iloc[:, 0]),
+        high=np.exp(high_y.loc[:, high_y.columns.str.endswith("mean")].iloc[:, 0]),
     )
     sigma_total_df = pd.DataFrame().assign(
-        low=low_y.loc[:, low_y.columns.str.endswith("std_Total")].iloc[:, 0],
-        high=high_y.loc[:, high_y.columns.str.endswith("std_Total")].iloc[:, 0],
+        low=np.exp(low_y.loc[:, low_y.columns.str.endswith("std_Total")].iloc[:, 0]),
+        high=np.exp(high_y.loc[:, high_y.columns.str.endswith("std_Total")].iloc[:, 0]),
     )
     sigma_inter_df = pd.DataFrame().assign(
-        low=low_y.loc[:, low_y.columns.str.endswith("std_Inter")].iloc[:, 0],
-        high=high_y.loc[:, high_y.columns.str.endswith("std_Inter")].iloc[:, 0],
+        low=np.exp(low_y.loc[:, low_y.columns.str.endswith("std_Inter")].iloc[:, 0]),
+        high=np.exp(high_y.loc[:, high_y.columns.str.endswith("std_Inter")].iloc[:, 0]),
     )
     sigma_intra_df = pd.DataFrame().assign(
-        low=low_y.loc[:, low_y.columns.str.endswith("std_Intra")].iloc[:, 0],
-        high=high_y.loc[:, high_y.columns.str.endswith("std_Intra")].iloc[:, 0],
+        low=np.exp(low_y.loc[:, low_y.columns.str.endswith("std_Intra")].iloc[:, 0]),
+        high=np.exp(high_y.loc[:, high_y.columns.str.endswith("std_Intra")].iloc[:, 0]),
     )
 
     # Create interpolation functions
@@ -132,10 +132,10 @@ def interpolate_to_closest(
 
     return pd.DataFrame(
         {
-            f"pSA_{period}_mean": mean(period),
-            f"pSA_{period}_std_Total": sigma_total(period),
-            f"pSA_{period}_std_Inter": sigma_inter(period),
-            f"pSA_{period}_std_Intra": sigma_intra(period),
+            f"pSA_{period}_mean": np.log(mean(period)),
+            f"pSA_{period}_std_Total": np.log(sigma_total(period)),
+            f"pSA_{period}_std_Inter": np.log(sigma_inter(period)),
+            f"pSA_{period}_std_Intra": np.log(sigma_intra(period)),
         }
     )
 
@@ -278,10 +278,9 @@ def oq_run(
 
             # extrapolate pSA value up based on maximum available period
             if period > max_period:
-                result.update(
-                    pd.Series(
-                        result.get("mean") * (max_period / period) ** 2, name="mean"
-                    )
+                result.loc[:, result.columns.str.endswith("mean")] = np.log(
+                    np.exp(result.loc[:, result.columns.str.endswith("mean")])
+                    * (max_period / period) ** 2
                 )
             results.append(result)
         if single:
