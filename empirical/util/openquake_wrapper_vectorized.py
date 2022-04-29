@@ -251,9 +251,7 @@ def oq_run(
             ]
         )
         max_period = max(avail_periods)
-        single = False
         if not hasattr(periods, "__len__"):
-            single = True
             periods = [periods]
         results = []
         for period in periods:
@@ -282,8 +280,7 @@ def oq_run(
                     * (max_period / period) ** 2
                 )
             results.append(result)
-        if single:
-            return results[0]
+
         return pd.concat(results, axis=1)
     else:
         imc = getattr(imt, im)
