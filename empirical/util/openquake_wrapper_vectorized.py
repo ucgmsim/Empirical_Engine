@@ -223,7 +223,10 @@ def oq_run(
                 # This term needs to be repeated for the number of rows in the df
                 ("sids", [1] * rupture_df.shape[0]),
                 *(
-                    (column, rupture_df.loc[:, column].values,)
+                    (
+                        column,
+                        rupture_df.loc[:, column].values,
+                    )
                     for column in rupture_df.columns.values
                 ),
             ]
