@@ -91,8 +91,7 @@ def oq_mean_stddevs(
 def interpolate_to_closest(
     period: Union[float, int], x: np.ndarray, low_y: pd.DataFrame, high_y: pd.DataFrame
 ):
-    """
-    Use interpolation to find the value of new points at the given period.
+    """Use interpolation to find the value of new points at the given period.
 
     period: Union[float, int]
         target period for interpolation
