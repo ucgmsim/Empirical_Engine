@@ -1,8 +1,10 @@
 """Wrapper for openquake vectorized models."""
-from typing import Sequence
+from typing import Sequence, Union
 from enum import Enum
 
+import numpy as np
 import pandas as pd
+from scipy import interpolate
 from openquake.hazardlib import const, imt, gsim, contexts
 
 from empirical.util.classdef import TectType, GMM
@@ -86,12 +88,64 @@ def oq_mean_stddevs(
     return pd.DataFrame(mean_stddev_dict)
 
 
+def interpolate_to_closest(
+    period: Union[float, int], x: np.ndarray, low_y: pd.DataFrame, high_y: pd.DataFrame
+):
+    """
+    Use interpolation to find the value of new points at the given period.
+
+    period: Union[float, int]
+        target period for interpolation
+    x: np.ndarray
+        x coordinates range which looks like
+        [0.0 (PGA), model's minimum period]
+    low_y: pd.DataFrame
+        DataFrame that contains GMM computational results at period = 0.0
+    high_y: pd.DataFrame
+        DataFrame that contains GMM computational results
+        at period = model's minimum period
+    """
+
+    # Create new DFs by columns from low_y and high_y
+    mean_df = pd.DataFrame().assign(
+        low=low_y.loc[:, low_y.columns.str.endswith("mean")].iloc[:, 0],
+        high=high_y.loc[:, high_y.columns.str.endswith("mean")].iloc[:, 0],
+    )
+    sigma_total_df = pd.DataFrame().assign(
+        low=low_y.loc[:, low_y.columns.str.endswith("std_Total")].iloc[:, 0],
+        high=high_y.loc[:, high_y.columns.str.endswith("std_Total")].iloc[:, 0],
+    )
+    sigma_inter_df = pd.DataFrame().assign(
+        low=low_y.loc[:, low_y.columns.str.endswith("std_Inter")].iloc[:, 0],
+        high=high_y.loc[:, high_y.columns.str.endswith("std_Inter")].iloc[:, 0],
+    )
+    sigma_intra_df = pd.DataFrame().assign(
+        low=low_y.loc[:, low_y.columns.str.endswith("std_Intra")].iloc[:, 0],
+        high=high_y.loc[:, high_y.columns.str.endswith("std_Intra")].iloc[:, 0],
+    )
+
+    # Create interpolation functions
+    mean = interpolate.interp1d(x, mean_df.to_numpy())
+    sigma_total = interpolate.interp1d(x, sigma_total_df.to_numpy())
+    sigma_inter = interpolate.interp1d(x, sigma_inter_df.to_numpy())
+    sigma_intra = interpolate.interp1d(x, sigma_intra_df.to_numpy())
+
+    return pd.DataFrame(
+        {
+            f"pSA_{period}_mean": mean(period),
+            f"pSA_{period}_std_Total": sigma_total(period),
+            f"pSA_{period}_std_Inter": sigma_inter(period),
+            f"pSA_{period}_std_Intra": sigma_intra(period),
+        }
+    )
+
+
 def oq_run(
     model: Enum,
     tect_type: Enum,
     rupture_df: pd.DataFrame,
     im: str,
-    period: Sequence[int] = None,
+    periods: Sequence[int] = None,
     **kwargs,
 ):
     """Run an openquake model with dataframe
@@ -107,7 +161,7 @@ def oq_run(
         only the faults can be different.
     im: string
         intensity measure
-    period: Sequence[int]
+    periods: Sequence[int]
         for spectral acceleration, openquake tables automatically
         interpolate values between specified values, fails if outside range
     kwargs: pass extra (model specific) parameters to models
@@ -170,43 +224,64 @@ def oq_run(
                 # This term needs to be repeated for the number of rows in the df
                 ("sids", [1] * rupture_df.shape[0]),
                 *(
-                    (
-                        column,
-                        rupture_df.loc[:, column].values,
-                    )
+                    (column, rupture_df.loc[:, column].values,)
                     for column in rupture_df.columns.values
                 ),
             ]
         )
     )
 
-    if period is not None:
+    if periods is not None:
         assert imt.SA in model.DEFINED_FOR_INTENSITY_MEASURE_TYPES
         # use sorted instead of max for full list
-        max_period = (
-            max([i.period for i in model.COEFFS.sa_coeffs.keys()])
-            if not isinstance(
-                model,
-                (
-                    gsim.zhao_2006.ZhaoEtAl2006Asc,
-                    gsim.zhao_2006.ZhaoEtAl2006SSlab,
-                    gsim.zhao_2006.ZhaoEtAl2006SInter,
-                ),
-            )
-            else max([i.period for i in model.COEFFS_ASC.sa_coeffs.keys()])
+        avail_periods = np.asarray(
+            [
+                im.period
+                for im in (
+                    model.COEFFS.sa_coeffs.keys()
+                    if not isinstance(
+                        model,
+                        (
+                            gsim.zhao_2006.ZhaoEtAl2006Asc,
+                            gsim.zhao_2006.ZhaoEtAl2006SSlab,
+                            gsim.zhao_2006.ZhaoEtAl2006SInter,
+                        ),
+                    )
+                    else model.COEFFS_ASC.sa_coeffs.keys()
+                )
+            ]
         )
+        max_period = max(avail_periods)
         single = False
-        if not hasattr(period, "__len__"):
+        if not hasattr(periods, "__len__"):
             single = True
-            period = [period]
+            periods = [periods]
         results = []
-        for p in period:
-            im = imt.SA(period=min(p, max_period))
-            result = oq_mean_stddevs(model, rupture_ctx, im, stddev_types)
-            # interpolate pSA value up based on maximum available period
-            if p > max_period:
+        for period in periods:
+            im = imt.SA(period=min(period, max_period))
+            try:
+                result = oq_mean_stddevs(model, rupture_ctx, im, stddev_types)
+            except:
+                # Period is smaller than model's supported min_period E.g., ZA_06
+                # Interpolate between PGA(0.0) and model's min_period
+                low_result = oq_mean_stddevs(
+                    model, rupture_ctx, imt.PGA(), stddev_types
+                )
+                high_period = avail_periods[period <= avail_periods][0]
+                high_result = oq_mean_stddevs(
+                    model, rupture_ctx, imt.SA(period=high_period), stddev_types
+                )
+
+                result = interpolate_to_closest(
+                    period, np.array([0.0, high_period]), low_result, high_result
+                )
+
+            # extrapolate pSA value up based on maximum available period
+            if period > max_period:
                 result.update(
-                    pd.Series(result.get("mean") * (max_period / p) ** 2, name="mean")
+                    pd.Series(
+                        result.get("mean") * (max_period / period) ** 2, name="mean"
+                    )
                 )
             results.append(result)
         if single:
