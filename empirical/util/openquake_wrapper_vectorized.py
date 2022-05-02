@@ -89,7 +89,7 @@ def oq_mean_stddevs(
     return pd.DataFrame(mean_stddev_dict)
 
 
-def interpolate_to_closest(
+def interpolate_periods(
     period: Union[float, int], x: np.ndarray, low_y: pd.DataFrame, high_y: pd.DataFrame
 ):
     """Use interpolation to find the value of new points at the given period.
@@ -124,18 +124,20 @@ def interpolate_to_closest(
         high=high_y.loc[:, high_y.columns.str.endswith("std_Intra")].iloc[:, 0],
     )
 
-    # Create interpolation functions
-    mean = interpolate.interp1d(x, mean_df.to_numpy())
-    sigma_total = interpolate.interp1d(x, sigma_total_df.to_numpy())
-    sigma_inter = interpolate.interp1d(x, sigma_inter_df.to_numpy())
-    sigma_intra = interpolate.interp1d(x, sigma_intra_df.to_numpy())
-
     return pd.DataFrame(
         {
-            f"pSA_{period}_mean": np.log(mean(period)),
-            f"pSA_{period}_std_Total": sigma_total(period),
-            f"pSA_{period}_std_Inter": sigma_inter(period),
-            f"pSA_{period}_std_Intra": sigma_intra(period),
+            f"pSA_{period}_mean": np.log(
+                interpolate.interp1d(x, mean_df.to_numpy())(period)
+            ),
+            f"pSA_{period}_std_Total": interpolate.interp1d(
+                x, sigma_total_df.to_numpy()
+            )(period),
+            f"pSA_{period}_std_Inter": interpolate.interp1d(
+                x, sigma_inter_df.to_numpy()
+            )(period),
+            f"pSA_{period}_std_Intra": interpolate.interp1d(
+                x, sigma_intra_df.to_numpy()
+            )(period),
         }
     )
 
@@ -145,7 +147,7 @@ def oq_run(
     tect_type: Enum,
     rupture_df: pd.DataFrame,
     im: str,
-    periods: Sequence[int] = None,
+    periods: Sequence[Union[int, float]] = None,
     **kwargs,
 ):
     """Run an openquake model with dataframe
@@ -161,7 +163,7 @@ def oq_run(
         only the faults can be different.
     im: string
         intensity measure
-    periods: Sequence[int]
+    periods: Sequence[Union[int, float]]
         for spectral acceleration, openquake tables automatically
         interpolate values between specified values, fails if outside range
     kwargs: pass extra (model specific) parameters to models
@@ -262,20 +264,31 @@ def oq_run(
             im = imt.SA(period=min(period, max_period))
             try:
                 result = oq_mean_stddevs(model, rupture_ctx, im, stddev_types)
-            except KeyError:
-                # Period is smaller than model's supported min_period E.g., ZA_06
-                # Interpolate between PGA(0.0) and model's min_period
-                low_result = oq_mean_stddevs(
-                    model, rupture_ctx, imt.PGA(), stddev_types
-                )
-                high_period = avail_periods[period <= avail_periods][0]
-                high_result = oq_mean_stddevs(
-                    model, rupture_ctx, imt.SA(period=high_period), stddev_types
-                )
+            except KeyError as ke:
+                cause = ke.args[0]
+                # To make sure the KeyError is about missing pSA's period
+                if (
+                    isinstance(cause, imt.IMT)
+                    and str(cause).startswith("SA")
+                    and cause.period > 0.0
+                ):
+                    # Period is smaller than model's supported min_period E.g., ZA_06
+                    # Interpolate between PGA(0.0) and model's min_period
+                    low_result = oq_mean_stddevs(
+                        model, rupture_ctx, imt.PGA(), stddev_types
+                    )
+                    high_period = avail_periods[period <= avail_periods][0]
+                    high_result = oq_mean_stddevs(
+                        model, rupture_ctx, imt.SA(period=high_period), stddev_types
+                    )
 
-                result = interpolate_to_closest(
-                    period, np.array([0.0, high_period]), low_result, high_result
-                )
+                    result = interpolate_periods(
+                        period, np.array([0.0, high_period]), low_result, high_result
+                    )
+                else:
+                    # KeyError that we cannot handle
+                    logging.exception(ke)
+                    raise
             except Exception as e:
                 # Any other exceptions that we cannot handle
                 logging.exception(e)
