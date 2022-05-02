@@ -1,4 +1,5 @@
 """Wrapper for openquake vectorized models."""
+import logging
 from typing import Sequence, Union
 from enum import Enum
 
@@ -111,16 +112,16 @@ def interpolate_to_closest(
         high=np.exp(high_y.loc[:, high_y.columns.str.endswith("mean")].iloc[:, 0]),
     )
     sigma_total_df = pd.DataFrame().assign(
-        low=np.exp(low_y.loc[:, low_y.columns.str.endswith("std_Total")].iloc[:, 0]),
-        high=np.exp(high_y.loc[:, high_y.columns.str.endswith("std_Total")].iloc[:, 0]),
+        low=low_y.loc[:, low_y.columns.str.endswith("std_Total")].iloc[:, 0],
+        high=high_y.loc[:, high_y.columns.str.endswith("std_Total")].iloc[:, 0],
     )
     sigma_inter_df = pd.DataFrame().assign(
-        low=np.exp(low_y.loc[:, low_y.columns.str.endswith("std_Inter")].iloc[:, 0]),
-        high=np.exp(high_y.loc[:, high_y.columns.str.endswith("std_Inter")].iloc[:, 0]),
+        low=low_y.loc[:, low_y.columns.str.endswith("std_Inter")].iloc[:, 0],
+        high=high_y.loc[:, high_y.columns.str.endswith("std_Inter")].iloc[:, 0],
     )
     sigma_intra_df = pd.DataFrame().assign(
-        low=np.exp(low_y.loc[:, low_y.columns.str.endswith("std_Intra")].iloc[:, 0]),
-        high=np.exp(high_y.loc[:, high_y.columns.str.endswith("std_Intra")].iloc[:, 0]),
+        low=low_y.loc[:, low_y.columns.str.endswith("std_Intra")].iloc[:, 0],
+        high=high_y.loc[:, high_y.columns.str.endswith("std_Intra")].iloc[:, 0],
     )
 
     # Create interpolation functions
@@ -261,7 +262,7 @@ def oq_run(
             im = imt.SA(period=min(period, max_period))
             try:
                 result = oq_mean_stddevs(model, rupture_ctx, im, stddev_types)
-            except:
+            except KeyError:
                 # Period is smaller than model's supported min_period E.g., ZA_06
                 # Interpolate between PGA(0.0) and model's min_period
                 low_result = oq_mean_stddevs(
@@ -275,12 +276,20 @@ def oq_run(
                 result = interpolate_to_closest(
                     period, np.array([0.0, high_period]), low_result, high_result
                 )
+            except Exception as e:
+                # Any other exceptions that we cannot handle
+                logging.exception(e)
+                raise
 
             # extrapolate pSA value up based on maximum available period
             if period > max_period:
-                result.loc[:, result.columns.str.endswith("mean")] = np.log(
-                    np.exp(result.loc[:, result.columns.str.endswith("mean")])
-                    * (max_period / period) ** 2
+                result.loc[:, result.columns.str.endswith("mean")] += 2 * np.log(
+                    max_period / period
+                )
+                # Updating the period from max_period to the given period
+                # E.g with ZA_06, replace 5.0 to period > 5.0
+                result.columns = result.columns.str.replace(
+                    str(max_period), str(period), regex=False
                 )
             results.append(result)
 
