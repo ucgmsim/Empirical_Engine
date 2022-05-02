@@ -133,9 +133,9 @@ def interpolate_to_closest(
     return pd.DataFrame(
         {
             f"pSA_{period}_mean": np.log(mean(period)),
-            f"pSA_{period}_std_Total": np.log(sigma_total(period)),
-            f"pSA_{period}_std_Inter": np.log(sigma_inter(period)),
-            f"pSA_{period}_std_Intra": np.log(sigma_intra(period)),
+            f"pSA_{period}_std_Total": sigma_total(period),
+            f"pSA_{period}_std_Inter": sigma_inter(period),
+            f"pSA_{period}_std_Intra": sigma_intra(period),
         }
     )
 
