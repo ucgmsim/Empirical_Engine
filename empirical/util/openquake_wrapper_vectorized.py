@@ -89,55 +89,67 @@ def oq_mean_stddevs(
     return pd.DataFrame(mean_stddev_dict)
 
 
-def interpolate_periods(
-    period: Union[float, int], x: np.ndarray, low_y: pd.DataFrame, high_y: pd.DataFrame
+def interpolate_with_pga(
+    period: Union[float, int],
+    high_period: float,
+    low_y: pd.DataFrame,
+    high_y: pd.DataFrame,
 ):
-    """Use interpolation to find the value of new points at the given period.
+    """Use interpolation to find the value of new points at the given period
+    which is between 0.0(PGA) and the model's minimum period.
 
     period: Union[float, int]
         target period for interpolation
-    x: np.ndarray
-        x coordinates range which looks like
-        [0.0 (PGA), model's minimum period]
+    high_period: float
+        also known as a minimum period from the given model
+        which to be used in x coordinates range which looks like
+        [0.0 (PGA), high_period]
     low_y: pd.DataFrame
         DataFrame that contains GMM computational results at period = 0.0
     high_y: pd.DataFrame
         DataFrame that contains GMM computational results
         at period = model's minimum period
     """
-
-    # Create new DFs by columns from low_y and high_y
-    mean_df = pd.DataFrame().assign(
-        low=np.exp(low_y.loc[:, low_y.columns.str.endswith("mean")].iloc[:, 0]),
-        high=np.exp(high_y.loc[:, high_y.columns.str.endswith("mean")].iloc[:, 0]),
+    x = [0.0, high_period]
+    # each subarray represents values at period=0.0 and period=high_period
+    # E.g., two site/rupture data would look something like
+    # mean_y = np.array([[a,b], [c,d]])
+    # where a,c are at period=0.0 and b,d are at period=high_period
+    mean_y = np.concatenate(
+        (
+            np.exp(low_y.loc[:, low_y.columns.str.endswith("mean")].to_numpy()),
+            np.exp(high_y.loc[:, high_y.columns.str.endswith("mean")].to_numpy()),
+        ),
+        axis=1,
     )
-    sigma_total_df = pd.DataFrame().assign(
-        low=low_y.loc[:, low_y.columns.str.endswith("std_Total")].iloc[:, 0],
-        high=high_y.loc[:, high_y.columns.str.endswith("std_Total")].iloc[:, 0],
+    sigma_total_y = np.concatenate(
+        (
+            low_y.loc[:, low_y.columns.str.endswith("std_Total")].to_numpy(),
+            high_y.loc[:, high_y.columns.str.endswith("std_Total")].to_numpy(),
+        ),
+        axis=1,
     )
-    sigma_inter_df = pd.DataFrame().assign(
-        low=low_y.loc[:, low_y.columns.str.endswith("std_Inter")].iloc[:, 0],
-        high=high_y.loc[:, high_y.columns.str.endswith("std_Inter")].iloc[:, 0],
+    sigma_inter_y = np.concatenate(
+        (
+            low_y.loc[:, low_y.columns.str.endswith("std_Inter")].to_numpy(),
+            high_y.loc[:, high_y.columns.str.endswith("std_Inter")].to_numpy(),
+        ),
+        axis=1,
     )
-    sigma_intra_df = pd.DataFrame().assign(
-        low=low_y.loc[:, low_y.columns.str.endswith("std_Intra")].iloc[:, 0],
-        high=high_y.loc[:, high_y.columns.str.endswith("std_Intra")].iloc[:, 0],
+    sigma_intra_y = np.concatenate(
+        (
+            low_y.loc[:, low_y.columns.str.endswith("std_Intra")].to_numpy(),
+            high_y.loc[:, high_y.columns.str.endswith("std_Intra")].to_numpy(),
+        ),
+        axis=1,
     )
 
     return pd.DataFrame(
         {
-            f"pSA_{period}_mean": np.log(
-                interpolate.interp1d(x, mean_df.to_numpy())(period)
-            ),
-            f"pSA_{period}_std_Total": interpolate.interp1d(
-                x, sigma_total_df.to_numpy()
-            )(period),
-            f"pSA_{period}_std_Inter": interpolate.interp1d(
-                x, sigma_inter_df.to_numpy()
-            )(period),
-            f"pSA_{period}_std_Intra": interpolate.interp1d(
-                x, sigma_intra_df.to_numpy()
-            )(period),
+            f"pSA_{period}_mean": np.log(interpolate.interp1d(x, mean_y)(period)),
+            f"pSA_{period}_std_Total": interpolate.interp1d(x, sigma_total_y)(period),
+            f"pSA_{period}_std_Inter": interpolate.interp1d(x, sigma_inter_y)(period),
+            f"pSA_{period}_std_Intra": interpolate.interp1d(x, sigma_intra_y)(period),
         }
     )
 
@@ -282,8 +294,8 @@ def oq_run(
                         model, rupture_ctx, imt.SA(period=high_period), stddev_types
                     )
 
-                    result = interpolate_periods(
-                        period, np.array([0.0, high_period]), low_result, high_result
+                    result = interpolate_with_pga(
+                        period, high_period, low_result, high_result
                     )
                 else:
                     # KeyError that we cannot handle
