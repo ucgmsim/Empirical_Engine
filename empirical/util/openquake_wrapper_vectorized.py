@@ -1,8 +1,11 @@
 """Wrapper for openquake vectorized models."""
-from typing import Sequence
+import logging
+from typing import Sequence, Union
 from enum import Enum
 
+import numpy as np
 import pandas as pd
+from scipy import interpolate
 from openquake.hazardlib import const, imt, gsim, contexts
 
 from empirical.util.classdef import TectType, GMM
@@ -86,12 +89,77 @@ def oq_mean_stddevs(
     return pd.DataFrame(mean_stddev_dict)
 
 
+def interpolate_with_pga(
+    period: Union[float, int],
+    high_period: float,
+    low_y: pd.DataFrame,
+    high_y: pd.DataFrame,
+):
+    """Use interpolation to find the value of new points at the given period
+    which is between 0.0(PGA) and the model's minimum period.
+
+    period: Union[float, int]
+        target period for interpolation
+    high_period: float
+        also known as a minimum period from the given model
+        which to be used in x coordinates range which looks like
+        [0.0 (PGA), high_period]
+    low_y: pd.DataFrame
+        DataFrame that contains GMM computational results at period = 0.0
+    high_y: pd.DataFrame
+        DataFrame that contains GMM computational results
+        at period = model's minimum period
+    """
+    x = [0.0, high_period]
+    # each subarray represents values at period=0.0 and period=high_period
+    # E.g., two site/rupture data would look something like
+    # mean_y = np.array([[a,b], [c,d]])
+    # where a,c are at period=0.0 and b,d are at period=high_period
+    mean_y = np.concatenate(
+        (
+            np.exp(low_y.loc[:, low_y.columns.str.endswith("mean")].to_numpy()),
+            np.exp(high_y.loc[:, high_y.columns.str.endswith("mean")].to_numpy()),
+        ),
+        axis=1,
+    )
+    sigma_total_y = np.concatenate(
+        (
+            low_y.loc[:, low_y.columns.str.endswith("std_Total")].to_numpy(),
+            high_y.loc[:, high_y.columns.str.endswith("std_Total")].to_numpy(),
+        ),
+        axis=1,
+    )
+    sigma_inter_y = np.concatenate(
+        (
+            low_y.loc[:, low_y.columns.str.endswith("std_Inter")].to_numpy(),
+            high_y.loc[:, high_y.columns.str.endswith("std_Inter")].to_numpy(),
+        ),
+        axis=1,
+    )
+    sigma_intra_y = np.concatenate(
+        (
+            low_y.loc[:, low_y.columns.str.endswith("std_Intra")].to_numpy(),
+            high_y.loc[:, high_y.columns.str.endswith("std_Intra")].to_numpy(),
+        ),
+        axis=1,
+    )
+
+    return pd.DataFrame(
+        {
+            f"pSA_{period}_mean": np.log(interpolate.interp1d(x, mean_y)(period)),
+            f"pSA_{period}_std_Total": interpolate.interp1d(x, sigma_total_y)(period),
+            f"pSA_{period}_std_Inter": interpolate.interp1d(x, sigma_inter_y)(period),
+            f"pSA_{period}_std_Intra": interpolate.interp1d(x, sigma_intra_y)(period),
+        }
+    )
+
+
 def oq_run(
     model: Enum,
     tect_type: Enum,
     rupture_df: pd.DataFrame,
     im: str,
-    period: Sequence[int] = None,
+    periods: Sequence[Union[int, float]] = None,
     **kwargs,
 ):
     """Run an openquake model with dataframe
@@ -107,7 +175,7 @@ def oq_run(
         only the faults can be different.
     im: string
         intensity measure
-    period: Sequence[int]
+    periods: Sequence[Union[int, float]]
         for spectral acceleration, openquake tables automatically
         interpolate values between specified values, fails if outside range
     kwargs: pass extra (model specific) parameters to models
@@ -180,37 +248,76 @@ def oq_run(
         )
     )
 
-    if period is not None:
+    if periods is not None:
         assert imt.SA in model.DEFINED_FOR_INTENSITY_MEASURE_TYPES
         # use sorted instead of max for full list
-        max_period = (
-            max([i.period for i in model.COEFFS.sa_coeffs.keys()])
-            if not isinstance(
-                model,
-                (
-                    gsim.zhao_2006.ZhaoEtAl2006Asc,
-                    gsim.zhao_2006.ZhaoEtAl2006SSlab,
-                    gsim.zhao_2006.ZhaoEtAl2006SInter,
-                ),
-            )
-            else max([i.period for i in model.COEFFS_ASC.sa_coeffs.keys()])
+        avail_periods = np.asarray(
+            [
+                im.period
+                for im in (
+                    model.COEFFS.sa_coeffs.keys()
+                    if not isinstance(
+                        model,
+                        (
+                            gsim.zhao_2006.ZhaoEtAl2006Asc,
+                            gsim.zhao_2006.ZhaoEtAl2006SSlab,
+                            gsim.zhao_2006.ZhaoEtAl2006SInter,
+                        ),
+                    )
+                    else model.COEFFS_ASC.sa_coeffs.keys()
+                )
+            ]
         )
-        single = False
-        if not hasattr(period, "__len__"):
-            single = True
-            period = [period]
+        max_period = max(avail_periods)
+        if not hasattr(periods, "__len__"):
+            periods = [periods]
         results = []
-        for p in period:
-            im = imt.SA(period=min(p, max_period))
-            result = oq_mean_stddevs(model, rupture_ctx, im, stddev_types)
-            # interpolate pSA value up based on maximum available period
-            if p > max_period:
-                result.update(
-                    pd.Series(result.get("mean") * (max_period / p) ** 2, name="mean")
+        for period in periods:
+            im = imt.SA(period=min(period, max_period))
+            try:
+                result = oq_mean_stddevs(model, rupture_ctx, im, stddev_types)
+            except KeyError as ke:
+                cause = ke.args[0]
+                # To make sure the KeyError is about missing pSA's period
+                if (
+                    isinstance(cause, imt.IMT)
+                    and str(cause).startswith("SA")
+                    and cause.period > 0.0
+                ):
+                    # Period is smaller than model's supported min_period E.g., ZA_06
+                    # Interpolate between PGA(0.0) and model's min_period
+                    low_result = oq_mean_stddevs(
+                        model, rupture_ctx, imt.PGA(), stddev_types
+                    )
+                    high_period = avail_periods[period <= avail_periods][0]
+                    high_result = oq_mean_stddevs(
+                        model, rupture_ctx, imt.SA(period=high_period), stddev_types
+                    )
+
+                    result = interpolate_with_pga(
+                        period, high_period, low_result, high_result
+                    )
+                else:
+                    # KeyError that we cannot handle
+                    logging.exception(ke)
+                    raise
+            except Exception as e:
+                # Any other exceptions that we cannot handle
+                logging.exception(e)
+                raise
+
+            # extrapolate pSA value up based on maximum available period
+            if period > max_period:
+                result.loc[:, result.columns.str.endswith("mean")] += 2 * np.log(
+                    max_period / period
+                )
+                # Updating the period from max_period to the given period
+                # E.g with ZA_06, replace 5.0 to period > 5.0
+                result.columns = result.columns.str.replace(
+                    str(max_period), str(period), regex=False
                 )
             results.append(result)
-        if single:
-            return results[0]
+
         return pd.concat(results, axis=1)
     else:
         imc = getattr(imt, im)
