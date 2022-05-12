@@ -1,5 +1,5 @@
 import numpy as np
-# import numba
+#import numba
 from scipy.constants import g
 
 from empirical.util.classdef import (
