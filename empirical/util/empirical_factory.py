@@ -253,13 +253,13 @@ def compute_gmm(fault, site, gmm, im, period=None, gmm_param_config=None, **kwar
 
 
 def determine_siteclass(vs30):
-    if vs30 < 200:
+    if vs30 <= 200:
         return SiteClass.SOFTSOIL
-    elif vs30 < 300:
+    elif vs30 <= 300:
         return SiteClass.MEDIUMSOIL
-    elif vs30 < 600:
+    elif vs30 <= 600:
         return SiteClass.HARDSOIL
-    elif vs30 < 1100:
+    elif vs30 <= 1100:
         return SiteClass.ROCK
     else:
         return SiteClass.HARDROCK
