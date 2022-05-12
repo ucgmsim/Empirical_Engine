@@ -1,5 +1,6 @@
 import numpy as np
-#import numba
+# import numba
+from scipy.constants import g
 
 from empirical.util.classdef import (
     TectType,
@@ -93,14 +94,12 @@ def Zhaoetal_2006_Sa(site, fault, im, periods=None):
             # interpolate between periods if necessary
             closest_index = np.argmin(np.abs(period_list - T))
             closest_period = period_list[closest_index]
-
             if not np.isclose(closest_period, T):
                 T_low = period_list[T >= period_list][-1]
                 T_hi = period_list[T <= period_list][0]
 
                 zhao_low = calculate_zhao(site, fault, T_low)
                 zhao_high = calculate_zhao(site, fault, T_hi)
-
                 result = interpolate_to_closest(T, T_hi, T_low, zhao_high, zhao_low)
 
             else:
@@ -180,7 +179,7 @@ def ZA06(i, m, h, r, fault_s, fault_ssl, p_fa, q_fa, w_fa, site_c, tau, mc):
     m2_corr_fact = p_fa[i] * (m - mc) + (q_fa[i] * (m - mc) ** 2) + w_fa[i]
     log_sa += m2_corr_fact
     # convert to median in g
-    sa = np.exp(log_sa) / 981
+    sa = np.exp(log_sa) * 1e-2 / g
     sigma_sa = determine_stdev(i, tau)
     return sa, sigma_sa
 
