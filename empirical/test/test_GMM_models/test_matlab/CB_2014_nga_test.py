@@ -18,8 +18,7 @@ vs30s = [678, 485, 2504, 145]
 z25 = [None, 32]
 zs = np.array([[None, 17, 17, 18], [18, 20, 21, 22], [None, 5, 25, 35]]).T
 
-answers = np.fromfile(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'cb2014.f32'), dtype=np.float32)
-
+answers = np.fromfile(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'cb2014.f64'), dtype=np.float64)
 site = Site()
 fault = Fault()
 
