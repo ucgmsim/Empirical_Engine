@@ -155,7 +155,7 @@ def interpolate_with_pga(
 
 
 def oq_run(
-    model: Enum,
+    model_enum: Enum,
     tect_type: Enum,
     rupture_df: pd.DataFrame,
     im: str,
@@ -163,7 +163,7 @@ def oq_run(
     **kwargs,
 ):
     """Run an openquake model with dataframe
-    model: Enum
+    model_enum: Enum
         OQ model name
     tect_type: Enum
         One of the tectonic types from
@@ -181,9 +181,9 @@ def oq_run(
     kwargs: pass extra (model specific) parameters to models
     """
     model = (
-        OQ_MODELS[model][tect_type](**kwargs)
-        if not model.name.endswith("_NZ")
-        else OQ_MODELS[model][tect_type](region="NZL", **kwargs)
+        OQ_MODELS[model_enum][tect_type](**kwargs)
+        if not model_enum.name.endswith("_NZ")
+        else OQ_MODELS[model_enum][tect_type](region="NZL", **kwargs)
     )
 
     # Check the given tect_type with its model's tect type
@@ -203,6 +203,13 @@ def oq_run(
 
     # Make a copy in case the original rupture_df used with other functions
     rupture_df = rupture_df.copy()
+
+    # Model specified estimation that cannot be done within OQ as paper does not specify
+    if model_enum.name == "ASK_14" and "width" not in rupture_df:
+        rupture_df["width"] = np.minimum(
+            18 / np.sin(np.radians(rupture_df["dip"])),
+            10 ** (-1.75 + 0.45 * rupture_df["mag"]),
+        )
 
     # Check if df contains what model requires
     rupture_ctx_properties = set(rupture_df.columns.values)
