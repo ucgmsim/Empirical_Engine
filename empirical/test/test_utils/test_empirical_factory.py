@@ -7,10 +7,11 @@ from empirical.util.classdef import SiteClass
 VS30S = [100, 200, 300, 600, 1100]
 EXPECTED_RESULTS = [
     (100, SiteClass.SOFTSOIL),
-    (200, SiteClass.MEDIUMSOIL),
-    (300, SiteClass.HARDSOIL),
-    (600, SiteClass.ROCK),
-    (1100, SiteClass.HARDROCK),
+    (200, SiteClass.SOFTSOIL),
+    (300, SiteClass.MEDIUMSOIL),
+    (600, SiteClass.HARDSOIL),
+    (1100, SiteClass.ROCK),
+    (1200, SiteClass.HARDROCK),
 ]
 
 
