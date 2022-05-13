@@ -69,6 +69,8 @@ Wc = np.array([0.0000, 0.0000, 0.0000, 0.000, 0.0000, 0.000, 0.0000, 0.0000, 0.0
 # fmt: on
 
 zeros = np.zeros(21)
+# converting between centimetre/square second and g-unit.
+g_unit_converter = 1e-2 / g
 
 
 def Zhaoetal_2006_Sa(site, fault, im, periods=None):
@@ -180,7 +182,7 @@ def ZA06(i, m, h, r, fault_s, fault_ssl, p_fa, q_fa, w_fa, site_c, tau, mc):
     m2_corr_fact = p_fa[i] * (m - mc) + (q_fa[i] * (m - mc) ** 2) + w_fa[i]
     log_sa += m2_corr_fact
     # convert to median in g
-    sa = np.exp(log_sa) * 1e-2 / g
+    sa = np.exp(log_sa) * g_unit_converter
     sigma_sa = determine_stdev(i, tau)
     return sa, sigma_sa
 
