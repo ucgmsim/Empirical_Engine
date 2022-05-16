@@ -152,11 +152,10 @@ def CB_2014_nga(siteprop, faultprop, im=None, period=None, region=0, f_hw=None):
 
         # depth to bottom of rupture plane
         Zbor = Ztor + W * math.sin(math.pi / 180 * faultprop.dip)
-        try:
+        d_Z = 0
+        if Zbor > Ztor:
             d_Z = math.exp(min(fdZM + fdZD, math.log(0.9 * (Zbor - Ztor))))
-        except ValueError:
-            # Zbor == Ztor
-            d_Z = 0
+
         Zhyp = d_Z + Ztor
 
     def sa_sigma(period_i):
