@@ -175,5 +175,5 @@ def estimate_z2p5(z1p0=None, z1p5=None):
 
 def estimate_z1p0(vs30):
     return (
-        np.exp(28.5 - 3.82 / 8.0 * np.log(vs30**8 + 378.7**8)) / 1000.0
+        np.exp(28.5 - 3.82 / 8.0 * np.log(vs30**8.0 + 378.7**8.0)) / 1000.0
     )  # CY08 estimate in KM

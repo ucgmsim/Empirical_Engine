@@ -138,36 +138,25 @@ def CB_2014_nga(siteprop, faultprop, im=None, period=None, region=0, f_hw=None):
             Ztor = max(2.673 - 1.136 * max(M - 4.970, 0), 0) ** 2
 
     if W is None:
-        if f_rv:
-            Ztori = max(2.704 - 1.226 * max(M - 5.849, 0), 0) ** 2
-        else:
-            Ztori = max(2.673 - 1.136 * max(M - 4.970, 0), 0) ** 2
         try:
             W = min(
                 math.sqrt(10 ** ((M - 4.07) / 0.98)),
-                (faultprop.zbot - Ztori) / math.sin(math.pi / 180 * faultprop.dip),
+                (faultprop.zbot - Ztor) / math.sin(math.pi / 180 * faultprop.dip),
             )
         except ZeroDivisionError:
             W = math.sqrt(10 ** ((M - 4.07) / 0.98))
-        Zhyp = 9
 
-    elif Zhyp is None:
+    if Zhyp is None:
         fdZM = min(-4.317 + 0.984 * M, 2.325)
         fdZD = 0.0445 * (min(faultprop.dip, 40) - 40)
 
-        if f_rv:
-            Ztori = max(2.704 - 1.226 * max(M - 5.849, 0), 0) ** 2
-        else:
-            Ztori = max(2.673 - 1.136 * max(M - 4.970, 0), 0) ** 2
-
         # depth to bottom of rupture plane
-        Zbor = Ztori + W * math.sin(math.pi / 180 * faultprop.dip)
-        try:
-            d_Z = math.exp(min(fdZM + fdZD, math.log(0.9 * (Zbor - Ztori))))
-        except ValueError:
-            # Zbor == Ztori
-            d_Z = 0
-        Zhyp = d_Z + Ztori
+        Zbor = Ztor + W * math.sin(math.pi / 180 * faultprop.dip)
+        d_Z = 0
+        if Zbor > Ztor:
+            d_Z = math.exp(min(fdZM + fdZD, math.log(0.9 * (Zbor - Ztor))))
+
+        Zhyp = d_Z + Ztor
 
     def sa_sigma(period_i):
         """
