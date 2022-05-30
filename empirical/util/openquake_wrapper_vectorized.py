@@ -207,7 +207,9 @@ def oq_run(
 
     # Model specified estimation that cannot be done within OQ as paper does not specify
     if model_type.name == "ASK_14" and "width" not in rupture_df:
-        rupture_df = estimations.estimate_width_ASK14(rupture_df)
+        rupture_df["width"] = estimations.estimate_width_ASK14(
+            rupture_df["dip"], rupture_df["mag"]
+        )
 
     # Check if df contains what model requires
     rupture_ctx_properties = set(rupture_df.columns.values)
@@ -243,7 +245,10 @@ def oq_run(
                 # This term needs to be repeated for the number of rows in the df
                 ("sids", [1] * rupture_df.shape[0]),
                 *(
-                    (column, rupture_df.loc[:, column].values,)
+                    (
+                        column,
+                        rupture_df.loc[:, column].values,
+                    )
                     for column in rupture_df.columns.values
                 ),
             ]
