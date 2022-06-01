@@ -196,11 +196,12 @@ def oq_run(
         interpolate values between specified values, fails if outside range
     kwargs: pass extra (model specific) parameters to models
     """
-    model = (
-        OQ_MODELS[model_type][tect_type](**kwargs)
-        if not model_type.name.endswith("_NZ")
-        else OQ_MODELS[model_type][tect_type](region="NZL", **kwargs)
-    )
+    model = OQ_MODELS[model_type][tect_type](**kwargs)
+
+    if model_type.name.endswith("_NZ"):
+        model = OQ_MODELS[model_type][tect_type](region="NZL", **kwargs)
+    elif model_type.name == "CB_14":
+        model = OQ_MODELS[model_type][tect_type](estimate_width=True, **kwargs)
 
     # Check the given tect_type with its model's tect type
     trt = model.DEFINED_FOR_TECTONIC_REGION_TYPE
@@ -221,7 +222,8 @@ def oq_run(
     rupture_df = rupture_df.copy()
 
     # Model specified estimation that cannot be done within OQ as paper does not specify
-    if model_type.name == "ASK_14" and "width" not in rupture_df:
+    # CB_14 is an exception, because width is required due to the
+    if model_type.name in ("ASK_14", "CB_14") and "width" not in rupture_df:
         rupture_df["width"] = estimations.estimate_width_ASK14(
             rupture_df["dip"], rupture_df["mag"]
         )
@@ -263,10 +265,7 @@ def oq_run(
                 # This term needs to be repeated for the number of rows in the df
                 ("sids", [1] * rupture_df.shape[0]),
                 *(
-                    (
-                        column,
-                        rupture_df.loc[:, column].values,
-                    )
+                    (column, rupture_df.loc[:, column].values,)
                     for column in rupture_df.columns.values
                 ),
             ]
