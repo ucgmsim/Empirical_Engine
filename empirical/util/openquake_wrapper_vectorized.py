@@ -202,6 +202,8 @@ def oq_run(
         model = OQ_MODELS[model_type][tect_type](region="NZL", **kwargs)
     elif model_type.name == "CB_14":
         model = OQ_MODELS[model_type][tect_type](estimate_width=True, **kwargs)
+        # CB_14's width estimation will overwrite width.
+        rupture_df["width"] = np.nan
 
     # Check the given tect_type with its model's tect type
     trt = model.DEFINED_FOR_TECTONIC_REGION_TYPE
@@ -223,7 +225,7 @@ def oq_run(
 
     # Model specified estimation that cannot be done within OQ as paper does not specify
     # CB_14 is an exception, because width is required due to the
-    if model_type.name in ("ASK_14", "CB_14") and "width" not in rupture_df:
+    if model_type.name == "ASK_14" and "width" not in rupture_df:
         rupture_df["width"] = estimations.estimate_width_ASK14(
             rupture_df["dip"], rupture_df["mag"]
         )
