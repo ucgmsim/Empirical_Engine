@@ -15,6 +15,7 @@ from empirical.util.classdef import TectType, GMM
 OQ_MODELS = {
     GMM.Br_10: {TectType.ACTIVE_SHALLOW: gsim.bradley_2013.Bradley2013},
     GMM.ASK_14: {TectType.ACTIVE_SHALLOW: gsim.abrahamson_2014.AbrahamsonEtAl2014},
+    GMM.AS_16: {TectType.ACTIVE_SHALLOW: gsim.afshari_stewart_2016.AfshariStewart2016},
     GMM.CB_14: {
         TectType.ACTIVE_SHALLOW: gsim.campbell_bozorgnia_2014.CampbellBozorgnia2014
     },
@@ -51,11 +52,22 @@ SPT_STD_DEVS = [const.StdDev.TOTAL, const.StdDev.INTER_EVENT, const.StdDev.INTRA
 
 
 def convert_im_label(im: imt.IMT):
-    """Convert OQ's SA(period) to the internal naming, pSA_period
+    """Convert OQ's IM term into the internal term.
+    E.g:
+        pSA_period (OQ uses SA(period))
+        Ds575 (OQ uses RSD575)
+        Ds595 (OQ uses RSD595)
     im: imt.IMT
     """
     imt_tuple = imt.imt2tup(im.string)
-    return im if len(imt_tuple) == 1 else f"pSA_{imt_tuple[-1]}"
+    if len(imt_tuple) == 1:
+        return (
+            imt_tuple[0].replace("RSD", "Ds")
+            if imt_tuple[0].startswith("RSD")
+            else imt_tuple[0]
+        )
+
+    return f"pSA_{imt_tuple[-1]}"
 
 
 def oq_mean_stddevs(
@@ -210,6 +222,9 @@ def oq_run(
         rupture_df["width"] = estimations.estimate_width_ASK14(
             rupture_df["dip"], rupture_df["mag"]
         )
+    # Rename to OQ's term
+    if im in ("Ds575", "Ds595"):
+        im = im.replace("Ds", "RSD")
 
     # Check if df contains what model requires
     rupture_ctx_properties = set(rupture_df.columns.values)
