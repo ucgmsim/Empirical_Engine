@@ -224,7 +224,6 @@ def oq_run(
     rupture_df = rupture_df.copy()
 
     # Model specified estimation that cannot be done within OQ as paper does not specify
-    # CB_14 is an exception, because width is required due to the
     if model_type.name == "ASK_14" and "width" not in rupture_df:
         rupture_df["width"] = estimations.estimate_width_ASK14(
             rupture_df["dip"], rupture_df["mag"]
