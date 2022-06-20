@@ -1,7 +1,6 @@
 """Wrapper for openquake vectorized models."""
 import logging
 from typing import Sequence, Union
-from enum import Enum
 from functools import partial
 
 import numpy as np
@@ -193,17 +192,17 @@ def interpolate_with_pga(
 
 
 def oq_run(
-    model_type: Enum,
-    tect_type: Enum,
+    model_type: GMM,
+    tect_type: TectType,
     rupture_df: pd.DataFrame,
     im: str,
     periods: Sequence[Union[int, float]] = None,
     **kwargs,
 ):
     """Run an openquake model with dataframe
-    model_type: Enum
+    model_type: GMM
         OQ model
-    tect_type: Enum
+    tect_type: TectType
         One of the tectonic types from
         ACTIVE_SHALLOW, SUBDUCTION_SLAB and SUBDUCTION_INTERFACE
     rupture_df: Rupture DF
