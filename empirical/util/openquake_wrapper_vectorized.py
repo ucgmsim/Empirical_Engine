@@ -2,6 +2,7 @@
 import logging
 from typing import Sequence, Union
 from enum import Enum
+from functools import partial
 
 import numpy as np
 import pandas as pd
@@ -12,15 +13,24 @@ from empirical.util import estimations
 from empirical.util.classdef import TectType, GMM
 
 
+def OQ_model(model, **kwargs):
+    return model(**kwargs)
+
+
 OQ_MODELS = {
     GMM.Br_10: {TectType.ACTIVE_SHALLOW: gsim.bradley_2013.Bradley2013},
     GMM.ASK_14: {TectType.ACTIVE_SHALLOW: gsim.abrahamson_2014.AbrahamsonEtAl2014},
     GMM.AS_16: {TectType.ACTIVE_SHALLOW: gsim.afshari_stewart_2016.AfshariStewart2016},
+    # OQ's CB_08 includes the CB_10's CAV
     GMM.CB_10: {
         TectType.ACTIVE_SHALLOW: gsim.campbell_bozorgnia_2008.CampbellBozorgnia2008
     },
     GMM.CB_14: {
-        TectType.ACTIVE_SHALLOW: gsim.campbell_bozorgnia_2014.CampbellBozorgnia2014
+        TectType.ACTIVE_SHALLOW: partial(
+            OQ_model,
+            model=gsim.campbell_bozorgnia_2014.CampbellBozorgnia2014,
+            estimate_width=True,
+        )
     },
     GMM.BSSA_14: {TectType.ACTIVE_SHALLOW: gsim.boore_2014.BooreEtAl2014},
     GMM.CY_14: {TectType.ACTIVE_SHALLOW: gsim.chiou_youngs_2014.ChiouYoungs2014},
@@ -38,16 +48,28 @@ OQ_MODELS = {
         TectType.SUBDUCTION_INTERFACE: gsim.kuehn_2020.KuehnEtAl2020SInter,
     },
     GMM.K_20_NZ: {
-        TectType.SUBDUCTION_SLAB: gsim.kuehn_2020.KuehnEtAl2020SSlab,
-        TectType.SUBDUCTION_INTERFACE: gsim.kuehn_2020.KuehnEtAl2020SInter,
+        TectType.SUBDUCTION_SLAB: partial(
+            OQ_model, model=gsim.kuehn_2020.KuehnEtAl2020SSlab, region="NZL"
+        ),
+        TectType.SUBDUCTION_INTERFACE: partial(
+            OQ_model, model=gsim.kuehn_2020.KuehnEtAl2020SInter, region="NZL"
+        ),
     },
     GMM.AG_20: {
         TectType.SUBDUCTION_SLAB: gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SSlab,
         TectType.SUBDUCTION_INTERFACE: gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SInter,
     },
     GMM.AG_20_NZ: {
-        TectType.SUBDUCTION_SLAB: gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SSlab,
-        TectType.SUBDUCTION_INTERFACE: gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SInter,
+        TectType.SUBDUCTION_SLAB: partial(
+            OQ_model,
+            model=gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SSlab,
+            region="NZL",
+        ),
+        TectType.SUBDUCTION_INTERFACE: partial(
+            OQ_model,
+            model=gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SInter,
+            region="NZL",
+        ),
     },
 }
 
@@ -198,11 +220,6 @@ def oq_run(
     """
     model = OQ_MODELS[model_type][tect_type](**kwargs)
 
-    if model_type.name.endswith("_NZ"):
-        model = OQ_MODELS[model_type][tect_type](region="NZL", **kwargs)
-    elif model_type.name == "CB_14":
-        model = OQ_MODELS[model_type][tect_type](estimate_width=True, **kwargs)
-
     # Check the given tect_type with its model's tect type
     trt = model.DEFINED_FOR_TECTONIC_REGION_TYPE
     if trt == const.TRT.SUBDUCTION_INTERFACE:
@@ -222,10 +239,13 @@ def oq_run(
     rupture_df = rupture_df.copy()
 
     # Model specified estimation that cannot be done within OQ as paper does not specify
-    # CB_14 is an exception, because width is required due to the
+    # CB_14's width will always be estimated. Hence, by passing np.nan first then,
+    # we know the updated width values are from the estimation
     if model_type.name in ("ASK_14", "CB_14") and "width" not in rupture_df:
-        rupture_df["width"] = estimations.estimate_width_ASK14(
-            rupture_df["dip"], rupture_df["mag"]
+        rupture_df["width"] = (
+            estimations.estimate_width_ASK14(rupture_df["dip"], rupture_df["mag"])
+            if model_type.name == "ASK_14"
+            else np.nan
         )
     # Rename to OQ's term
     if im in ("Ds575", "Ds595"):
