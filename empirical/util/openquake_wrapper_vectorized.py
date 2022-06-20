@@ -13,6 +13,13 @@ from empirical.util.classdef import TectType, GMM
 
 
 def OQ_model(model, **kwargs):
+    """Partial function to simplify model instanstiation
+    model: gsim.base.GMPE
+    kwargs: pass extra (model specific) parameters to models
+    E.g:
+        region=NZL for models end with _NZ
+        estimate_width=True for CB_14 to estimate width
+    """
     return model(**kwargs)
 
 
