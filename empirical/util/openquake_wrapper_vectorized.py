@@ -247,12 +247,14 @@ def oq_run(
     # Model specified estimation that cannot be done within OQ as paper does not specify
     # CB_14's width will always be estimated. Hence, by passing np.nan first then,
     # we know the updated width values are from the estimation
-    if model_type.name in ("ASK_14", "CB_14") and "width" not in rupture_df:
-        rupture_df["width"] = (
-            estimations.estimate_width_ASK14(rupture_df["dip"], rupture_df["mag"])
-            if model_type.name == "ASK_14"
-            else np.nan
+    if model_type.name == "CB_14" and "width" not in rupture_df:
+        rupture_df["width"] = np.nan
+
+    elif model_type.name == "ASK_14" and "width" not in rupture_df:
+        rupture_df["width"] = estimations.estimate_width_ASK14(
+            rupture_df["dip"], rupture_df["mag"]
         )
+
     # Rename to OQ's term
     if im in ("Ds575", "Ds595"):
         im = im.replace("Ds", "RSD")
