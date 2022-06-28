@@ -7,6 +7,7 @@ from math import exp
 import numpy as np
 
 from empirical.util.classdef import TectType, GMM
+from empirical.GMM_models.OQ import atkinson_2022, stafford_2022
 
 try:
     # openquake constants and models
@@ -32,6 +33,7 @@ RUPTURE_PROPERTIES = [
     ("rake", "rake"),
     ("width", "width"),
     ("ztor", "ztor"),
+    ("dip", "dip"),
     ("hypo_depth", "hdepth"),
 ]
 DISTANCE_PROPERTIES = [
@@ -56,6 +58,8 @@ OQ_GMM_LIST = [
     GMM.K_20_NZ,
     GMM.Si_20,
     GMM.Z_16,
+    GMM.S_22,
+    GMM.A_22,
 ]
 if OQ:
     oq_models = {
@@ -107,6 +111,14 @@ if OQ:
             TectType.ACTIVE_SHALLOW: gsim.zhao_2016.ZhaoEtAl2016Asc,
             TectType.SUBDUCTION_SLAB: gsim.zhao_2016.ZhaoEtAl2016SSlab,
             TectType.SUBDUCTION_INTERFACE: gsim.zhao_2016.ZhaoEtAl2016SInter,
+        },
+        GMM.A_22: {
+            TectType.ACTIVE_SHALLOW: atkinson_2022.Atkinson2022Crust,
+            TectType.SUBDUCTION_SLAB: atkinson_2022.Atkinson2022SSlab,
+            TectType.SUBDUCTION_INTERFACE: atkinson_2022.Atkinson2022SInter,
+        },
+        GMM.S_22: {
+            TectType.ACTIVE_SHALLOW: stafford_2022.Stafford2022,
         },
     }
 
