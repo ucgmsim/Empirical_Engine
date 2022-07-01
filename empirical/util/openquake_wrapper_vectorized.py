@@ -77,6 +77,11 @@ OQ_MODELS = {
             region="NZL",
         ),
     },
+    GMM.MV_06: {
+        TectType.ACTIVE_SHALLOW: gsim.mcverry_2006.McVerry2006Asc,
+        TectType.SUBDUCTION_SLAB: gsim.mcverry_2006.McVerry2006SSlab,
+        TectType.SUBDUCTION_INTERFACE: gsim.mcverry_2006.McVerry2006SInter,
+    },
 }
 
 SPT_STD_DEVS = [const.StdDev.TOTAL, const.StdDev.INTER_EVENT, const.StdDev.INTRA_EVENT]
@@ -293,10 +298,7 @@ def oq_run(
                 # This term needs to be repeated for the number of rows in the df
                 ("sids", [1] * rupture_df.shape[0]),
                 *(
-                    (
-                        column,
-                        rupture_df.loc[:, column].values,
-                    )
+                    (column, rupture_df.loc[:, column].values,)
                     for column in rupture_df.columns.values
                 ),
             ]
@@ -306,23 +308,28 @@ def oq_run(
     if periods is not None:
         assert imt.SA in model.DEFINED_FOR_INTENSITY_MEASURE_TYPES
         # use sorted instead of max for full list
-        avail_periods = np.asarray(
-            [
-                im.period
-                for im in (
-                    model.COEFFS.sa_coeffs.keys()
-                    if not isinstance(
-                        model,
-                        (
-                            gsim.zhao_2006.ZhaoEtAl2006Asc,
-                            gsim.zhao_2006.ZhaoEtAl2006SSlab,
-                            gsim.zhao_2006.ZhaoEtAl2006SInter,
-                        ),
-                    )
-                    else model.COEFFS_ASC.sa_coeffs.keys()
-                )
-            ]
-        )
+        if isinstance(
+            model,
+            (
+                gsim.zhao_2006.ZhaoEtAl2006Asc,
+                gsim.zhao_2006.ZhaoEtAl2006SSlab,
+                gsim.zhao_2006.ZhaoEtAl2006SInter,
+            ),
+        ):
+            COEFFS = model.COEFFS_ASC.sa_coeffs
+        elif isinstance(
+            model,
+            (
+                gsim.mcverry_2006.McVerry2006Asc,
+                gsim.mcverry_2006.McVerry2006SSlab,
+                gsim.mcverry_2006.McVerry2006SInter,
+            ),
+        ):
+            COEFFS = model.COEFFS_PRIMED.sa_coeffs
+        else:
+            COEFFS = model.COEFFS.sa_coeffs
+
+        avail_periods = np.asarray([im.period for im in COEFFS.keys()])
         max_period = max(avail_periods)
         if not hasattr(periods, "__len__"):
             periods = [periods]
