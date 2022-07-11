@@ -27,6 +27,10 @@ OQ_MODELS = {
     GMM.Br_10: {TectType.ACTIVE_SHALLOW: gsim.bradley_2013.Bradley2013},
     GMM.ASK_14: {TectType.ACTIVE_SHALLOW: gsim.abrahamson_2014.AbrahamsonEtAl2014},
     GMM.AS_16: {TectType.ACTIVE_SHALLOW: gsim.afshari_stewart_2016.AfshariStewart2016},
+    GMM.A_18: {
+        TectType.SUBDUCTION_SLAB: gsim.abrahamson_2018.AbrahamsonEtAl2018SSlab,
+        TectType.SUBDUCTION_INTERFACE: gsim.abrahamson_2018.AbrahamsonEtAl2018SInter,
+    },
     # OQ's CB_08 includes the CB_10's CAV
     GMM.CB_10: {
         TectType.ACTIVE_SHALLOW: gsim.campbell_bozorgnia_2008.CampbellBozorgnia2008
@@ -37,6 +41,10 @@ OQ_MODELS = {
             model=gsim.campbell_bozorgnia_2014.CampbellBozorgnia2014,
             estimate_width=True,
         )
+    },
+    GMM.BCH_16: {
+        TectType.SUBDUCTION_SLAB: gsim.bchydro_2016_epistemic.BCHydroESHM20SSlab,
+        TectType.SUBDUCTION_INTERFACE: gsim.bchydro_2016_epistemic.BCHydroESHM20SInter,
     },
     GMM.BSSA_14: {TectType.ACTIVE_SHALLOW: gsim.boore_2014.BooreEtAl2014},
     GMM.CY_14: {TectType.ACTIVE_SHALLOW: gsim.chiou_youngs_2014.ChiouYoungs2014},
@@ -254,6 +262,12 @@ def oq_run(
         rupture_df["width"] = estimations.estimate_width_ASK14(
             rupture_df["dip"], rupture_df["mag"]
         )
+
+    elif model_type.name == "BCH_16":
+        if "xvf" not in rupture_df:
+            rupture_df["xvf"] = 1
+        if "rhypo" not in rupture_df:
+            rupture_df["rhypo"] = rupture_df["rrup"]
 
     # Rename to OQ's term
     if im in ("Ds575", "Ds595"):
