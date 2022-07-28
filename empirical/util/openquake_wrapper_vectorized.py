@@ -1,6 +1,6 @@
 """Wrapper for openquake vectorized models."""
 import logging
-from typing import Sequence, Union
+from typing import Sequence, Union, Dict, List
 from functools import partial
 
 import numpy as np
@@ -88,6 +88,16 @@ OQ_MODELS = {
 }
 
 SPT_STD_DEVS = [const.StdDev.TOTAL, const.StdDev.INTER_EVENT, const.StdDev.INTRA_EVENT]
+
+
+def meta_dot_products(models_dfs: List[pd.DataFrame], weights: List):
+    meta_df = models_dfs[0].copy()
+
+    for column in meta_df.columns:
+        col_df = pd.DataFrame([model_df[column].values for model_df in models_dfs]).T
+        meta_df[column] = col_df.dot(pd.Series(weights)).values
+
+    return meta_df
 
 
 def convert_im_label(im: imt.IMT):
@@ -212,6 +222,7 @@ def oq_run(
     rupture_df: pd.DataFrame,
     im: str,
     periods: Sequence[Union[int, float]] = None,
+    meta_config: Dict = None,
     **kwargs,
 ):
     """Run an openquake model with dataframe
@@ -230,24 +241,36 @@ def oq_run(
     periods: Sequence[Union[int, float]]
         for spectral acceleration, openquake tables automatically
         interpolate values between specified values, fails if outside range
+    meta_config: Dict
+        A dictionary contains models and its weight
     kwargs: pass extra (model specific) parameters to models
     """
-    model = OQ_MODELS[model_type][tect_type](**kwargs)
+
+    models = (
+        [OQ_MODELS[model_type][tect_type](**kwargs)]
+        if model_type.name != "META"
+        else [OQ_MODELS[model][tect_type](**kwargs) for model in meta_config.keys()]
+    )
 
     # Check the given tect_type with its model's tect type
-    trt = model.DEFINED_FOR_TECTONIC_REGION_TYPE
-    if trt == const.TRT.SUBDUCTION_INTERFACE:
-        assert tect_type == TectType.SUBDUCTION_INTERFACE
-    elif trt == const.TRT.SUBDUCTION_INTRASLAB:
-        assert tect_type == TectType.SUBDUCTION_SLAB
-    elif trt == const.TRT.ACTIVE_SHALLOW_CRUST:
-        assert tect_type == TectType.ACTIVE_SHALLOW
-    else:
-        raise ValueError("unknown tectonic region: " + trt)
+    for model in models:
+        trt = model.DEFINED_FOR_TECTONIC_REGION_TYPE
+        if trt == const.TRT.SUBDUCTION_INTERFACE:
+            assert tect_type == TectType.SUBDUCTION_INTERFACE
+        elif trt == const.TRT.SUBDUCTION_INTRASLAB:
+            assert tect_type == TectType.SUBDUCTION_SLAB
+        elif trt == const.TRT.ACTIVE_SHALLOW_CRUST:
+            assert tect_type == TectType.ACTIVE_SHALLOW
+        else:
+            raise ValueError("unknown tectonic region: " + trt)
 
-    stddev_types = [
-        std for std in SPT_STD_DEVS if std in model.DEFINED_FOR_STANDARD_DEVIATION_TYPES
-    ]
+    stddev_types = []
+    for model in models:
+        model_specific_stddev = []
+        for std in SPT_STD_DEVS:
+            if std in model.DEFINED_FOR_STANDARD_DEVIATION_TYPES:
+                model_specific_stddev.append(std)
+        stddev_types.append(model_specific_stddev)
 
     # Make a copy in case the original rupture_df used with other functions
     rupture_df = rupture_df.copy()
@@ -255,45 +278,49 @@ def oq_run(
     # Model specified estimation that cannot be done within OQ as paper does not specify
     # CB_14's width will always be estimated. Hence, by passing np.nan first then,
     # we know the updated width values are from the estimation
-    if model_type.name == "CB_14" and "width" not in rupture_df:
-        rupture_df["width"] = np.nan
+    for model in meta_config.keys():
+        if model.name == "CB_14" and "width" not in rupture_df:
+            rupture_df["width"] = np.nan
 
-    elif model_type.name == "ASK_14" and "width" not in rupture_df:
-        rupture_df["width"] = estimations.estimate_width_ASK14(
-            rupture_df["dip"], rupture_df["mag"]
-        )
+        elif model.name == "ASK_14" and "width" not in rupture_df:
+            rupture_df["width"] = estimations.estimate_width_ASK14(
+                rupture_df["dip"], rupture_df["mag"]
+            )
 
-    elif model_type.name == "BCH_16":
-        if "xvf" not in rupture_df:
-            rupture_df["xvf"] = 1
-        if "rhypo" not in rupture_df:
-            rupture_df["rhypo"] = rupture_df["rrup"]
+        elif model.name == "BCH_16":
+            if "xvf" not in rupture_df:
+                rupture_df["xvf"] = 1
+            if "rhypo" not in rupture_df:
+                rupture_df["rhypo"] = rupture_df["rrup"]
 
     # Rename to OQ's term
     if im in ("Ds575", "Ds595"):
         im = im.replace("Ds", "RSD")
 
     # Check if df contains what model requires
-    rupture_ctx_properties = set(rupture_df.columns.values)
-    extra_site_parameters = set(model.REQUIRES_SITES_PARAMETERS).difference(
-        rupture_ctx_properties
-    )
-    if len(extra_site_parameters) > 0:
-        raise ValueError("unknown site property: " + extra_site_parameters)
-
-    extra_rup_properties = set(model.REQUIRES_RUPTURE_PARAMETERS).difference(
-        rupture_ctx_properties
-    )
-    if len(extra_rup_properties) > 0:
-        raise ValueError("unknown rupture property: " + " ".join(extra_rup_properties))
-
-    extra_dist_properties = set(model.REQUIRES_DISTANCES).difference(
-        rupture_ctx_properties
-    )
-    if len(extra_dist_properties) > 0:
-        raise ValueError(
-            "unknown distance property: " + " ".join(extra_dist_properties)
+    for model in models:
+        rupture_ctx_properties = set(rupture_df.columns.values)
+        extra_site_parameters = set(model.REQUIRES_SITES_PARAMETERS).difference(
+            rupture_ctx_properties
         )
+        if len(extra_site_parameters) > 0:
+            raise ValueError("unknown site property: " + extra_site_parameters)
+
+        extra_rup_properties = set(model.REQUIRES_RUPTURE_PARAMETERS).difference(
+            rupture_ctx_properties
+        )
+        if len(extra_rup_properties) > 0:
+            raise ValueError(
+                "unknown rupture property: " + " ".join(extra_rup_properties)
+            )
+
+        extra_dist_properties = set(model.REQUIRES_DISTANCES).difference(
+            rupture_ctx_properties
+        )
+        if len(extra_dist_properties) > 0:
+            raise ValueError(
+                "unknown distance property: " + " ".join(extra_dist_properties)
+            )
 
     # Convert z1pt0 from km to m
     rupture_df["z1pt0"] *= 1000
@@ -307,88 +334,98 @@ def oq_run(
                 # This term needs to be repeated for the number of rows in the df
                 ("sids", [1] * rupture_df.shape[0]),
                 *(
-                    (
-                        column,
-                        rupture_df.loc[:, column].values,
-                    )
+                    (column, rupture_df.loc[:, column].values,)
                     for column in rupture_df.columns.values
                 ),
             ]
         )
     )
 
-    if periods is not None:
-        assert imt.SA in model.DEFINED_FOR_INTENSITY_MEASURE_TYPES
-        # use sorted instead of max for full list
-        avail_periods = np.asarray(
-            [
-                im.period
-                for im in (
-                    model.COEFFS.sa_coeffs.keys()
-                    if not isinstance(
-                        model,
-                        (
-                            gsim.zhao_2006.ZhaoEtAl2006Asc,
-                            gsim.zhao_2006.ZhaoEtAl2006SSlab,
-                            gsim.zhao_2006.ZhaoEtAl2006SInter,
-                        ),
+    final_results = []
+    for idx, model in enumerate(models):
+        if periods is not None:
+            assert imt.SA in model.DEFINED_FOR_INTENSITY_MEASURE_TYPES
+            # use sorted instead of max for full list
+            avail_periods = np.asarray(
+                [
+                    im.period
+                    for im in (
+                        model.COEFFS.sa_coeffs.keys()
+                        if not isinstance(
+                            model,
+                            (
+                                gsim.zhao_2006.ZhaoEtAl2006Asc,
+                                gsim.zhao_2006.ZhaoEtAl2006SSlab,
+                                gsim.zhao_2006.ZhaoEtAl2006SInter,
+                            ),
+                        )
+                        else model.COEFFS_ASC.sa_coeffs.keys()
                     )
-                    else model.COEFFS_ASC.sa_coeffs.keys()
-                )
-            ]
-        )
-        max_period = max(avail_periods)
-        if not hasattr(periods, "__len__"):
-            periods = [periods]
-        results = []
-        for period in periods:
-            im = imt.SA(period=min(period, max_period))
-            try:
-                result = oq_mean_stddevs(model, rupture_ctx, im, stddev_types)
-            except KeyError as ke:
-                cause = ke.args[0]
-                # To make sure the KeyError is about missing pSA's period
-                if (
-                    isinstance(cause, imt.IMT)
-                    and str(cause).startswith("SA")
-                    and cause.period > 0.0
-                ):
-                    # Period is smaller than model's supported min_period E.g., ZA_06
-                    # Interpolate between PGA(0.0) and model's min_period
-                    low_result = oq_mean_stddevs(
-                        model, rupture_ctx, imt.PGA(), stddev_types
-                    )
-                    high_period = avail_periods[period <= avail_periods][0]
-                    high_result = oq_mean_stddevs(
-                        model, rupture_ctx, imt.SA(period=high_period), stddev_types
-                    )
+                ]
+            )
+            max_period = max(avail_periods)
+            if not hasattr(periods, "__len__"):
+                periods = [periods]
+            results = []
+            for period in periods:
+                im = imt.SA(period=min(period, max_period))
+                try:
+                    result = oq_mean_stddevs(model, rupture_ctx, im, stddev_types[idx])
+                except KeyError as ke:
+                    cause = ke.args[0]
+                    # To make sure the KeyError is about missing pSA's period
+                    if (
+                        isinstance(cause, imt.IMT)
+                        and str(cause).startswith("SA")
+                        and cause.period > 0.0
+                    ):
+                        # Period is smaller than model's supported min_period E.g., ZA_06
+                        # Interpolate between PGA(0.0) and model's min_period
+                        low_result = oq_mean_stddevs(
+                            model, rupture_ctx, imt.PGA(), stddev_types[idx]
+                        )
+                        high_period = avail_periods[period <= avail_periods][0]
+                        high_result = oq_mean_stddevs(
+                            model,
+                            rupture_ctx,
+                            imt.SA(period=high_period),
+                            stddev_types[idx],
+                        )
 
-                    result = interpolate_with_pga(
-                        period, high_period, low_result, high_result
-                    )
-                else:
-                    # KeyError that we cannot handle
-                    logging.exception(ke)
+                        result = interpolate_with_pga(
+                            period, high_period, low_result, high_result
+                        )
+                    else:
+                        # KeyError that we cannot handle
+                        logging.exception(ke)
+                        raise
+                except Exception as e:
+                    # Any other exceptions that we cannot handle
+                    logging.exception(e)
                     raise
-            except Exception as e:
-                # Any other exceptions that we cannot handle
-                logging.exception(e)
-                raise
 
-            # extrapolate pSA value up based on maximum available period
-            if period > max_period:
-                result.loc[:, result.columns.str.endswith("mean")] += 2 * np.log(
-                    max_period / period
-                )
-                # Updating the period from max_period to the given period
-                # E.g with ZA_06, replace 5.0 to period > 5.0
-                result.columns = result.columns.str.replace(
-                    str(max_period), str(period), regex=False
-                )
-            results.append(result)
+                # extrapolate pSA value up based on maximum available period
+                if period > max_period:
+                    result.loc[:, result.columns.str.endswith("mean")] += 2 * np.log(
+                        max_period / period
+                    )
+                    # Updating the period from max_period to the given period
+                    # E.g with ZA_06, replace 5.0 to period > 5.0
+                    result.columns = result.columns.str.replace(
+                        str(max_period), str(period), regex=False
+                    )
+                results.append(result)
 
-        return pd.concat(results, axis=1)
-    else:
-        imc = getattr(imt, im)
-        assert imc in model.DEFINED_FOR_INTENSITY_MEASURE_TYPES
-        return oq_mean_stddevs(model, rupture_ctx, imc(), stddev_types)
+            final_results.append(pd.concat(results, axis=1))
+        else:
+            imc = getattr(imt, im)
+            assert imc in model.DEFINED_FOR_INTENSITY_MEASURE_TYPES
+            final_results.append(
+                oq_mean_stddevs(model, rupture_ctx, imc(), stddev_types[idx])
+            )
+
+    return (
+        final_results[0]
+        if len(final_results) == 0
+        else meta_dot_products(final_results, meta_config.values())
+    )
