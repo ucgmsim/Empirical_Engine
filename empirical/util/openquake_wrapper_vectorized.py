@@ -217,87 +217,6 @@ def interpolate_with_pga(
     )
 
 
-def compute_oq_gmm(periods, idx, model, im, rupture_ctx, stddev_types):
-    if periods is not None:
-        assert imt.SA in model.DEFINED_FOR_INTENSITY_MEASURE_TYPES
-        # use sorted instead of max for full list
-        avail_periods = np.asarray(
-            [
-                im.period
-                for im in (
-                    model.COEFFS.sa_coeffs.keys()
-                    if not isinstance(
-                        model,
-                        (
-                            gsim.zhao_2006.ZhaoEtAl2006Asc,
-                            gsim.zhao_2006.ZhaoEtAl2006SSlab,
-                            gsim.zhao_2006.ZhaoEtAl2006SInter,
-                        ),
-                    )
-                    else model.COEFFS_ASC.sa_coeffs.keys()
-                )
-            ]
-        )
-        max_period = max(avail_periods)
-        if not hasattr(periods, "__len__"):
-            periods = [periods]
-        results = []
-        for period in periods:
-            im = imt.SA(period=min(period, max_period))
-            try:
-                result = oq_mean_stddevs(model, rupture_ctx, im, stddev_types[idx])
-            except KeyError as ke:
-                cause = ke.args[0]
-                # To make sure the KeyError is about missing pSA's period
-                if (
-                    isinstance(cause, imt.IMT)
-                    and str(cause).startswith("SA")
-                    and cause.period > 0.0
-                ):
-                    # Period is smaller than model's supported min_period E.g., ZA_06
-                    # Interpolate between PGA(0.0) and model's min_period
-                    low_result = oq_mean_stddevs(
-                        model, rupture_ctx, imt.PGA(), stddev_types[idx]
-                    )
-                    high_period = avail_periods[period <= avail_periods][0]
-                    high_result = oq_mean_stddevs(
-                        model,
-                        rupture_ctx,
-                        imt.SA(period=high_period),
-                        stddev_types[idx],
-                    )
-
-                    result = interpolate_with_pga(
-                        period, high_period, low_result, high_result
-                    )
-                else:
-                    # KeyError that we cannot handle
-                    logging.exception(ke)
-                    raise
-            except Exception as e:
-                # Any other exceptions that we cannot handle
-                logging.exception(e)
-                raise
-
-            # extrapolate pSA value up based on maximum available period
-            if period > max_period:
-                result.loc[:, result.columns.str.endswith("mean")] += 2 * np.log(
-                    max_period / period
-                )
-                # Updating the period from max_period to the given period
-                # E.g with ZA_06, replace 5.0 to period > 5.0
-                result.columns = result.columns.str.replace(
-                    str(max_period), str(period), regex=False
-                )
-            results.append(result)
-
-        return pd.concat(results, axis=1)
-    else:
-        imc = getattr(imt, im)
-        assert imc in model.DEFINED_FOR_INTENSITY_MEASURE_TYPES
-        return oq_mean_stddevs(model, rupture_ctx, imc(), stddev_types[idx])
-
-
 def oq_run(
     model_type: GMM,
     tect_type: TectType,
@@ -433,96 +352,88 @@ def oq_run(
         )
     )
 
-    # final_results = []
-    with mp.Pool(processes=5) as pool:
-        final_results = pool.starmap(
-            compute_oq_gmm,
-            [
-                (periods, idx, model, im, rupture_ctx, stddev_types)
-                for idx, model in enumerate(models)
-            ],
-        )
-    # for idx, model in enumerate(models):
-    #     if periods is not None:
-    #         assert imt.SA in model.DEFINED_FOR_INTENSITY_MEASURE_TYPES
-    #         # use sorted instead of max for full list
-    #         avail_periods = np.asarray(
-    #             [
-    #                 im.period
-    #                 for im in (
-    #                     model.COEFFS.sa_coeffs.keys()
-    #                     if not isinstance(
-    #                         model,
-    #                         (
-    #                             gsim.zhao_2006.ZhaoEtAl2006Asc,
-    #                             gsim.zhao_2006.ZhaoEtAl2006SSlab,
-    #                             gsim.zhao_2006.ZhaoEtAl2006SInter,
-    #                         ),
-    #                     )
-    #                     else model.COEFFS_ASC.sa_coeffs.keys()
-    #                 )
-    #             ]
-    #         )
-    #         max_period = max(avail_periods)
-    #         if not hasattr(periods, "__len__"):
-    #             periods = [periods]
-    #         results = []
-    #         for period in periods:
-    #             im = imt.SA(period=min(period, max_period))
-    #             try:
-    #                 result = oq_mean_stddevs(model, rupture_ctx, im, stddev_types[idx])
-    #             except KeyError as ke:
-    #                 cause = ke.args[0]
-    #                 # To make sure the KeyError is about missing pSA's period
-    #                 if (
-    #                     isinstance(cause, imt.IMT)
-    #                     and str(cause).startswith("SA")
-    #                     and cause.period > 0.0
-    #                 ):
-    #                     # Period is smaller than model's supported min_period E.g., ZA_06
-    #                     # Interpolate between PGA(0.0) and model's min_period
-    #                     low_result = oq_mean_stddevs(
-    #                         model, rupture_ctx, imt.PGA(), stddev_types[idx]
-    #                     )
-    #                     high_period = avail_periods[period <= avail_periods][0]
-    #                     high_result = oq_mean_stddevs(
-    #                         model,
-    #                         rupture_ctx,
-    #                         imt.SA(period=high_period),
-    #                         stddev_types[idx],
-    #                     )
-    #
-    #                     result = interpolate_with_pga(
-    #                         period, high_period, low_result, high_result
-    #                     )
-    #                 else:
-    #                     # KeyError that we cannot handle
-    #                     logging.exception(ke)
-    #                     raise
-    #             except Exception as e:
-    #                 # Any other exceptions that we cannot handle
-    #                 logging.exception(e)
-    #                 raise
-    #
-    #             # extrapolate pSA value up based on maximum available period
-    #             if period > max_period:
-    #                 result.loc[:, result.columns.str.endswith("mean")] += 2 * np.log(
-    #                     max_period / period
-    #                 )
-    #                 # Updating the period from max_period to the given period
-    #                 # E.g with ZA_06, replace 5.0 to period > 5.0
-    #                 result.columns = result.columns.str.replace(
-    #                     str(max_period), str(period), regex=False
-    #                 )
-    #             results.append(result)
-    #
-    #         final_results.append(pd.concat(results, axis=1))
-    #     else:
-    #         imc = getattr(imt, im)
-    #         assert imc in model.DEFINED_FOR_INTENSITY_MEASURE_TYPES
-    #         final_results.append(
-    #             oq_mean_stddevs(model, rupture_ctx, imc(), stddev_types[idx])
-    #         )
+    final_results = []
+    for idx, model in enumerate(models):
+        if periods is not None:
+            assert imt.SA in model.DEFINED_FOR_INTENSITY_MEASURE_TYPES
+            # use sorted instead of max for full list
+            avail_periods = np.asarray(
+                [
+                    im.period
+                    for im in (
+                        model.COEFFS.sa_coeffs.keys()
+                        if not isinstance(
+                            model,
+                            (
+                                gsim.zhao_2006.ZhaoEtAl2006Asc,
+                                gsim.zhao_2006.ZhaoEtAl2006SSlab,
+                                gsim.zhao_2006.ZhaoEtAl2006SInter,
+                            ),
+                        )
+                        else model.COEFFS_ASC.sa_coeffs.keys()
+                    )
+                ]
+            )
+            max_period = max(avail_periods)
+            if not hasattr(periods, "__len__"):
+                periods = [periods]
+            results = []
+            for period in periods:
+                im = imt.SA(period=min(period, max_period))
+                try:
+                    result = oq_mean_stddevs(model, rupture_ctx, im, stddev_types[idx])
+                except KeyError as ke:
+                    cause = ke.args[0]
+                    # To make sure the KeyError is about missing pSA's period
+                    if (
+                        isinstance(cause, imt.IMT)
+                        and str(cause).startswith("SA")
+                        and cause.period > 0.0
+                    ):
+                        # Period is smaller than model's supported min_period E.g., ZA_06
+                        # Interpolate between PGA(0.0) and model's min_period
+                        low_result = oq_mean_stddevs(
+                            model, rupture_ctx, imt.PGA(), stddev_types[idx]
+                        )
+                        high_period = avail_periods[period <= avail_periods][0]
+                        high_result = oq_mean_stddevs(
+                            model,
+                            rupture_ctx,
+                            imt.SA(period=high_period),
+                            stddev_types[idx],
+                        )
+
+                        result = interpolate_with_pga(
+                            period, high_period, low_result, high_result
+                        )
+                    else:
+                        # KeyError that we cannot handle
+                        logging.exception(ke)
+                        raise
+                except Exception as e:
+                    # Any other exceptions that we cannot handle
+                    logging.exception(e)
+                    raise
+
+                # extrapolate pSA value up based on maximum available period
+                if period > max_period:
+                    result.loc[:, result.columns.str.endswith("mean")] += 2 * np.log(
+                        max_period / period
+                    )
+                    # Updating the period from max_period to the given period
+                    # E.g with ZA_06, replace 5.0 to period > 5.0
+                    result.columns = result.columns.str.replace(
+                        str(max_period), str(period), regex=False
+                    )
+                results.append(result)
+
+            final_results.append(pd.concat(results, axis=1))
+        else:
+            imc = getattr(imt, im)
+            assert imc in model.DEFINED_FOR_INTENSITY_MEASURE_TYPES
+            final_results.append(
+                oq_mean_stddevs(model, rupture_ctx, imc(), stddev_types[idx])
+            )
 
     return (
         final_results[0]
