@@ -372,8 +372,13 @@ def oq_run(
             )
 
         elif model.name == "BCH_16":
+            # Equivalent to classdef.Site's backarc and the default value we set is False
+            # Within OQ, they use either 0 or 1
             if "xvf" not in rupture_df:
-                rupture_df["xvf"] = 1
+                rupture_df["xvf"] = 0
+            # abrahamson_2015 uses dists = rrup for SUBDUCTION_INTERFACE
+            # or dists = rhypo for SUBDUCTION_SLAB. Hence, I believe we can use rrup
+            # Also, internal bc_hydro_2016 script uses rrup
             if "rhypo" not in rupture_df:
                 rupture_df["rhypo"] = rupture_df["rrup"]
 
@@ -418,7 +423,10 @@ def oq_run(
                 # This term needs to be repeated for the number of rows in the df
                 ("sids", [1] * rupture_df.shape[0]),
                 *(
-                    (column, rupture_df.loc[:, column].values,)
+                    (
+                        column,
+                        rupture_df.loc[:, column].values,
+                    )
                     for column in rupture_df.columns.values
                 ),
             ]
