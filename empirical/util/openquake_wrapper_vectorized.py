@@ -1,5 +1,4 @@
 """Wrapper for openquake vectorized models."""
-import multiprocessing as mp
 import logging
 from typing import Sequence, Union, Dict, List
 from functools import partial
@@ -92,8 +91,10 @@ SPT_STD_DEVS = [const.StdDev.TOTAL, const.StdDev.INTER_EVENT, const.StdDev.INTRA
 
 
 def meta_dot_products(models_dfs: List[pd.DataFrame], weights: List):
+    # Copy onf ot the DFs to perform dot products
     meta_df = models_dfs[0].copy()
 
+    # Perform the dot products over each column
     for column in meta_df.columns:
         col_df = pd.DataFrame([model_df[column].values for model_df in models_dfs]).T
         meta_df[column] = col_df.dot(pd.Series(weights)).values
