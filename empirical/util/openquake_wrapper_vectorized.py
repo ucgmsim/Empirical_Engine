@@ -244,8 +244,8 @@ def oq_run(
             ]
         )
 
-        # Perform dot products
-        return meta_results.dot(pd.Series(meta_config.values()))
+        # Compute the weighted average
+        return np.sum(meta_results * pd.Series(meta_config.values()))
 
     model = OQ_MODELS[model_type][tect_type](**kwargs)
 
