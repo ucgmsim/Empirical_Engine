@@ -1,6 +1,6 @@
 """Wrapper for openquake vectorized models."""
 import logging
-from typing import Sequence, Union, Dict, List
+from typing import Sequence, Union, Dict
 from functools import partial
 
 import numpy as np
@@ -88,18 +88,6 @@ OQ_MODELS = {
 }
 
 SPT_STD_DEVS = [const.StdDev.TOTAL, const.StdDev.INTER_EVENT, const.StdDev.INTRA_EVENT]
-
-
-def meta_dot_products(models_dfs: List[pd.DataFrame], weights: List):
-    # Copy one ot the DFs to perform dot products
-    meta_df = models_dfs[0].copy()
-
-    # Perform the dot products over each column
-    for column in meta_df.columns:
-        col_df = pd.DataFrame([model_df[column].values for model_df in models_dfs]).T
-        meta_df[column] = col_df.dot(pd.Series(weights)).values
-
-    return meta_df
 
 
 def convert_im_label(im: imt.IMT):
@@ -249,23 +237,30 @@ def oq_run(
     """
 
     if model_type.name == "META":
-        meta_results = [
-            oq_run(model, tect_type, rupture_df, im, periods)
-            for model in meta_config.keys()
-        ]
+        meta_results = pd.Series(
+            [
+                oq_run(model, tect_type, rupture_df, im, periods)
+                for model in meta_config.keys()
+            ]
+        )
 
-        return meta_dot_products(meta_results, meta_config.values())
+        # Perform dot products
+        return meta_results.dot(pd.Series(meta_config.values()))
 
     model = OQ_MODELS[model_type][tect_type](**kwargs)
 
     # Check the given tect_type with its model's tect type
     trt = model.DEFINED_FOR_TECTONIC_REGION_TYPE
     if trt == const.TRT.SUBDUCTION_INTERFACE:
-        assert tect_type == TectType.SUBDUCTION_INTERFACE
+        assert (
+            tect_type == TectType.SUBDUCTION_INTERFACE
+        ), "Tect Type must be SUBDUCTION_INTERFACE"
     elif trt == const.TRT.SUBDUCTION_INTRASLAB:
-        assert tect_type == TectType.SUBDUCTION_SLAB
+        assert (
+            tect_type == TectType.SUBDUCTION_SLAB
+        ), "Tect Type must be SUBDUCTION_SLAB"
     elif trt == const.TRT.ACTIVE_SHALLOW_CRUST:
-        assert tect_type == TectType.ACTIVE_SHALLOW
+        assert tect_type == TectType.ACTIVE_SHALLOW, "Tect Type must be ACTIVE_SHALLOW"
     else:
         raise ValueError("unknown tectonic region: " + trt)
 
@@ -276,8 +271,6 @@ def oq_run(
     # Make a copy in case the original rupture_df used with other functions
     rupture_df = rupture_df.copy()
 
-    # If it's meta, grab models from meta_config dictionary. Otherwise, use the given model_type
-    models_to_check = [model_type] if meta_config is None else meta_config.keys()
     # Model specified estimation that cannot be done within OQ as paper does not specify
     # CB_14's width will always be estimated. Hence, by passing np.nan first then,
     # we know the updated width values are from the estimation
@@ -338,7 +331,10 @@ def oq_run(
                 # This term needs to be repeated for the number of rows in the df
                 ("sids", [1] * rupture_df.shape[0]),
                 *(
-                    (column, rupture_df.loc[:, column].values,)
+                    (
+                        column,
+                        rupture_df.loc[:, column].values,
+                    )
                     for column in rupture_df.columns.values
                 ),
             ]
@@ -388,7 +384,10 @@ def oq_run(
                     )
                     high_period = avail_periods[period <= avail_periods][0]
                     high_result = oq_mean_stddevs(
-                        model, rupture_ctx, imt.SA(period=high_period), stddev_types,
+                        model,
+                        rupture_ctx,
+                        imt.SA(period=high_period),
+                        stddev_types,
                     )
 
                     result = interpolate_with_pga(
