@@ -1,6 +1,6 @@
 """Wrapper for openquake vectorized models."""
 import logging
-from typing import Sequence, Union
+from typing import Sequence, Union, Dict
 from functools import partial
 
 import numpy as np
@@ -27,6 +27,10 @@ OQ_MODELS = {
     GMM.Br_10: {TectType.ACTIVE_SHALLOW: gsim.bradley_2013.Bradley2013},
     GMM.ASK_14: {TectType.ACTIVE_SHALLOW: gsim.abrahamson_2014.AbrahamsonEtAl2014},
     GMM.AS_16: {TectType.ACTIVE_SHALLOW: gsim.afshari_stewart_2016.AfshariStewart2016},
+    GMM.A_18: {
+        TectType.SUBDUCTION_SLAB: gsim.abrahamson_2018.AbrahamsonEtAl2018SSlab,
+        TectType.SUBDUCTION_INTERFACE: gsim.abrahamson_2018.AbrahamsonEtAl2018SInter,
+    },
     # OQ's CB_08 includes the CB_10's CAV
     GMM.CB_10: {
         TectType.ACTIVE_SHALLOW: gsim.campbell_bozorgnia_2008.CampbellBozorgnia2008
@@ -37,6 +41,10 @@ OQ_MODELS = {
             model=gsim.campbell_bozorgnia_2014.CampbellBozorgnia2014,
             estimate_width=True,
         )
+    },
+    GMM.BCH_16: {
+        TectType.SUBDUCTION_SLAB: gsim.bchydro_2016_epistemic.BCHydroESHM20SSlab,
+        TectType.SUBDUCTION_INTERFACE: gsim.bchydro_2016_epistemic.BCHydroESHM20SInter,
     },
     GMM.BSSA_14: {TectType.ACTIVE_SHALLOW: gsim.boore_2014.BooreEtAl2014},
     GMM.CY_14: {TectType.ACTIVE_SHALLOW: gsim.chiou_youngs_2014.ChiouYoungs2014},
@@ -204,6 +212,7 @@ def oq_run(
     rupture_df: pd.DataFrame,
     im: str,
     periods: Sequence[Union[int, float]] = None,
+    meta_config: Dict = None,
     **kwargs,
 ):
     """Run an openquake model with dataframe
@@ -222,18 +231,36 @@ def oq_run(
     periods: Sequence[Union[int, float]]
         for spectral acceleration, openquake tables automatically
         interpolate values between specified values, fails if outside range
+    meta_config: Dict
+        A dictionary contains models and its weight
     kwargs: pass extra (model specific) parameters to models
     """
+
+    if model_type.name == "META":
+        meta_results = pd.Series(
+            [
+                oq_run(model, tect_type, rupture_df, im, periods)
+                for model in meta_config.keys()
+            ]
+        )
+
+        # Compute the weighted average
+        return np.sum(meta_results * pd.Series(meta_config.values()))
+
     model = OQ_MODELS[model_type][tect_type](**kwargs)
 
     # Check the given tect_type with its model's tect type
     trt = model.DEFINED_FOR_TECTONIC_REGION_TYPE
     if trt == const.TRT.SUBDUCTION_INTERFACE:
-        assert tect_type == TectType.SUBDUCTION_INTERFACE
+        assert (
+            tect_type == TectType.SUBDUCTION_INTERFACE
+        ), "Tect Type must be SUBDUCTION_INTERFACE"
     elif trt == const.TRT.SUBDUCTION_INTRASLAB:
-        assert tect_type == TectType.SUBDUCTION_SLAB
+        assert (
+            tect_type == TectType.SUBDUCTION_SLAB
+        ), "Tect Type must be SUBDUCTION_SLAB"
     elif trt == const.TRT.ACTIVE_SHALLOW_CRUST:
-        assert tect_type == TectType.ACTIVE_SHALLOW
+        assert tect_type == TectType.ACTIVE_SHALLOW, "Tect Type must be ACTIVE_SHALLOW"
     else:
         raise ValueError("unknown tectonic region: " + trt)
 
@@ -254,6 +281,17 @@ def oq_run(
         rupture_df["width"] = estimations.estimate_width_ASK14(
             rupture_df["dip"], rupture_df["mag"]
         )
+
+    elif model_type.name == "BCH_16":
+        # Equivalent to classdef.Site's backarc and the default value we set is False
+        # Within OQ, they use either 0 or 1
+        if "xvf" not in rupture_df:
+            rupture_df["xvf"] = 0
+        # abrahamson_2015 uses dists = rrup for SUBDUCTION_INTERFACE
+        # or dists = rhypo for SUBDUCTION_SLAB. Hence, I believe we can use rrup
+        # Also, internal bc_hydro_2016 script uses rrup
+        if "rhypo" not in rupture_df:
+            rupture_df["rhypo"] = rupture_df["rrup"]
 
     # Rename to OQ's term
     if im in ("Ds575", "Ds595"):
@@ -346,7 +384,10 @@ def oq_run(
                     )
                     high_period = avail_periods[period <= avail_periods][0]
                     high_result = oq_mean_stddevs(
-                        model, rupture_ctx, imt.SA(period=high_period), stddev_types
+                        model,
+                        rupture_ctx,
+                        imt.SA(period=high_period),
+                        stddev_types,
                     )
 
                     result = interpolate_with_pga(
@@ -367,7 +408,7 @@ def oq_run(
                     max_period / period
                 )
                 # Updating the period from max_period to the given period
-                # E.g with ZA_06, replace 5.0 to period > 5.0
+                # e.g with ZA_06, replace 5.0 to period > 5.0
                 result.columns = result.columns.str.replace(
                     str(max_period), str(period), regex=False
                 )
