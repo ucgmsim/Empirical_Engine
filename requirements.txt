@@ -2,7 +2,7 @@ pytest>=3.5.0
 pytest-black
 numpy
 numba>=0.48.0
-pandas==1.2
+pandas
 PyYAML
 scipy==1.7.2
 matplotlib
