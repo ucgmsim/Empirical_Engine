@@ -5,7 +5,7 @@ pipeline {
         TEMP_DIR="/tmp/${env.JOB_NAME}/${env.ghprbActualCommit}"
     }
     stages {
-        stage('Settin up env') {
+        stage('Setting up env') {
             steps {
                 echo "[[ Start virtual environment ]]"
                 sh """
@@ -13,7 +13,7 @@ pipeline {
                     echo "[ Environment Variables ] "
                     env
 # Each stage needs custom setting done again. By default /bin/python is used.
-                    source /var/lib/jenkins/py3env/bin/activate
+                    source /home/qcadmin/py310/bin/activate
                     mkdir -p $TEMP_DIR
                     python -m venv $TEMP_DIR/venv
 # activate new virtual env
@@ -48,8 +48,8 @@ pipeline {
                     cd empirical/test
                     rm -rf sample0
                     mkdir sample0
-                    ln -s $HOME/data/testing/${env.JOB_NAME}/sample0/input sample0
-                    ln -s $HOME/data/testing/${env.JOB_NAME}/sample0/output sample0
+                    ln -s /home/qcadmin/data/testing/${env.JOB_NAME}/sample0/input sample0
+                    ln -s /home/qcadmin/data/testing/${env.JOB_NAME}/sample0/output sample0
                     echo "[ Run test now ]"
                     cd ${env.WORKSPACE}/empirical
                     pytest --black --ignore=test --ignore=GMM_models
