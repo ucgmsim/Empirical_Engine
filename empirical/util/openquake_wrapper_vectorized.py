@@ -239,7 +239,7 @@ def oq_run(
     if model_type.name == "META":
         meta_results = pd.Series(
             [
-                oq_run(model, tect_type, rupture_df, im, periods)
+                oq_run(GMM[model], tect_type, rupture_df, im, periods)
                 for model in meta_config.keys()
             ]
         )
@@ -277,10 +277,13 @@ def oq_run(
     if model_type.name == "CB_14" and "width" not in rupture_df:
         rupture_df["width"] = np.nan
 
-    elif model_type.name == "ASK_14" and "width" not in rupture_df:
-        rupture_df["width"] = estimations.estimate_width_ASK14(
-            rupture_df["dip"], rupture_df["mag"]
-        )
+    elif model_type.name == "ASK_14":
+        if "width" not in rupture_df:
+            rupture_df["width"] = estimations.estimate_width_ASK14(
+                rupture_df["dip"], rupture_df["mag"]
+            )
+        if "ry0" not in rupture_df:
+            rupture_df.rename({"ry": "ry0"}, axis="columns", inplace=True)
 
     elif model_type.name == "BCH_16":
         # Equivalent to classdef.Site's backarc and the default value we set is False
