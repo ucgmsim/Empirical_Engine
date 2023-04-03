@@ -162,7 +162,6 @@ def calculate_empirical(
     tect_type_model_dict = empirical_factory.read_model_dict(config_file)
     station_names = [site.name for site in sites] if stations is None else stations
     for im in ims:
-
         for cur_gmm, component in empirical_factory.determine_all_gmm(
             fault, im, tect_type_model_dict, components
         ):
