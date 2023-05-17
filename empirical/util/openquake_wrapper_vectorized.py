@@ -85,6 +85,7 @@ OQ_MODELS = {
             region="NZL",
         ),
     },
+    GMM.SF_22: {TectType.ACTIVE_SHALLOW: gsim.stafford_2022.Stafford2022},
 }
 
 SPT_STD_DEVS = [const.StdDev.TOTAL, const.StdDev.INTER_EVENT, const.StdDev.INTRA_EVENT]
