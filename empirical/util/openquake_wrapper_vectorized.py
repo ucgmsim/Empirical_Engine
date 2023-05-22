@@ -65,9 +65,11 @@ OQ_MODELS = {
     },
     # Chris NZSHM Models
     GMM.S_22: {TectType.ACTIVE_SHALLOW: gsim.stafford_2022.Stafford2022},
-    GMM.A_22: {TectType.ACTIVE_SHALLOW: gsim.atkinson_2022.Atkinson2022Crust,
-               TectType.SUBDUCTION_SLAB: gsim.atkinson_2022.Atkinson2022SSlab,
-               TectType.SUBDUCTION_INTERFACE: gsim.atkinson_2022.Atkinson2022SInter},
+    GMM.A_22: {
+        TectType.ACTIVE_SHALLOW: gsim.atkinson_2022.Atkinson2022Crust,
+        TectType.SUBDUCTION_SLAB: gsim.atkinson_2022.Atkinson2022SSlab,
+        TectType.SUBDUCTION_INTERFACE: gsim.atkinson_2022.Atkinson2022SInter,
+    },
     GMM.ASK_14: {TectType.ACTIVE_SHALLOW: gsim.abrahamson_2014.AbrahamsonEtAl2014},
     GMM.CY_14: {TectType.ACTIVE_SHALLOW: gsim.chiou_youngs_2014.ChiouYoungs2014},
     GMM.CB_14: {
