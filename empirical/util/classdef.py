@@ -107,7 +107,9 @@ class GMM(ExtendedStrEnum):
     AG_20_NZ = 208, "AG20 (NZ)"
     Si_20 = 110, "S20"
     Z_16 = 111, "Z16"
-    SF_22 = 112, "SF22"
+    S_22 = 112, "S22"
+    A_22 = 113, "A22"
+    Br_13 = 114, "B13"
 
 
 class SiteClass(Enum):

@@ -25,7 +25,6 @@ def OQ_model(model, **kwargs):
 
 OQ_MODELS = {
     GMM.Br_10: {TectType.ACTIVE_SHALLOW: gsim.bradley_2013.Bradley2013},
-    GMM.ASK_14: {TectType.ACTIVE_SHALLOW: gsim.abrahamson_2014.AbrahamsonEtAl2014},
     GMM.AS_16: {TectType.ACTIVE_SHALLOW: gsim.afshari_stewart_2016.AfshariStewart2016},
     GMM.A_18: {
         TectType.SUBDUCTION_SLAB: gsim.abrahamson_2018.AbrahamsonEtAl2018SSlab,
@@ -35,31 +34,14 @@ OQ_MODELS = {
     GMM.CB_10: {
         TectType.ACTIVE_SHALLOW: gsim.campbell_bozorgnia_2008.CampbellBozorgnia2008
     },
-    GMM.CB_14: {
-        TectType.ACTIVE_SHALLOW: partial(
-            OQ_model,
-            model=gsim.campbell_bozorgnia_2014.CampbellBozorgnia2014,
-            estimate_width=True,
-        )
-    },
     GMM.BCH_16: {
         TectType.SUBDUCTION_SLAB: gsim.bchydro_2016_epistemic.BCHydroESHM20SSlab,
         TectType.SUBDUCTION_INTERFACE: gsim.bchydro_2016_epistemic.BCHydroESHM20SInter,
     },
-    GMM.BSSA_14: {TectType.ACTIVE_SHALLOW: gsim.boore_2014.BooreEtAl2014},
-    GMM.CY_14: {TectType.ACTIVE_SHALLOW: gsim.chiou_youngs_2014.ChiouYoungs2014},
     GMM.ZA_06: {
         TectType.ACTIVE_SHALLOW: gsim.zhao_2006.ZhaoEtAl2006Asc,
         TectType.SUBDUCTION_SLAB: gsim.zhao_2006.ZhaoEtAl2006SSlab,
         TectType.SUBDUCTION_INTERFACE: gsim.zhao_2006.ZhaoEtAl2006SInter,
-    },
-    GMM.P_20: {
-        TectType.SUBDUCTION_SLAB: gsim.parker_2020.ParkerEtAl2020SSlab,
-        TectType.SUBDUCTION_INTERFACE: gsim.parker_2020.ParkerEtAl2020SInter,
-    },
-    GMM.K_20: {
-        TectType.SUBDUCTION_SLAB: gsim.kuehn_2020.KuehnEtAl2020SSlab,
-        TectType.SUBDUCTION_INTERFACE: gsim.kuehn_2020.KuehnEtAl2020SInter,
     },
     GMM.K_20_NZ: {
         TectType.SUBDUCTION_SLAB: partial(
@@ -68,10 +50,6 @@ OQ_MODELS = {
         TectType.SUBDUCTION_INTERFACE: partial(
             OQ_model, model=gsim.kuehn_2020.KuehnEtAl2020SInter, region="NZL"
         ),
-    },
-    GMM.AG_20: {
-        TectType.SUBDUCTION_SLAB: gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SSlab,
-        TectType.SUBDUCTION_INTERFACE: gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SInter,
     },
     GMM.AG_20_NZ: {
         TectType.SUBDUCTION_SLAB: partial(
@@ -85,7 +63,34 @@ OQ_MODELS = {
             region="NZL",
         ),
     },
-    GMM.SF_22: {TectType.ACTIVE_SHALLOW: gsim.stafford_2022.Stafford2022},
+    # Chris NZSHM Models
+    GMM.S_22: {TectType.ACTIVE_SHALLOW: gsim.stafford_2022.Stafford2022},
+    GMM.A_22: {TectType.ACTIVE_SHALLOW: gsim.atkinson_2022.Atkinson2022Crust,
+               TectType.SUBDUCTION_SLAB: gsim.atkinson_2022.Atkinson2022SSlab,
+               TectType.SUBDUCTION_INTERFACE: gsim.atkinson_2022.Atkinson2022SInter},
+    GMM.ASK_14: {TectType.ACTIVE_SHALLOW: gsim.abrahamson_2014.AbrahamsonEtAl2014},
+    GMM.CY_14: {TectType.ACTIVE_SHALLOW: gsim.chiou_youngs_2014.ChiouYoungs2014},
+    GMM.CB_14: {
+        TectType.ACTIVE_SHALLOW: partial(
+            OQ_model,
+            model=gsim.campbell_bozorgnia_2014.CampbellBozorgnia2014,
+            estimate_width=True,
+        )
+    },
+    GMM.BSSA_14: {TectType.ACTIVE_SHALLOW: gsim.boore_2014.BooreEtAl2014},
+    GMM.Br_13: {TectType.ACTIVE_SHALLOW: gsim.bradley_2013.Bradley2013},
+    GMM.AG_20: {
+        TectType.SUBDUCTION_SLAB: gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SSlab,
+        TectType.SUBDUCTION_INTERFACE: gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SInter,
+    },
+    GMM.P_20: {
+        TectType.SUBDUCTION_SLAB: gsim.parker_2020.ParkerEtAl2020SSlab,
+        TectType.SUBDUCTION_INTERFACE: gsim.parker_2020.ParkerEtAl2020SInter,
+    },
+    GMM.K_20: {
+        TectType.SUBDUCTION_SLAB: gsim.kuehn_2020.KuehnEtAl2020SSlab,
+        TectType.SUBDUCTION_INTERFACE: gsim.kuehn_2020.KuehnEtAl2020SInter,
+    },
 }
 
 SPT_STD_DEVS = [const.StdDev.TOTAL, const.StdDev.INTER_EVENT, const.StdDev.INTRA_EVENT]
