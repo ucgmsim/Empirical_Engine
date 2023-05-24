@@ -26,18 +26,13 @@ DEFAULT_MODELS = [
     "P_20",
     "K_20",
 ]
-
-
-def convert_tect_class(tect_type):
-    if tect_type == "Crustal":
-        return TectType.ACTIVE_SHALLOW
-    elif tect_type == "Interface":
-        return TectType.SUBDUCTION_INTERFACE
-    elif tect_type == "Slab":
-        return TectType.SUBDUCTION_SLAB
-    elif tect_type == "Outer-rise" or tect_type == "Undetermined":
-        # Ignore these tectonic types
-        return None
+TECT_CLASS_MAP = {
+    "Crustal": TectType.ACTIVE_SHALLOW,
+    "Interface": TectType.SUBDUCTION_INTERFACE,
+    "Slab": TectType.SUBDUCTION_SLAB,
+    "Outer-rise": None,
+    "Undetermined": None,
+}
 
 
 def get_backarc_mask(backarc_json_ffp: Path, locs: np.ndarray):
@@ -81,7 +76,32 @@ def filter_gm_csv(gm_csv: Path):
     :return: Ground Motion DataFrame containing only the valid rows
     """
     gm_df = pd.read_csv(gm_csv, dtype={"gmid": str, "evid": str})
+    # Remove rows with NaNs in the station lon lat values and the magnitude value
     gm_df = gm_df.loc[gm_df.loc[:, ["sta_lon", "mag"]].notnull().all(axis=1)]
+    # Only include Accelerometer channels
+    gm_df = gm_df.loc[gm_df["chan"].isin(["HN", "BN"])]
+    # Only include rows with accepted rrup values per tectonic class
+    gm_df = gm_df.loc[
+        (
+            (
+                (gm_df["tect_class"] == "Crustal")
+                & (gm_df["r_rup"] <= 300)
+                & (gm_df["mag"] >= 3.5)
+            )
+            | gm_df["tect_class"]
+            != "Crustal"
+        )
+    ]
+    gm_df = gm_df.loc[
+        (
+            (
+                (gm_df["tect_class"].isin(["Interface", "Slab"]))
+                & (gm_df["r_rup"] <= 500)
+                & (gm_df["mag"] >= 4.5)
+            )
+            | ~gm_df["tect_class"].isin(["Interface", "Slab"])
+        )
+    ]
     return gm_df
 
 
@@ -101,7 +121,7 @@ def calc_empirical(
     :param models: The list of models to use
     :param ims: The list of IMs to calculate
     :param periods: The list of periods to calculate
-    :return: Dict of IM DataFrames per model
+    :return: Dict of IM DataFrames per model and filtered gm csv as a dataframe
     """
     # Read gm csv and get periods if needed
     gm_df = filter_gm_csv(gm_csv)
@@ -115,11 +135,13 @@ def calc_empirical(
         ims = DEFAULT_IMS
 
     # Calculate the backarc mask
-    print("Calculating backarc mask")
-    backarc_mask = get_backarc_mask(
-        backarc_json_ffp, gm_df[["sta_lon", "sta_lat"]].values
+    # Get unique locations
+    locs = gm_df[["sta", "sta_lon", "sta_lat"]].drop_duplicates()
+    locs["backarc"] = get_backarc_mask(
+        backarc_json_ffp, locs[["sta_lon", "sta_lat"]].values
     )
-    print("Backarc mask calculated")
+    # Merge backarc mask into gm_df on each unique location
+    gm_df = gm_df.merge(locs[["sta", "backarc"]], on="sta", how="left")
 
     # Create the rupture dataframe for open quake
     rupture_df = pd.DataFrame(
@@ -133,7 +155,7 @@ def calc_empirical(
             "dbot": gm_df["z_bor"],
             "zbot": gm_df["z_bor"],
             "ztor": gm_df["z_tor"],
-            "tect_type": [convert_tect_class(t) for t in gm_df["tect_class"]],
+            "tect_type": [TECT_CLASS_MAP[t] for t in gm_df["tect_class"]],
             "rjb": gm_df["r_jb"],
             "rrup": gm_df["r_rup"],
             "rx": gm_df["r_x"],
@@ -146,7 +168,7 @@ def calc_empirical(
             "z2pt5": gm_df["Z2.5"],
             "vs30measured": False,
             "hypo_depth": gm_df["ev_depth"],
-            "backarc": backarc_mask,
+            "backarc": gm_df["backarc"],
         }
     )
 
@@ -156,16 +178,14 @@ def calc_empirical(
 
     # Calculate im csvs for each of the GMMs / TectTypes using the data in the gm_df
     model_outputs = dict()
-    for model in models:
-        model = GMM[model]
+    for str_model in models:
+        model = GMM[str_model]
         # Get the tect types for the model
         tect_types = openquake_wrapper_vectorized.OQ_MODELS[model].keys()
         tect_df_list = []
         for tect_type in tect_types:
             # Extract the rupture data information that has the same tect type
-            tect_rup_df = rupture_df.copy(deep=True).loc[
-                rupture_df["tect_type"] == tect_type
-            ]
+            tect_rup_df = rupture_df.loc[rupture_df["tect_type"] == tect_type]
             im_df_list = []
             print(f"Calculating for {model.name} {tect_type}")
             for im in ims:
@@ -199,28 +219,25 @@ def calc_empirical(
         print(f"Writing {model.name} to {model_dir / f'{model.name}.csv'}")
         model_result_df.to_csv(model_dir / f"{model.name}.csv", index=False)
         model_outputs[model] = model_result_df
-    return model_outputs
+    return model_outputs, gm_df
 
 
 def calc_residuals(
-    gm_csv: Path,
+    gm_df: pd.DataFrame,
     model_outputs: Dict[GMM, pd.DataFrame],
     output_dir: Path,
     ims: List[str] = None,
 ):
     """
     Calculate the residuals between the observed IMs and the model IMs
-    :param gm_csv: The path to the gm csv
+    :param gm_df: The filtered ground motion dataframe
     :param model_outputs: The model outputs with the given model as the dictionary key
     :param output_dir: The path to the output directory
     :param ims: The IMs to calculate the residuals for
     """
     # Make the residual output directory
     residual_dir = output_dir / "residuals"
-    residual_dir.mkdir(exist_ok=True)
-
-    # Read gm csv for observed data
-    gm_df = filter_gm_csv(gm_csv)
+    residual_dir.mkdir(exist_ok=True, parents=True)
 
     # Get default IM's if needed
     if ims is None:
@@ -319,7 +336,7 @@ def load_args():
 
 def main():
     args = load_args()
-    model_outputs = calc_empirical(
+    model_outputs, gm_df = calc_empirical(
         args.gm_csv,
         args.backarc_json_ffp,
         args.output_dir,
@@ -327,7 +344,7 @@ def main():
         args.ims,
         args.periods,
     )
-    calc_residuals(args.gm_csv, model_outputs, args.output_dir)
+    calc_residuals(gm_df, model_outputs, args.output_dir)
 
 
 if __name__ == "__main__":
