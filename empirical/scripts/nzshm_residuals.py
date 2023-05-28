@@ -35,6 +35,20 @@ TECT_CLASS_MAP = {
 }
 
 
+def sort_period_columns(df: pd.DataFrame):
+    """
+    Sort the columns of the given dataframe by period
+    Manages the IM's if they are labelled using the . or the p notation
+    :param df: The dataframe to sort
+    """
+    sort_order = sorted(
+        df.columns,
+        key=lambda col: float(col[4:].replace("p", ".")) if "pSA" in col else 0,
+    )
+    df = df.reindex(sort_order, axis=1)
+    return df
+
+
 def get_backarc_mask(backarc_json_ffp: Path, locs: np.ndarray):
     """
     Computes a mask identifying each location
@@ -266,31 +280,18 @@ def calc_residuals(
             res_df, list(im_columns), "evid", "sta"
         )
 
-        # rename the IM columns in each DataFrame to reflect their residual information
-        event_res_df = event_res_df.rename(
-            {col: f"{col}_event" for col in event_res_df.columns}, axis="columns"
+        # Sort and save each of the residual dataframes to a csv
+        print(f"Writing residual results for {model.name} in {residual_dir}")
+        sort_period_columns(event_res_df).to_csv(
+            residual_dir / f"{model.name}_event.csv", index=False
         )
-        site_res_df = site_res_df.rename(
-            {col: f"{col}_site" for col in site_res_df.columns}, axis="columns"
+        sort_period_columns(site_res_df).to_csv(
+            residual_dir / f"{model.name}_site.csv", index=False
         )
-        rem_res_df = rem_res_df.rename(
-            {col: f"{col}_rem" for col in rem_res_df.columns}, axis="columns"
+        sort_period_columns(rem_res_df).to_csv(
+            residual_dir / f"{model.name}_rem.csv", index=False
         )
-        bias_std_df = bias_std_df.T.unstack().to_frame().sort_index(level=1).T
-        bias_std_df.columns = bias_std_df.columns.map("_".join)
-
-        # Get event data from the model_df
-        full_res_df = pd.DataFrame(model_df[["gmid", "evid", "sta"]])
-
-        # Merge the event, site and rem residual dataframes
-        full_res_df = full_res_df.merge(site_res_df, left_on="sta", right_index=True)
-        full_res_df = full_res_df.merge(event_res_df, left_on="evid", right_index=True)
-        full_res_df = full_res_df.merge(rem_res_df, left_index=True, right_index=True)
-        full_res_df = full_res_df.merge(bias_std_df, how="cross")
-
-        # Save the full residual dataframe
-        print(f"Writing residual results to {residual_dir}/{model.name}.csv")
-        full_res_df.to_csv(residual_dir / f"{model.name}.csv", index=False)
+        bias_std_df.to_csv(residual_dir / f"{model.name}_bias_std.csv", index=False)
 
 
 def load_args():
