@@ -196,7 +196,6 @@ def calc_empirical(
         model = GMM[str_model]
         # Get the tect types for the model
         tect_types = openquake_wrapper_vectorized.OQ_MODELS[model].keys()
-        tect_df_list = []
         for tect_type in tect_types:
             # Extract the rupture data information that has the same tect type
             tect_rup_df = rupture_df.loc[rupture_df["tect_type"] == tect_type]
@@ -227,25 +226,31 @@ def calc_empirical(
             tect_result_df.insert(0, "sta", tect_rup_df["sta"])
             tect_result_df.insert(0, "evid", tect_rup_df["evid"])
             tect_result_df.insert(0, "gmid", tect_rup_df["gmid"])
-            tect_df_list.append(tect_result_df)
-        # Combine all the tect type results into one dataframe
-        model_result_df = pd.concat(tect_df_list, axis=0).sort_index()
-        print(f"Writing {model.name} to {model_dir / f'{model.name}.csv'}")
-        model_result_df.to_csv(model_dir / f"{model.name}.csv", index=False)
-        model_outputs[model] = model_result_df
+            # get the key from the TECT_CLASS_MAP based on the tect_type
+            tect_type_str = list(TECT_CLASS_MAP.keys())[
+                list(TECT_CLASS_MAP.values()).index(tect_type)
+            ]
+            # Save the tect type results to a csv
+            print(
+                f"Writing {model.name} {tect_type_str} to {model_dir / f'{model.name}_{tect_type_str}.csv'}"
+            )
+            tect_result_df.to_csv(
+                model_dir / f"{model.name}_{tect_type_str}.csv", index=False
+            )
+            model_outputs[f"{model.name}_{tect_type_str}"] = tect_result_df
     return model_outputs, gm_df
 
 
 def calc_residuals(
     gm_df: pd.DataFrame,
-    model_outputs: Dict[GMM, pd.DataFrame],
+    model_outputs: Dict[str, pd.DataFrame],
     output_dir: Path,
     ims: List[str] = None,
 ):
     """
     Calculate the residuals between the observed IMs and the model IMs
     :param gm_df: The filtered ground motion dataframe
-    :param model_outputs: The model outputs with the given model as the dictionary key
+    :param model_outputs: The model outputs with the given model and tect_type pairing as the dictionary key
     :param output_dir: The path to the output directory
     :param ims: The IMs to calculate the residuals for
     """
@@ -275,23 +280,23 @@ def calc_residuals(
         res_df.insert(0, "gmid", model_df["gmid"])
 
         # Run MER
-        print(f"Running MER for {model.name}")
+        print(f"Running MER for {model}")
         event_res_df, site_res_df, rem_res_df, bias_std_df = run_mera(
             res_df, list(im_columns), "evid", "sta"
         )
 
         # Sort and save each of the residual dataframes to a csv
-        print(f"Writing residual results for {model.name} in {residual_dir}")
+        print(f"Writing residual results for {model} in {residual_dir}")
         sort_period_columns(event_res_df).to_csv(
-            residual_dir / f"{model.name}_event.csv", index=False
+            residual_dir / f"{model}_event.csv", index=False
         )
         sort_period_columns(site_res_df).to_csv(
-            residual_dir / f"{model.name}_site.csv", index=False
+            residual_dir / f"{model}_site.csv", index=False
         )
         sort_period_columns(rem_res_df).to_csv(
-            residual_dir / f"{model.name}_rem.csv", index=False
+            residual_dir / f"{model}_rem.csv", index=False
         )
-        bias_std_df.to_csv(residual_dir / f"{model.name}_bias_std.csv", index=False)
+        bias_std_df.to_csv(residual_dir / f"{model}_bias_std.csv", index=False)
 
 
 def load_args():
