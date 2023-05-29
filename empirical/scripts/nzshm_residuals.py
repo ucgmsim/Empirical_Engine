@@ -33,6 +33,7 @@ TECT_CLASS_MAP = {
     "Outer-rise": None,
     "Undetermined": None,
 }
+TECT_CLASS_MAP_REV = {v: k for k, v in TECT_CLASS_MAP.items()}
 
 
 def sort_period_columns(df: pd.DataFrame):
@@ -226,10 +227,8 @@ def calc_empirical(
             tect_result_df.insert(0, "sta", tect_rup_df["sta"])
             tect_result_df.insert(0, "evid", tect_rup_df["evid"])
             tect_result_df.insert(0, "gmid", tect_rup_df["gmid"])
-            # get the key from the TECT_CLASS_MAP based on the tect_type
-            tect_type_str = list(TECT_CLASS_MAP.keys())[
-                list(TECT_CLASS_MAP.values()).index(tect_type)
-            ]
+            # Get the tect type string
+            tect_type_str = TECT_CLASS_MAP_REV[tect_type]
             # Save the tect type results to a csv
             print(
                 f"Writing {model.name} {tect_type_str} to {model_dir / f'{model.name}_{tect_type_str}.csv'}"
