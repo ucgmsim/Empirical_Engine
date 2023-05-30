@@ -127,11 +127,6 @@ def generate_period_mask(gm_df: pd.DataFrame):
     :param gm_df: The dataframe to filter
     :return: A mask for the gm_df where values are True if they are outside the filter
     """
-    f_min = np.sqrt(gm_df["fmin_mean_X"] * gm_df["fmin_mean_Y"])
-    # Set all values that are less than 0.12 to 0.099
-    f_min[f_min < 0.12] = 0.099
-    t_max = 1 / f_min
-
     # Create a dataframe with the period values for each column that's pSA in gm_df
     psa_str_cols = [col for col in gm_df.columns if "pSA" in col]
     psa_cols = sorted([float(col[4:].replace("p", ".")) for col in psa_str_cols])
@@ -139,6 +134,10 @@ def generate_period_mask(gm_df: pd.DataFrame):
         {col: col for col in psa_cols}, index=gm_df.index, columns=psa_cols
     )
     period_values.columns = psa_str_cols
+
+    # Calculate f_min and t_max
+    f_min = np.sqrt(gm_df["fmin_mean_X"] * gm_df["fmin_mean_Y"])
+    t_max = 1 / f_min
 
     # Extend t_max by duplicating each row of the t_max values for each col in psa_cols
     t_max_expanded = pd.concat([t_max] * len(psa_cols), axis=1)
@@ -321,7 +320,7 @@ def calc_residuals(
         res_df.insert(0, "gmid", model_df["gmid"])
 
         # Get the non nan mask
-        non_nan_mask = ~res_df.isna()
+        non_nan_mask = res_df.notna()
 
         # Run MER
         print(f"Running MER for {model}")
