@@ -120,6 +120,34 @@ def filter_gm_csv(gm_csv: Path):
     return gm_df
 
 
+def generate_period_mask(gm_df: pd.DataFrame):
+    """
+    Get a mask for the gm_df filtering for T < Tmax, where Tmax is 1/fmin
+    fmin is defined as np.sqrt(event_site["f_min_X"] * event_site["f_min_Y"])
+    :param gm_df: The dataframe to filter
+    :return: A mask for the gm_df where values are True if they are outside the filter
+    """
+    # Create a dataframe with the period values for each column that's pSA in gm_df
+    psa_str_cols = [col for col in gm_df.columns if "pSA" in col]
+    psa_cols = sorted([float(col[4:].replace("p", ".")) for col in psa_str_cols])
+    period_values = pd.DataFrame(
+        {col: col for col in psa_cols}, index=gm_df.index, columns=psa_cols
+    )
+    period_values.columns = psa_str_cols
+
+    # Calculate f_min and t_max
+    f_min = np.sqrt(gm_df["fmin_mean_X"] * gm_df["fmin_mean_Y"])
+    t_max = 1 / f_min
+
+    # Extend t_max by duplicating each row of the t_max values for each col in psa_cols
+    t_max_expanded = pd.concat([t_max] * len(psa_cols), axis=1)
+    t_max_expanded.columns = psa_str_cols
+
+    # Compare the expanded t_max values to the period values to get the final mask
+    mask = period_values > t_max_expanded
+    return mask
+
+
 def calc_empirical(
     gm_csv: Path,
     backarc_json_ffp: Path,
@@ -155,6 +183,7 @@ def calc_empirical(
     locs["backarc"] = get_backarc_mask(
         backarc_json_ffp, locs[["sta_lon", "sta_lat"]].values
     )
+
     # Merge backarc mask into gm_df on each unique location
     gm_df = gm_df.merge(locs[["sta", "backarc"]], on="sta", how="left")
 
@@ -186,6 +215,12 @@ def calc_empirical(
             "backarc": gm_df["backarc"],
         }
     )
+
+    # Calculate the fmin mask
+    period_mask = generate_period_mask(gm_df)
+
+    # Filter the gm_df by the period mask
+    gm_df[period_mask.columns] = gm_df[period_mask.columns].mask(period_mask)
 
     # Make the model output directory
     model_dir = output_dir / "models"
@@ -229,6 +264,12 @@ def calc_empirical(
             tect_result_df.insert(0, "gmid", tect_rup_df["gmid"])
             # Get the tect type string
             tect_type_str = TECT_CLASS_MAP_REV[tect_type]
+
+            # Filter the tect_result_df by the period mask
+            tect_result_df[period_mask.columns] = tect_result_df[
+                period_mask.columns
+            ].mask(period_mask)
+
             # Save the tect type results to a csv
             print(
                 f"Writing {model.name} {tect_type_str} to {model_dir / f'{model.name}_{tect_type_str}.csv'}"
@@ -278,10 +319,13 @@ def calc_residuals(
         res_df.insert(0, "evid", model_df["evid"])
         res_df.insert(0, "gmid", model_df["gmid"])
 
+        # Get the non nan mask
+        non_nan_mask = res_df.notna()
+
         # Run MER
         print(f"Running MER for {model}")
         event_res_df, site_res_df, rem_res_df, bias_std_df = run_mera(
-            res_df, list(im_columns), "evid", "sta"
+            res_df, list(im_columns), "evid", "sta", mask=non_nan_mask
         )
 
         # Sort and save each of the residual dataframes to a csv
