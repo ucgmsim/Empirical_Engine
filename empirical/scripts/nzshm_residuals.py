@@ -12,20 +12,33 @@ from empirical.util.classdef import TectType, GMM
 from empirical.util import openquake_wrapper_vectorized
 from mera.mera_pymer4 import run_mera
 
+# define a flag for using site specific z1 and z2.5 (flag =1) or using Vs30 correlations (flag = 0)
+useSiteSpecific_Zvals = 0
 
+if useSiteSpecific_Zvals:
+    runID = 'siteSpecificZVals'
+else:
+    runID = 'genericZvals'
+
+
+# create a list of default IMs to calculate
 DEFAULT_IMS = ["PGA", "pSA"]
+
+# create a list of GMM to loop through for predictions
 DEFAULT_MODELS = [
-    "S_22",
-    "A_22",
-    "ASK_14",
+    # "S_22",
+    # "A_22",
+    # "ASK_14",
     "CY_14",
-    "BSSA_14",
-    "CB_14",
-    "Br_13",
-    "AG_20",
-    "P_20",
-    "K_20",
+    # "BSSA_14",
+    # "CB_14",
+    # "Br_13",
+    # "AG_20",
+    # "P_20",
+    # "K_20",
 ]
+
+
 TECT_CLASS_MAP = {
     "Crustal": TectType.ACTIVE_SHALLOW,
     "Interface": TectType.SUBDUCTION_INTERFACE,
@@ -35,6 +48,17 @@ TECT_CLASS_MAP = {
 }
 TECT_CLASS_MAP_REV = {v: k for k, v in TECT_CLASS_MAP.items()}
 
+# create a function that calculates z1 from Vs30 (CY2014 California model)
+def z1_california(Vs30):
+    ln_z1 = (-7.14 / 4.) * np.log((Vs30 ** 4. + 570.94 ** 4.) / (1360 ** 4. + 570.94 ** 4.))
+    z1 = np.exp(ln_z1)
+    return z1
+
+#create a function that calculates z2p5 from Vs30 (CB14 California model)
+def z2pt5_california(Vs30):
+    ln_z2p5 = 7.089 - 1.144 * np.log(Vs30)
+    z2p5 = np.exp(ln_z2p5)
+    return z2p5
 
 def sort_period_columns(df: pd.DataFrame):
     """
@@ -187,8 +211,14 @@ def calc_empirical(
         }
     )
 
+    #change z1 and z2.5 values to the Vs30 correlations if not using site specific basin terms
+    if not useSiteSpecific_Zvals:
+        rupture_df["z1pt0"] = z1_california(rupture_df["vs30"].values[0])
+        rupture_df["z2pt5"] = z2pt5_california(rupture_df["vs30"].values[0])
+
+
     # Make the model output directory
-    model_dir = output_dir / "models"
+    model_dir = output_dir / runID / "models"
     model_dir.mkdir(exist_ok=True, parents=True)
 
     # Calculate im csvs for each of the GMMs / TectTypes using the data in the gm_df
@@ -234,8 +264,7 @@ def calc_empirical(
                 f"Writing {model.name} {tect_type_str} to {model_dir / f'{model.name}_{tect_type_str}.csv'}"
             )
             tect_result_df.to_csv(
-                model_dir / f"{model.name}_{tect_type_str}.csv", index=False
-            )
+                model_dir / f"{model.name}_{tect_type_str}.csv")
             model_outputs[f"{model.name}_{tect_type_str}"] = tect_result_df
     return model_outputs, gm_df
 
@@ -254,7 +283,7 @@ def calc_residuals(
     :param ims: The IMs to calculate the residuals for
     """
     # Make the residual output directory
-    residual_dir = output_dir / "residuals"
+    residual_dir = output_dir /runID / "residuals"
     residual_dir.mkdir(exist_ok=True, parents=True)
 
     # Get default IM's if needed
@@ -287,15 +316,12 @@ def calc_residuals(
         # Sort and save each of the residual dataframes to a csv
         print(f"Writing residual results for {model} in {residual_dir}")
         sort_period_columns(event_res_df).to_csv(
-            residual_dir / f"{model}_event.csv", index=False
-        )
+            residual_dir / f"{model}_event.csv")
         sort_period_columns(site_res_df).to_csv(
-            residual_dir / f"{model}_site.csv", index=False
-        )
+            residual_dir / f"{model}_site.csv")
         sort_period_columns(rem_res_df).to_csv(
-            residual_dir / f"{model}_rem.csv", index=False
-        )
-        bias_std_df.to_csv(residual_dir / f"{model}_bias_std.csv", index=False)
+            residual_dir / f"{model}_rem.csv")
+        bias_std_df.to_csv(residual_dir / f"{model}_bias_std.csv")
 
 
 def load_args():
