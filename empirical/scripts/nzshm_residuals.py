@@ -26,16 +26,16 @@ DEFAULT_IMS = ["PGA", "pSA"]
 
 # create a list of GMM to loop through for predictions
 DEFAULT_MODELS = [
-    # "S_22",
-    # "A_22",
-    # "ASK_14",
+    "S_22",
+    "A_22",
+    "ASK_14",
     "CY_14",
-    # "BSSA_14",
-    # "CB_14",
-    # "Br_13",
-    # "AG_20",
-    # "P_20",
-    # "K_20",
+    "BSSA_14",
+    "CB_14",
+    "Br_13",
+    "AG_20",
+    "P_20",
+    "K_20",
 ]
 
 
@@ -48,17 +48,22 @@ TECT_CLASS_MAP = {
 }
 TECT_CLASS_MAP_REV = {v: k for k, v in TECT_CLASS_MAP.items()}
 
-# create a function that calculates z1 from Vs30 (CY2014 California model)
+# create a function that calculates z1 (in km) from Vs30 (CY2014 California model)
 def z1_california(Vs30):
     ln_z1 = (-7.14 / 4.) * np.log((Vs30 ** 4. + 570.94 ** 4.) / (1360 ** 4. + 570.94 ** 4.))
-    z1 = np.exp(ln_z1)
+    z1 = np.exp(ln_z1) / 1000.
     return z1
 
-#create a function that calculates z2p5 from Vs30 (CB14 California model)
+#create a function that calculates z2p5 (in km) from Vs30 (CB14 California model)
 def z2pt5_california(Vs30):
     ln_z2p5 = 7.089 - 1.144 * np.log(Vs30)
     z2p5 = np.exp(ln_z2p5)
     return z2p5
+
+
+#create a function that interpolates to find the r_rup cutoff value for a given mw value
+def find_rrup_cutoff(mag, mag_vec, rrup_vec):
+    return np.interp(mag, mag_vec, rrup_vec)
 
 def sort_period_columns(df: pd.DataFrame):
     """
@@ -143,6 +148,22 @@ def filter_gm_csv(gm_csv: Path):
     ]
     return gm_df
 
+# create a function that applies filter based on Mw-Rrup
+def filter_gm_df_for_rrup(mw_rrup_filePath, gm_df):
+    #create a list to append rrup cutoff values for each mw value
+    rrup_cutoffs = []
+    mag_vec, rrup_vec = np.loadtxt(mw_rrup_filePath, unpack=True)
+
+    for i, x in gm_df.iterrows():
+        rrup = find_rrup_cutoff(x['mag'], mag_vec, rrup_vec)
+        rrup_cutoffs.append(rrup)
+
+    rrup_cutoffs = np.array(rrup_cutoffs)
+    gm_df = gm_df[np.array(gm_df['r_rup'].values) > rrup_cutoffs]
+
+    return gm_df
+
+
 
 def generate_period_mask(gm_df: pd.DataFrame):
     """
@@ -190,8 +211,12 @@ def calc_empirical(
     :param periods: The list of periods to calculate
     :return: Dict of IM DataFrames per model and filtered gm csv as a dataframe
     """
-    # Read gm csv and get periods if needed
+    # Read gm csv, filter and get periods if needed
     gm_df = filter_gm_csv(gm_csv)
+
+    # define path to Mw-rrup filter file and apply filter
+    Mw_rrupFilePath = r'C:\Users\cde84\Dropbox (Personal)\PostDocWork\NSHM_WellingtonBasin\JournalPaper_WelliSiteResp\residualAnalysis\figs\histograms_GMdatabase\Mw_rrup.txt'
+    gm_df = filter_gm_df_for_rrup(Mw_rrupFilePath, gm_df)
     if periods is None:
         periods = sorted([float(col[4:]) for col in gm_df.columns if "pSA" in col])
 
@@ -244,6 +269,10 @@ def calc_empirical(
     if not useSiteSpecific_Zvals:
         rupture_df["z1pt0"] = z1_california(rupture_df["vs30"].values[0])
         rupture_df["z2pt5"] = z2pt5_california(rupture_df["vs30"].values[0])
+    else:
+        # divide the database values of z1 and z2.5 by 1000 to get into kms
+        rupture_df["z1pt0"] = rupture_df["z1pt0"].values[0] / 1000.0
+        rupture_df["z2pt5"] = rupture_df["z2pt5"].values[0] / 1000.0
 
     # Calculate the fmin mask
     period_mask = generate_period_mask(gm_df)
