@@ -339,7 +339,7 @@ def calc_residuals(
         sort_period_columns(rem_res_df).to_csv(
             residual_dir / f"{model}_rem.csv", index=False
         )
-        bias_std_df.to_csv(residual_dir / f"{model}_bias_std.csv", index=False)
+        sort_period_columns(bias_std_df.T).T.to_csv(residual_dir / f"{model}_bias_std.csv", index=False)
 
 
 def load_args():
