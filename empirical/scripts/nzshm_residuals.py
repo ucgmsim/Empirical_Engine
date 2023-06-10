@@ -12,14 +12,19 @@ from empirical.util.classdef import TectType, GMM
 from empirical.util import openquake_wrapper_vectorized
 from mera.mera_pymer4 import run_mera
 
+#define an ID for the prediction and residual calc
+analID = 'v1_wCPLB'
+
 # define a flag for using site specific z1 and z2.5 (flag =1) or using Vs30 correlations (flag = 0)
 useSiteSpecific_Zvals = 0
 
 if useSiteSpecific_Zvals:
-    runID = 'siteSpecificZVals'
+    zID = 'siteSpecificZVals'
 else:
-    runID = 'genericZvals'
+    zID = 'genericZvals'
 
+#create a run ID from analID and zID
+runID = '%s_%s' %(analID, zID)
 
 # create a list of default IMs to calculate
 DEFAULT_IMS = ["PGA", "pSA"]
@@ -34,7 +39,8 @@ DEFAULT_MODELS = [
     "CB_14",
     "Br_13",
     "AG_20",
-    "P_20",
+    #"P_20",
+    "P_21",
     "K_20",
 ]
 
@@ -146,6 +152,9 @@ def filter_gm_csv(gm_csv: Path):
             | ~gm_df["tect_class"].isin(["Interface", "Slab"])
         )
     ]
+
+    gm_df = gm_df.loc[ (gm_df["f_type"].isin(["cmt_unc", "cmt", "ff", "geonet_rm", 'srf']))]
+
     return gm_df
 
 # create a function that applies filter based on Mw-Rrup
@@ -159,11 +168,28 @@ def filter_gm_df_for_rrup(mw_rrup_filePath, gm_df):
         rrup_cutoffs.append(rrup)
 
     rrup_cutoffs = np.array(rrup_cutoffs)
-    gm_df = gm_df[np.array(gm_df['r_rup'].values) > rrup_cutoffs]
+    gm_df = gm_df[np.array(gm_df['r_rup'].values) < rrup_cutoffs]
 
     return gm_df
 
+def corner_freq(Mw):
+    # define "constants" shear wave vel and stress drop
+    #beta = 3.6 # km/s
+    beta = 2  # km/s
+    stress_drop = 10 # bars
 
+    #calculate seismic moment in dyne-cm
+    Mo = 10 ** (3 / 2 *(Mw + 10.7))
+
+    # log_f = 1.341 + np.log10(beta * (stress_drop ** (1/3) ) ) - 0.5 * Mw
+    #log_f = 1.341 + np.log(beta * (stress_drop ** (1 / 3))) - 0.5 * Mw
+
+    #f0 = 10 ** log_f
+    #f0 = np.exp(log_f)
+
+    f0 = 4.9 * (10 ** 6) * beta * (stress_drop / Mo) ** (1 / 3)
+
+    return f0
 
 def generate_period_mask(gm_df: pd.DataFrame):
     """
@@ -181,7 +207,12 @@ def generate_period_mask(gm_df: pd.DataFrame):
     period_values.columns = psa_str_cols
 
     # Calculate f_min and t_max
-    f_min = np.sqrt(gm_df["fmin_mean_X"] * gm_df["fmin_mean_Y"])
+    #f_min = np.sqrt(gm_df["fmin_mean_X"] * gm_df["fmin_mean_Y"])
+    f_min = np.sqrt(gm_df["f_min_X"] * gm_df["f_min_Y"])
+    f_min[f_min < 0.12] = 0.099
+
+    f_min.loc[gm_df['sta'] == 'CPLB'] = corner_freq(gm_df.loc[gm_df['sta'] == 'CPLB', 'mag'])
+
     t_max = 1 / f_min
 
     # Extend t_max by duplicating each row of the t_max values for each col in psa_cols
@@ -192,9 +223,59 @@ def generate_period_mask(gm_df: pd.DataFrame):
     mask = period_values > t_max_expanded
     return mask
 
+'''
+#define a function for f0 (corner frequency: fmin in linear units) from Mw (Equation in Table 3 Boore 2003)
+def corner_freq(Mw):
+    # define "constants" shear wave vel and stress drop
+    #beta = 3.6 # km/s
+    beta = 2  # km/s
+    stress_drop = 10 # bars
 
+    #calculate seismic moment in dyne-cm
+    Mo = 10 ** (3 / 2 *(Mw + 10.7))
+
+    # log_f = 1.341 + np.log10(beta * (stress_drop ** (1/3) ) ) - 0.5 * Mw
+    #log_f = 1.341 + np.log(beta * (stress_drop ** (1 / 3))) - 0.5 * Mw
+
+    #f0 = 10 ** log_f
+    #f0 = np.exp(log_f)
+
+    f0 = 4.9 * (10 ** 6) * beta * (stress_drop / Mo) ** (1 / 3)
+
+    return f0
+
+def generate_period_mask(gm_df: pd.DataFrame):
+    """
+    Get a mask for the gm_df filtering for T < Tmax, where Tmax is 1/fmin
+    fmin is defined as np.sqrt(event_site["f_min_X"] * event_site["f_min_Y"])
+    :param gm_df: The dataframe to filter
+    :return: A mask for the gm_df where values are True if they are outside the filter
+    """
+    # Create a dataframe with the period values for each column that's pSA in gm_df
+    psa_str_cols = [col for col in gm_df.columns if "pSA" in col]
+    psa_cols = sorted([float(col[4:].replace("p", ".")) for col in psa_str_cols])
+    period_values = pd.DataFrame(
+        {col: col for col in psa_cols}, index=gm_df.index, columns=psa_cols
+    )
+    period_values.columns = psa_str_cols
+
+    # Calculate f_min and t_max from Mw
+    mag = gm_df["mag"]
+
+    f_min = corner_freq(mag)
+    t_max = 1 / f_min
+
+    # Extend t_max by duplicating each row of the t_max values for each col in psa_cols
+    t_max_expanded = pd.concat([t_max] * len(psa_cols), axis=1)
+    t_max_expanded.columns = psa_str_cols
+
+    # Compare the expanded t_max values to the period values to get the final mask
+    mask = period_values > t_max_expanded
+    return mask
+'''
 def calc_empirical(
     gm_csv: Path,
+    site_csv: Path,
     backarc_json_ffp: Path,
     output_dir: Path,
     models: List[str] = None,
@@ -204,6 +285,7 @@ def calc_empirical(
     """
     Calculate the empirical IMs for the given gm csv and output the results to the given output directory.
     :param gm_csv: The path to the csv containing the ground motion data
+    :param site_csv: The path to the csv containing the site data
     :param backarc_json_ffp: The path to the backarc json file
     :param output_dir: The path to the output directory
     :param models: The list of models to use
@@ -219,6 +301,10 @@ def calc_empirical(
     gm_df = filter_gm_df_for_rrup(Mw_rrupFilePath, gm_df)
     if periods is None:
         periods = sorted([float(col[4:]) for col in gm_df.columns if "pSA" in col])
+
+    #create a dataframe for site data base file so that a different version of site and gm database can be used
+    #gmdb_siteTables_Path = r'C:\Users\cde84\Dropbox (Personal)\PostDocWork\NSHM_WellingtonBasin\gmDatabases\GMDB_3.2\Tables\site_table.csv'
+    site_df = pd.read_csv(site_csv)
 
     # Get models and IM's if needed
     if models is None:
@@ -256,9 +342,15 @@ def calc_empirical(
             "rtvz": gm_df["r_tvz"],
             "lon": gm_df["sta_lon"],
             "lat": gm_df["sta_lat"],
-            "vs30": gm_df["Vs30"],
-            "z1pt0": gm_df["Z1.0"],
-            "z2pt5": gm_df["Z2.5"],
+            #"vs30": gm_df["Vs30"],
+            #"z1pt0": gm_df["Z1.0"],
+            #"z2pt5": gm_df["Z2.5"],
+            #"vs30": pd.DataFrame([site_df["Vs30"].loc[site_df['sta'] == station].values[0] for station in gm_df['sta']], columns = ['Vs30']),
+            #"z1pt0": pd.DataFrame([site_df["Z1.0"].loc[site_df['sta'] == station].values[0] for station in gm_df['sta']], columns = ['Z1.0']),
+            #"z2pt5": pd.DataFrame([site_df["Z2.5"].loc[site_df['sta'] == station].values[0] for station in gm_df['sta']], columns = ['Z2.5']),
+            "vs30": [site_df["Vs30"].loc[site_df['sta'] == station].values[0] for station in gm_df['sta']],
+            "z1pt0": [site_df["Z1.0"].loc[site_df['sta'] == station].values[0] for station in gm_df['sta']],
+            "z2pt5": [site_df["Z2.5"].loc[site_df['sta'] == station].values[0] for station in gm_df['sta']],
             "vs30measured": False,
             "hypo_depth": gm_df["ev_depth"],
             "backarc": gm_df["backarc"],
@@ -272,7 +364,7 @@ def calc_empirical(
     else:
         # divide the database values of z1 and z2.5 by 1000 to get into kms
         rupture_df["z1pt0"] = rupture_df["z1pt0"].values[0] / 1000.0
-        rupture_df["z2pt5"] = rupture_df["z2pt5"].values[0] / 1000.0
+        #rupture_df["z2pt5"] = rupture_df["z2pt5"].values[0] / 1000.0
 
     # Calculate the fmin mask
     period_mask = generate_period_mask(gm_df)
@@ -393,7 +485,7 @@ def calc_residuals(
             residual_dir / f"{model}_site.csv")
         sort_period_columns(rem_res_df).to_csv(
             residual_dir / f"{model}_rem.csv")
-        bias_std_df.to_csv(residual_dir / f"{model}_bias_std.csv")
+        sort_period_columns(bias_std_df.T).T.to_csv(residual_dir / f"{model}_bias_std.csv")
 
 
 def load_args():
@@ -406,6 +498,13 @@ def load_args():
         type=Path,
         help="The path to the csv containing the ground motion data",
     )
+
+    parser.add_argument(
+        "site_csv",
+        type=Path,
+        help="The path to the csv containing the site data",
+    )
+
     parser.add_argument(
         "backarc_json_ffp",
         type=Path,
@@ -441,6 +540,7 @@ def main():
     args = load_args()
     model_outputs, gm_df = calc_empirical(
         args.gm_csv,
+        args.site_csv,
         args.backarc_json_ffp,
         args.output_dir,
         args.models,
