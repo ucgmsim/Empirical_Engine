@@ -95,6 +95,7 @@ class GMM(ExtendedStrEnum):
     BB_13 = 14, "BB13"
     # openquake models below
     P_20 = 101, "P20"
+    P_21 = 201, "P21"
     HA_20 = 102, "HA20"
     G_17 = 103, "G17"
     BC_16 = 104, "BC16"
