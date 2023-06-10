@@ -89,6 +89,10 @@ OQ_MODELS = {
         TectType.SUBDUCTION_SLAB: gsim.parker_2020.ParkerEtAl2020SSlab,
         TectType.SUBDUCTION_INTERFACE: gsim.parker_2020.ParkerEtAl2020SInter,
     },
+    GMM.P_21: {
+        TectType.SUBDUCTION_SLAB: gsim.parker_2021.ParkerEtAl2021SSlab,
+        TectType.SUBDUCTION_INTERFACE: gsim.parker_2021.ParkerEtAl2021SInter,
+    },
     GMM.K_20: {
         TectType.SUBDUCTION_SLAB: gsim.kuehn_2020.KuehnEtAl2020SSlab,
         TectType.SUBDUCTION_INTERFACE: gsim.kuehn_2020.KuehnEtAl2020SInter,
@@ -332,6 +336,7 @@ def oq_run(
 
     # Convert z1pt0 from km to m
     rupture_df["z1pt0"] *= 1000
+    #print("z1 = %s" %rupture_df["z1pt0"])
     # OQ's single new-style context which contains all site, distance and rupture's information
     rupture_ctx = contexts.RuptureContext(
         tuple(
