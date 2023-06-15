@@ -63,7 +63,6 @@ OQ_MODELS = {
             region="NZL",
         ),
     },
-    # Chris NZSHM Models
     GMM.S_22: {TectType.ACTIVE_SHALLOW: gsim.stafford_2022.Stafford2022},
     GMM.A_22: {
         TectType.ACTIVE_SHALLOW: gsim.atkinson_2022.Atkinson2022Crust,
@@ -92,6 +91,10 @@ OQ_MODELS = {
     GMM.K_20: {
         TectType.SUBDUCTION_SLAB: gsim.kuehn_2020.KuehnEtAl2020SSlab,
         TectType.SUBDUCTION_INTERFACE: gsim.kuehn_2020.KuehnEtAl2020SInter,
+    },
+    GMM.P_21: {
+        TectType.SUBDUCTION_SLAB: gsim.parker_2021.ParkerEtAl2021SSlab,
+        TectType.SUBDUCTION_INTERFACE: gsim.parker_2021.ParkerEtAl2021SInter,
     },
 }
 
