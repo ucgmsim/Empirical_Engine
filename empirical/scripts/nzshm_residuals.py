@@ -23,8 +23,31 @@ if useSiteSpecific_Zvals:
 else:
     zID = 'genericZvals'
 
-#create a run ID from analID and zID
-runID = '%s_%s' %(analID, zID)
+# choose if you want to run predictions and residual analysis for a subset of sites
+# current options are "All", "Wellington_All" and "Wellington_Basin"
+#sites2runID = 'All'
+# sites2runID = 'Wellington_All'
+sites2runID = 'Wellington_Basin'
+
+#load a dataframe with geomorphology categories for Wellington (used to filter sites)
+geomorphFilePath = r'C:\Users\cde84\Dropbox (Personal)\PostDocWork\NSHM_WellingtonBasin\residualAnalysis\geomorphology\WellingtonGeomorphology_fromAyushi_Final_ForResidualsPaper_v2.csv'
+df_geom = pd.read_csv(geomorphFilePath)
+
+if sites2runID == 'Wellington_All':
+    site2runList = df_geom['stat_id'].values
+
+    # create a run ID from analID and zID and sites2runID
+    runID = '%s_%s_%s' % (analID, zID, sites2runID)
+
+elif sites2runID == 'Wellington_Basin':
+    site2runList = df_geom['stat_id'][df_geom['Updated Geomorphology'].isin(['Basin', 'Basin-edge', 'Valley'])].values
+
+    # create a run ID from analID and zID and sites2runID
+    runID = '%s_%s_%s' % (analID, zID, sites2runID)
+
+else:
+    #create a run ID from analID and zID
+    runID = '%s_%s' %(analID, zID)
 
 # create a list of default IMs to calculate
 DEFAULT_IMS = ["PGA", "pSA"]
@@ -171,6 +194,13 @@ def filter_gm_df_for_rrup(mw_rrup_filePath, gm_df):
     gm_df = gm_df[np.array(gm_df['r_rup'].values) < rrup_cutoffs]
 
     return gm_df
+
+def filter_gm_df_for_sites(gm_df, siteList):
+
+    gm_df = gm_df[gm_df['sta'].isin(siteList)]
+
+    return gm_df
+
 
 def corner_freq(Mw):
     # define "constants" shear wave vel and stress drop
@@ -321,6 +351,10 @@ def calc_empirical(
 
     # Merge backarc mask into gm_df on each unique location
     gm_df = gm_df.merge(locs[["sta", "backarc"]], on="sta", how="left")
+
+    # filter gm_df for sites of interested
+    if sites2runID in ['Wellington_All', 'Wellington_Basin']:
+        gm_df = filter_gm_df_for_sites(gm_df, site2runList)
 
     # Create the rupture dataframe for open quake
     rupture_df = pd.DataFrame(
