@@ -311,6 +311,7 @@ def calc_empirical(
     models: List[str] = None,
     ims: List[str] = None,
     periods: List[float] = None,
+    period_specific_ffp: Path = None,
 ):
     """
     Calculate the empirical IMs for the given gm csv and output the results to the given output directory.
@@ -321,6 +322,7 @@ def calc_empirical(
     :param models: The list of models to use
     :param ims: The list of IMs to calculate
     :param periods: The list of periods to calculate
+    :param period_specific_ffp: The path to the period specific file
     :return: Dict of IM DataFrames per model and filtered gm csv as a dataframe
     """
     # Read gm csv, filter and get periods if needed
@@ -406,6 +408,15 @@ def calc_empirical(
     # Filter the gm_df by the period mask
     gm_df[period_mask.columns] = gm_df[period_mask.columns].mask(period_mask)
 
+    # Grab the period specific data
+    if period_specific_ffp is not None:
+        period_specific_df = pd.read_csv(period_specific_ffp, delimiter=" ")
+        period_specific_df["TectonicType"] = [
+            TECT_CLASS_MAP[t] for t in period_specific_df["TectonicType"]
+        ]
+    else:
+        period_specific_df = None
+
     # Make the model output directory
     model_dir = output_dir / runID / "models"
     model_dir.mkdir(exist_ok=True, parents=True)
@@ -422,12 +433,32 @@ def calc_empirical(
             im_df_list = []
             print(f"Calculating for {model.name} {tect_type}")
             for im in ims:
+                ps_tect_df = None
+                if im == "pSA" and period_specific_df is not None:
+                    # Filter down by model and tect type
+                    ps_model_df = period_specific_df.loc[
+                        period_specific_df["gmmID"] == str_model
+                    ]
+                    ps_tect_df = ps_model_df.loc[
+                        ps_model_df["TectonicType"] == tect_type
+                    ]
+
+                    # Renaming
+                    ps_tect_df = ps_tect_df.rename({"stat_id": "sta"}, axis="columns")
+                    new_column_names = {
+                        col: f"adj_{col.replace('.', 'p')}"
+                        for col in ps_tect_df.columns
+                        if "pSA" in col
+                    }
+                    ps_tect_df = ps_tect_df.rename(columns=new_column_names)
+
                 im_df = openquake_wrapper_vectorized.oq_run(
                     model,
                     tect_type,
                     tect_rup_df,
                     im,
                     periods if im == "pSA" else None,
+                    kwargs={"period_specific_df": ps_tect_df},
                 )
                 im_df = np.exp(im_df.loc[:, im_df.columns.str.contains("mean")])
                 im_df = im_df.rename(
@@ -565,6 +596,12 @@ def load_args():
         default=None,
         help="List of periods to calculate. Defaults to all periods in the gm csv",
     )
+    parser.add_argument(
+        "--period_specific_ffp",
+        type=Path,
+        default=None,
+        help="The path to the period specific csv",
+    )
 
     args = parser.parse_args()
     return args
@@ -580,6 +617,7 @@ def main():
         args.models,
         args.ims,
         args.periods,
+        args.period_specific_ffp,
     )
     calc_residuals(gm_df, model_outputs, args.output_dir)
 
