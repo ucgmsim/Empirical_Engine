@@ -268,6 +268,15 @@ def calc_empirical(
                         if "pSA" in col
                     }
                     ps_tect_df = ps_tect_df.rename(columns=new_column_names)
+                    ps_tect_df = (
+                        tect_rup_df.loc[:, ["sta"]]
+                        .merge(
+                            ps_tect_df[["sta", *new_column_names.values()]],
+                            on="sta",
+                            how="left",
+                        )
+                        .fillna(0)
+                    )
 
                 im_df = openquake_wrapper_vectorized.oq_run(
                     model,
