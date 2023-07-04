@@ -50,21 +50,22 @@ else:
     runID = '%s_%s' %(analID, zID)
 
 # create a list of default IMs to calculate
-DEFAULT_IMS = ["PGA", "pSA"]
+# DEFAULT_IMS = ["PGA", "pSA"]
+DEFAULT_IMS = ["pSA"]
 
 # create a list of GMM to loop through for predictions
 DEFAULT_MODELS = [
-    "S_22",
-    "A_22",
-    "ASK_14",
+    # "S_22",
+    # "A_22",
+    # "ASK_14",
     "CY_14",
-    "BSSA_14",
-    "CB_14",
-    "Br_13",
-    "AG_20",
+    # "BSSA_14",
+    # "CB_14",
+    # "Br_13",
+    # "AG_20",
     #"P_20",
-    "P_21",
-    "K_20",
+    # "P_21",
+    # "K_20",
 ]
 
 
@@ -451,6 +452,16 @@ def calc_empirical(
                         if "pSA" in col
                     }
                     ps_tect_df = ps_tect_df.rename(columns=new_column_names)
+
+                    ps_tect_df = (
+                        tect_rup_df.loc[:, ["sta"]]
+                        .merge(
+                            ps_tect_df[["sta", *new_column_names.values()]],
+                            on="sta",
+                            how="left",
+                        )
+                        .fillna(0)
+                    )
 
                 im_df = openquake_wrapper_vectorized.oq_run(
                     model,

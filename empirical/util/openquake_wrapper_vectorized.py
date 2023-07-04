@@ -11,7 +11,6 @@ from openquake.hazardlib import const, imt, gsim, contexts
 from empirical.util import estimations
 from empirical.util.classdef import TectType, GMM
 
-
 def OQ_model(model, **kwargs):
     """Partial function to simplify model instanstiation
     model: gsim.base.GMPE

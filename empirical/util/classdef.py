@@ -111,7 +111,7 @@ class GMM(ExtendedStrEnum):
     S_22 = 112, "S22"
     A_22 = 113, "A22"
     Br_13 = 114, "B13"
-    P_21 = 115, "P21"
+
 
 
 class SiteClass(Enum):
