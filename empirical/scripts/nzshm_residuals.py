@@ -137,7 +137,6 @@ def generate_period_mask(gm_df: pd.DataFrame):
 
     # Calculate f_min and t_max
     f_min = np.sqrt(gm_df["fmin_mean_X"] * gm_df["fmin_mean_Y"])
-    f_min[f_min < 0.12] = 0.099
     t_max = 1 / f_min
 
     # Extend t_max by duplicating each row of the t_max values for each col in psa_cols
@@ -268,6 +267,8 @@ def calc_empirical(
                         if "pSA" in col
                     }
                     ps_tect_df = ps_tect_df.rename(columns=new_column_names)
+
+                    # Fill in missing stations with zeros for adjustment factors
                     ps_tect_df = (
                         tect_rup_df.loc[:, ["sta"]]
                         .merge(
@@ -425,7 +426,7 @@ def load_args():
         "--period_specific_ffp",
         type=Path,
         default=None,
-        help="The path to the period specific csv",
+        help="The path to the period specific txt file",
     )
 
     args = parser.parse_args()
