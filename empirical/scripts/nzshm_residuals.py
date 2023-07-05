@@ -50,22 +50,21 @@ else:
     runID = '%s_%s' %(analID, zID)
 
 # create a list of default IMs to calculate
-# DEFAULT_IMS = ["PGA", "pSA"]
-DEFAULT_IMS = ["pSA"]
+DEFAULT_IMS = ["PGA", "pSA"]
+# DEFAULT_IMS = ["pSA"]
 
 # create a list of GMM to loop through for predictions
 DEFAULT_MODELS = [
-    # "S_22",
-    # "A_22",
-    # "ASK_14",
+    "S_22",
+    "A_22",
+    "ASK_14",
     "CY_14",
-    # "BSSA_14",
-    # "CB_14",
-    # "Br_13",
-    # "AG_20",
-    #"P_20",
-    # "P_21",
-    # "K_20",
+    "BSSA_14",
+    "CB_14",
+    "Br_13",
+    "AG_20",
+    "P_21",
+    "K_20",
 ]
 
 
