@@ -13,7 +13,7 @@ from empirical.util import openquake_wrapper_vectorized
 from mera.mera_pymer4 import run_mera
 
 #define an ID for the prediction and residual calc
-analID = 'v1_wCPLB'
+analID = 'v1_wCPLB_wAdj_SiteAndModelSpecific'
 
 # define a flag for using site specific z1 and z2.5 (flag =1) or using Vs30 correlations (flag = 0)
 useSiteSpecific_Zvals = 0
@@ -25,9 +25,9 @@ else:
 
 # choose if you want to run predictions and residual analysis for a subset of sites
 # current options are "All", "Wellington_All" and "Wellington_Basin"
-#sites2runID = 'All'
+sites2runID = 'All'
 # sites2runID = 'Wellington_All'
-sites2runID = 'Wellington_Basin'
+# sites2runID = 'Wellington_Basin'
 
 #load a dataframe with geomorphology categories for Wellington (used to filter sites)
 geomorphFilePath = r'C:\Users\cde84\Dropbox (Personal)\PostDocWork\NSHM_WellingtonBasin\residualAnalysis\geomorphology\WellingtonGeomorphology_fromAyushi_Final_ForResidualsPaper_v2.csv'
@@ -408,12 +408,14 @@ def calc_empirical(
     # Filter the gm_df by the period mask
     gm_df[period_mask.columns] = gm_df[period_mask.columns].mask(period_mask)
 
-    # Grab the period specific data
+    # Grab the period specific data for non-ergodic adjustment factor
     if period_specific_ffp is not None:
         period_specific_df = pd.read_csv(period_specific_ffp, delimiter=" ")
         period_specific_df["TectonicType"] = [
             TECT_CLASS_MAP[t] for t in period_specific_df["TectonicType"]
         ]
+        # only retain adj fact for basin, basin-edge and valley sites
+        period_specific_df = period_specific_df[period_specific_df['GeoMorph'].isin(['Basin', 'Basin-edge', 'Valley'])]
     else:
         period_specific_df = None
 
