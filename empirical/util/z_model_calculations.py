@@ -6,21 +6,21 @@ from scipy.special import erf
 from empirical.util.classdef import GMM
 
 
-def kuehn_20_calc_z(vs30: float, region: str):
+def kuehn_20_calc_z(vs30: Union[float, np.ndarray], region: str):
     """
     Calculates the z1p0 or z2p5 value for the Kuehn et al. (2020) model
     Depends on the region for z1p0 or z2p5
 
     Parameters
     ----------
-    vs30 : float
-        The Vs30 value, in meters per second
+    vs30 : Union[float, np.ndarray]
+        The Vs30 value or values, in meters per second
     region : str
         The region to use, must be one of ["Cascadia", "Japan", "NewZealand", "Taiwan"]
 
     Returns
     -------
-    float
+    Union[float, np.ndarray]
         z1p0, in km if region is ["NewZealand", "Taiwan"]
         z2p5, in km if region is ["Cascadia", "Japan"]
     """
@@ -64,22 +64,22 @@ def kuehn_20_calc_z(vs30: float, region: str):
     return ln_z_ref
 
 
-def chiou_young_14_calc_z1p0(vs30: float, region: str = None):
+def chiou_young_14_calc_z1p0(vs30: Union[float, np.ndarray], region: str = None):
     """
     Calculates the z1p0 value for the Chiou and Youngs (2014) model
 
     Parameters
     ----------
-    vs30 : float
-        The Vs30 value, in meters per second
+    vs30 : Union[float, np.ndarray]
+        The Vs30 value or values, in meters per second
     region : str, optional
         The region to use, by default None which uses the global region
         other supported options are ["Japan"]
 
     Returns
     -------
-    float
-        The z1p0 value, in km
+    Union[float, np.ndarray]
+        The z1p0 value or values, in km
     """
     if region == "Japan":
         z1p0 = (
@@ -92,23 +92,23 @@ def chiou_young_14_calc_z1p0(vs30: float, region: str = None):
     return np.exp(z1p0) / 1000  # In km
 
 
-def mod_chiou_young_14_calc_z1p0(vs30: float, region: str = None):
+def mod_chiou_young_14_calc_z1p0(vs30: Union[float, np.ndarray], region: str = None):
     """
     Calculates the z1p0 value for the Chiou and Youngs (2014) model
     Modified for a different coefficient for the global model
 
     Parameters
     ----------
-    vs30 : float
-        The Vs30 value, in meters per second
+    vs30 : Union[float, np.ndarray]
+        The Vs30 value or values, in meters per second
     region : str, optional
         The region to use, by default None which uses the global region
         other supported options are ["Japan"]
 
     Returns
     -------
-    float
-        The z1p0 value, in km
+    Union[float, np.ndarray]
+        The z1p0 value or values, in km
     """
     if region == "Japan":
         z1p0 = (
@@ -121,22 +121,22 @@ def mod_chiou_young_14_calc_z1p0(vs30: float, region: str = None):
     return np.exp(z1p0) / 1000  # In km
 
 
-def campbell_bozorgina_14_calc_z2p5(vs30: float, region: str = None):
+def campbell_bozorgina_14_calc_z2p5(vs30: Union[float, np.ndarray], region: str = None):
     """
     Calculates the z2p5 value for the Campbell and Bozorgnia (2014) model
 
     Parameters
     ----------
-    vs30 : float
-        The Vs30 value, in meters per second
+    vs30 : Union[float, np.ndarray]
+        The Vs30 value or values, in meters per second
     region : str, optional
         The region to use, by default None which uses the global region
         other supported options are ["Japan"]
 
     Returns
     -------
-    float
-        The z2p5 value, in km
+    Union[float, np.ndarray]
+        The z2p5 value or values, in km
     """
     if region == "Japan":
         z2p5 = np.exp(7.089 - 1.144 * np.log(vs30))
@@ -145,39 +145,39 @@ def campbell_bozorgina_14_calc_z2p5(vs30: float, region: str = None):
     return z2p5  # In km
 
 
-def chiou_young_08_calc_z1p0(vs30: float):
+def chiou_young_08_calc_z1p0(vs30: Union[float, np.ndarray]):
     """
     Calculates the z2p5 value for the Chiou and Youngs (2008) model
 
     Parameters
     ----------
-    vs30 : float
-        The Vs30 value, in meters per second
+    vs30 : Union[float, np.ndarray]
+        The Vs30 value or values, in meters per second
 
     Returns
     -------
-    float
-        The z1p0 value, in km
+    Union[float, np.ndarray]
+        The z1p0 value or values, in km
     """
     z1p0 = np.exp(28.5 - 3.82 / 8 * np.log(vs30**8 + 378.7**8))
     return z1p0  # In km
 
 
-def abrahamson_gulerce_20_calc_z2p5(vs30: float, region: str):
+def abrahamson_gulerce_20_calc_z2p5(vs30: Union[float, np.ndarray], region: str):
     """
     Calculates the z2p5 value for the Abrahamson and Gulerce (2020) model
 
     Parameters
     ----------
-    vs30 : float
-        The Vs30 value, in meters per second
+    vs30 : Union[float, np.ndarray]
+        The Vs30 value or values, in meters per second
     region : str
         The region to use, can only be in ["Japan", "Cascadia"]
 
     Returns
     -------
-    float
-        The z2p5 value, in km
+    Union[float, np.ndarray]
+        The z2p5 value or values, in km
     """
     if region == "Cascadia":
         ln_zref = np.clip(8.52 - 0.88 * np.log(vs30 / 200.0), 7.6, 8.52)
@@ -188,16 +188,21 @@ def abrahamson_gulerce_20_calc_z2p5(vs30: float, region: str):
     return np.exp(ln_zref)  # In km
 
 
-def parker_20_calc_z2p5(vs30: float, region: str):
+def parker_20_calc_z2p5(vs30: Union[float, np.ndarray], region: str):
     """
     Calculates the z2p5 value for the Parker et al. (2020) model
 
     Parameters
     ----------
-    vs30 : float
-        The Vs30 value, in meters per second
+    vs30 : Union[float, np.ndarray]
+        The Vs30 value or values, in meters per second
     region : str
         The region to use, can only be in ["Japan", "Cascadia"]
+
+    Returns
+    -------
+    Union[float, np.ndarray]
+        The z2p5 value or values, in km
     """
     if region == "Japan":
         theta0, theta1, vmu, vsig = 3.05, -0.8, 500, 0.33
