@@ -261,7 +261,7 @@ Z_CALC_MODEL_REGION_MAPPING = {
 
 
 def calc_z_for_model(
-    model: GMM, vs30: Union[float, np.ndarray], region: Union[str, None]
+    model: GMM, vs30: Union[float, np.ndarray], region: Union[str, None] = None
 ):
     """
     Calculates the z value for a given model, region and Vs30 value / values
@@ -273,7 +273,7 @@ def calc_z_for_model(
     vs30 : Union[float, np.ndarray]
         The Vs30 value or values, in meters per second
     region : Union[str, None]
-        The region to use, use None to define a Global region.
+        The region to use, use None to define a Global region, default is None.
         Use full region names, e.g. "NewZealand", "Cascadia", "Japan", "Taiwan"
         If the specific region is not supported for the given model it will attempt to use the Global model
         Otherwise a KeyError will be raised.
