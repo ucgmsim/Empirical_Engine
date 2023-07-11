@@ -235,8 +235,6 @@ def oq_run(
     rupture_df: Rupture DF
         Columns for properties. E.g., vs30, z1pt0, rrup, rjb, mag, rake, dip....
         Rows be the separate site-fault pairs
-        But Site information must be identical across the rows,
-        only the faults can be different.
     im: string
         intensity measure
     periods: Sequence[Union[int, float]]

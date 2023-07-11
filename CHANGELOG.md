@@ -7,6 +7,12 @@ Empirical Engine - Empirical IM calculation
 ### Changed
 ### Added
 
+## [23.7.11] - 2023-07-11
+### Changed
+  - Removed most of the code, except for the OpenQuake vectorised wrapper
+  - Old code is recoverable from the `backup_20230707` branch
+
+
 ## [21.1.1] - 2021-01-21
 ### Added
   - Added OpenQuake compatibility layer
