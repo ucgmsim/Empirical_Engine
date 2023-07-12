@@ -3,5 +3,5 @@ pytest-black
 numpy
 numba>=0.48.0
 pandas
-scipy==1.7.2
+scipy==1.10.0
 git+https://github.com/gem/oq-engine.git#egg=openquake-engine
