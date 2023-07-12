@@ -210,7 +210,7 @@ def calc_empirical(
             "lon": gm_df["sta_lon"],
             "lat": gm_df["sta_lat"],
             "vs30": gm_df["Vs30"],
-            "z1pt0": gm_df["Z1.0"],
+            "z1pt0": gm_df["Z1.0"] / 1000,  # Convert to km
             "z2pt5": gm_df["Z2.5"],
             "vs30measured": False,
             "hypo_depth": gm_df["ev_depth"],

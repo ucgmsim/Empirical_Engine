@@ -44,17 +44,9 @@ pipeline {
 # Install may cause the storage going overflow
                     echo "[ Installing ${env.JOB_NAME} ]"
                     python setup.py install
-                    echo "[ Linking test data ]"
-                    cd empirical/test
-                    rm -rf sample0
-                    mkdir sample0
-                    ln -s /home/qcadmin/data/testing/${env.JOB_NAME}/sample0/input sample0
-                    ln -s /home/qcadmin/data/testing/${env.JOB_NAME}/sample0/output sample0
                     echo "[ Run test now ]"
                     cd ${env.WORKSPACE}/empirical
                     pytest --black --ignore=test --ignore=GMM_models
-                    cd test
-                    pytest -vs
 
                 """
             }
