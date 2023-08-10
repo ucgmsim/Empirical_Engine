@@ -96,7 +96,9 @@ OQ_MODELS = {
         TectType.SUBDUCTION_SLAB: gsim.parker_2021.ParkerEtAl2021SSlab,
         TectType.SUBDUCTION_INTERFACE: gsim.parker_2021.ParkerEtAl2021SInter,
     },
-    GMM.GA_11: {TectType.ACTIVE_SHALLOW: gsim.gulerce_abrahamson_2011.GulerceAbrahamson2011},
+    GMM.GA_11: {
+        TectType.ACTIVE_SHALLOW: gsim.gulerce_abrahamson_2011.GulerceAbrahamson2011
+    },
 }
 
 SPT_STD_DEVS = [const.StdDev.TOTAL, const.StdDev.INTER_EVENT, const.StdDev.INTRA_EVENT]
