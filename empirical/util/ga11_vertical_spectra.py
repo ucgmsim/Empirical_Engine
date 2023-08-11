@@ -142,10 +142,10 @@ def get_period_correlations(periods: np.ndarray):
         Within event period correlations
     """
     between_interpolated = np.interp(
-        periods, COEFFICIENT_PERIODS, BETWEEN_EVENT_COEFFICIENTS
+        np.log(periods), np.log(COEFFICIENT_PERIODS), BETWEEN_EVENT_COEFFICIENTS
     )
     within_interpolated = np.interp(
-        periods, COEFFICIENT_PERIODS, WITHIN_EVENT_COEFFICIENTS
+        np.log(periods), np.log(COEFFICIENT_PERIODS), WITHIN_EVENT_COEFFICIENTS
     )
 
     return between_interpolated, within_interpolated
