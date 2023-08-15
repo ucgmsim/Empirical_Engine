@@ -45,3 +45,4 @@ class GMM(ExtendedStrEnum):
     A_22 = 113, "A22"
     Br_13 = 114, "B13"
     P_21 = 115, "P21"
+    GA_11 = 116, "GA11"

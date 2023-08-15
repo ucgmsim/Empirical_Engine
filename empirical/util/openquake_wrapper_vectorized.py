@@ -96,6 +96,9 @@ OQ_MODELS = {
         TectType.SUBDUCTION_SLAB: gsim.parker_2021.ParkerEtAl2021SSlab,
         TectType.SUBDUCTION_INTERFACE: gsim.parker_2021.ParkerEtAl2021SInter,
     },
+    GMM.GA_11: {
+        TectType.ACTIVE_SHALLOW: gsim.gulerce_abrahamson_2011.GulerceAbrahamson2011
+    },
 }
 
 SPT_STD_DEVS = [const.StdDev.TOTAL, const.StdDev.INTER_EVENT, const.StdDev.INTRA_EVENT]
@@ -255,7 +258,6 @@ def oq_run(
 
         # Compute the weighted average
         return np.sum(meta_results * pd.Series(meta_config.values()))
-
     model = OQ_MODELS[model_type][tect_type](**kwargs)
 
     # Check the given tect_type with its model's tect type
@@ -286,7 +288,7 @@ def oq_run(
     if model_type.name == "CB_14" and "width" not in rupture_df:
         rupture_df["width"] = np.nan
 
-    elif model_type.name == "ASK_14":
+    elif model_type.name == "ASK_14" or model_type.name == "GA_11":
         if "width" not in rupture_df:
             rupture_df["width"] = estimations.estimate_width_ASK14(
                 rupture_df["dip"], rupture_df["mag"]
