@@ -1,22 +1,24 @@
-from pathlib import Path
-import pandas as pd
+import argparse
 import numpy as np
+import pandas as pd
+from pathlib import Path
 
 
 from qcore import srf, constants
+from qcore.utils import setup_dir
 from empirical.util.openquake_wrapper_vectorized import oq_run
 from empirical.util.classdef import TectType, GMM
 from IM_calculation.source_site_dist import src_site_dist
 
 RJB_MAX = 200
 
-NZ_GMDB_SOURCE_PATH = Path(__file__).parent / "Data" / "earthquake_source_table.csv"
+NZ_GMDB_SOURCE_PATH = Path(__file__).parents[1] / "data" / "earthquake_source_table.csv"
 
 def run_emp_gmms(
     output_ffp: Path,
-    site_dir: Path,
+    ll_ffp: Path,
     srf_dir: Path,
-    nz_gmdb_source_ffp: Path,
+    nz_gmdb_source_ffp: Path = NZ_GMDB_SOURCE_PATH,
     rjb_max: float = RJB_MAX,
 ):
     """
@@ -26,9 +28,8 @@ def run_emp_gmms(
     Parameters
     ----------
     output_ffp: Path
-    site_dir: Path
-        Directory that contains all the site
-        information files (i.e. vs30, ll, and z)
+    ll_ffp: Path
+        Path to .ll file, make sure .vs30 and .z files are present in the same directory
     srf_dir: Path
         Directory that contains the srf files
     nz_gmdb_source_ffp: Path
@@ -87,21 +88,29 @@ def run_emp_gmms(
         plane_infos[cur_srf_ffp.stem] = srf.read_header(str(cur_srf_ffp), idx=True)
 
     # Load the site_data
+    site_dir = ll_ffp.parent
+    vs30_ffp = ll_ffp.with_suffix(".vs30")
+    z_ffp = ll_ffp.with_suffix(".z")
+
+    assert ll_ffp.exists()
+    assert vs30_ffp.exists()
+    assert z_ffp.exists()
+
     stations_df = pd.read_csv(
-        site_dir / f"{constants.STATION_FN_NAME}.ll",
-        sep=" ",
+        ll_ffp,
+        sep=r"\s+",
         index_col=2,
         header=None,
         names=["lon", "lat"],
     )
     vs30_df = pd.read_csv(
-        site_dir / f"{constants.STATION_FN_NAME}.vs30",
-        sep=" ",
+        vs30_ffp,
+        sep=r"\s+",
         index_col=0,
         header=None,
         names=["vs30"],
     )
-    z_df = pd.read_csv(site_dir / f"{constants.STATION_FN_NAME}.z", index_col=0)
+    z_df = pd.read_csv(z_ffp, index_col=0)
 
     ### Data merging/re-naming and tidy up
     assert np.all(stations_df.index == vs30_df.index) and np.all(
@@ -190,10 +199,10 @@ def load_args():
         "all specified sites."
     )
     parser.add_argument(
-        "--vs30_file",
-        "-v",
+        "--ll_ffp",
         required=True,
-        help="vs30 file. Default value is 250 if" " station/file not present",
+        type=Path,
+        help="Path to the .ll file: ensure .vs30 and .z are present in the same directory",
     )
     # parser.add_argument(
     #     "-r",
@@ -202,95 +211,69 @@ def load_args():
     #     help="Path to the rupture distance csv file",
     # )
     parser.add_argument(
-        "-srf", "--srf_info", help="Path to srf-info file", required=True
+        "--srf_dir", help="Directory that contains all the srf files", required=True, type=Path,
     )
-    parser.add_argument(
-        "--vs30_default",
-        default=classdef.VS30_DEFAULT,
-        help="Sets the default value for the vs30",
-    )
-    parser.add_argument(
-        "-s",
-        "--stations",
-        nargs="+",
-        help="List of stations to calculate empiricals for",
-    )
-    parser.add_argument(
-        "-rm",
-        "--max_rupture_distance",
-        type=float,
-        help="Only calculate empiricals for stations "
-        "that are within X distance to rupture",
-    )
-    parser.add_argument("-i", "--identifier", help="run-name for run")
-    parser.add_argument(
-        "-c",
-        "--config",
-        help="configuration file to " "select which model is being used",
-    )
-    parser.add_argument(
-        "-e",
-        "--extended_period",
-        action="store_true",
-        help="Indicate the use of extended(100) pSA periods",
-    )
-    parser.add_argument(
-        "-p",
-        "--period",
-        nargs="+",
-        default=constants.DEFAULT_PSA_PERIODS,
-        type=float,
-        help="pSA period(s) separated by a " "space. eg: 0.02 0.05 0.1.",
-    )
-    parser.add_argument(
-        "-m",
-        "--im",
-        nargs="+",
-        default=IM_LIST,
-        help="Intensity measure(s) separated by a "
-        "space(if more than one). eg: PGV PGA CAV.",
-    )
-    # TODO: Put common argparse arguments between IM_calc and empirical in shared file
-    parser.add_argument(
-        "-comp",
-        "--components",
-        nargs="+",
-        choices=list(constants.Components.iterate_str_values()),
-        default=[constants.Components.cgeom.str_value],
-        help="The component(s) you want to calculate."
-        " Available components are: [%(choices)s]. Default is %(default)s",
-    )
-
-    parser.add_argument(
-        "--gmm_param_config",
-        default=None,
-        help="the file that contains the extra parameters for models",
-    )
+#    parser.add_argument(
+#        "-rm",
+#        "--max_rupture_distance",
+#        type=float,
+#        help="Only calculate empiricals for stations "
+#        "that are within X distance to rupture",
+#    )
+#    parser.add_argument(
+#        "-c",
+#        "--config",
+#        help="configuration file to " "select which model is being used",
+#    )
+#    parser.add_argument(
+#        "-e",
+#        "--extended_period",
+#        action="store_true",
+#        help="Indicate the use of extended(100) pSA periods",
+#    )
+#    parser.add_argument(
+#        "-p",
+#        "--period",
+#        nargs="+",
+#        default=constants.DEFAULT_PSA_PERIODS,
+#        type=float,
+#        help="pSA period(s) separated by a " "space. eg: 0.02 0.05 0.1.",
+#    )
+#    parser.add_argument(
+#        "-m",
+#        "--im",
+#        nargs="+",
+#        default=IM_LIST,
+#        help="Intensity measure(s) separated by a "
+#        "space(if more than one). eg: PGV PGA CAV.",
+#    )
+#    # TODO: Put common argparse arguments between IM_calc and empirical in shared file
+#    parser.add_argument(
+#        "-comp",
+#        "--components",
+#        nargs="+",
+#        choices=list(constants.Components.iterate_str_values()),
+#        default=[constants.Components.cgeom.str_value],
+#        help="The component(s) you want to calculate."
+#        " Available components are: [%(choices)s]. Default is %(default)s",
+#    )
+#
+#    parser.add_argument(
+#        "--gmm_param_config",
+#        default=None,
+#        help="the file that contains the extra parameters for models",
+#    )
 
     parser.add_argument("output", help="output directory")
     args = parser.parse_args()
+    
     return args
 
 
 def main():
     args = load_args()
     setup_dir(args.output)
-    calculate_empirical(
-        args.identifier,
-        args.srf_info,
-        args.output,
-        args.config,
-        args.stations,
-        args.vs30_file,
-        args.vs30_default,
-        args.im,
-        args.rupture_distance,
-        args.max_rupture_distance,
-        args.period,
-        args.extended_period,
-        args.components,
-        args.gmm_param_config,
-    )
+    run_emp_gmms(args.output, args.ll_ffp, args.srf_dir) 
 
 
 if __name__ == "__main__":

@@ -63,12 +63,12 @@ OQ_MODELS = {
             region="NZL",
         ),
     },
-    GMM.S_22: {TectType.ACTIVE_SHALLOW: gsim.stafford_2022.Stafford2022},
-    GMM.A_22: {
-        TectType.ACTIVE_SHALLOW: gsim.atkinson_2022.Atkinson2022Crust,
-        TectType.SUBDUCTION_SLAB: gsim.atkinson_2022.Atkinson2022SSlab,
-        TectType.SUBDUCTION_INTERFACE: gsim.atkinson_2022.Atkinson2022SInter,
-    },
+#    GMM.S_22: {TectType.ACTIVE_SHALLOW: gsim.stafford_2022.Stafford2022},
+#    GMM.A_22: {
+#        TectType.ACTIVE_SHALLOW: gsim.atkinson_2022.Atkinson2022Crust,
+#        TectType.SUBDUCTION_SLAB: gsim.atkinson_2022.Atkinson2022SSlab,
+#        TectType.SUBDUCTION_INTERFACE: gsim.atkinson_2022.Atkinson2022SInter,
+#    },
     GMM.ASK_14: {TectType.ACTIVE_SHALLOW: gsim.abrahamson_2014.AbrahamsonEtAl2014},
     GMM.CY_14: {TectType.ACTIVE_SHALLOW: gsim.chiou_youngs_2014.ChiouYoungs2014},
     GMM.CB_14: {
@@ -92,10 +92,10 @@ OQ_MODELS = {
         TectType.SUBDUCTION_SLAB: gsim.kuehn_2020.KuehnEtAl2020SSlab,
         TectType.SUBDUCTION_INTERFACE: gsim.kuehn_2020.KuehnEtAl2020SInter,
     },
-    GMM.P_21: {
-        TectType.SUBDUCTION_SLAB: gsim.parker_2021.ParkerEtAl2021SSlab,
-        TectType.SUBDUCTION_INTERFACE: gsim.parker_2021.ParkerEtAl2021SInter,
-    },
+#    GMM.P_21: {
+#        TectType.SUBDUCTION_SLAB: gsim.parker_2021.ParkerEtAl2021SSlab,
+#        TectType.SUBDUCTION_INTERFACE: gsim.parker_2021.ParkerEtAl2021SInter,
+#    },
     GMM.GA_11: {
         TectType.ACTIVE_SHALLOW: gsim.gulerce_abrahamson_2011.GulerceAbrahamson2011
     },
