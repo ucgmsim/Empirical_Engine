@@ -28,25 +28,14 @@
 # Options for each model are listed to the right
 ACTIVE_SHALLOW:
   PGV:
-    rotd50:
-      - META
-    ver:
-      - BC_16 # S_16
+    geom:
+       - Br_10
   PGA:
-    rotd50:
-      - META
-    ver:
-      - BC_16 # S16
-      - S_16
+    geom:
+       - Br_10
   pSA:
-    rotd50:
-      - META
-    rotd100_50:
-      - SB_13
-    ver:
-      - BC_16 # S16 or G_17
-      - S_16
-      - G_17
+    geom:
+       - Br_10
   CAV:
     geom:
       - CB_10
@@ -65,6 +54,7 @@ ACTIVE_SHALLOW:
   IESDR:
     geom:
       - BB_13
+
 VOLCANIC:
   PGV:
     geom:
