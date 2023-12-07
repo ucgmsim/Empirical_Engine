@@ -389,13 +389,13 @@ def load_args():
         "-c",
         "--config",
         help="configuration file to " "select which model is being used",
-   )
-#    parser.add_argument(
-#        "-e",
-#        "--extended_period",
-#        action="store_true",
-#        help="Indicate the use of extended(100) pSA periods",
-#    )
+    )
+    parser.add_argument(
+       "-e",
+       "--extended_period",
+       action="store_true",
+       help="Indicate the use of extended(100) pSA periods",
+    )
     parser.add_argument(
        "-p",
        "--periods",
