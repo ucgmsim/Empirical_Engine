@@ -320,7 +320,7 @@ def oq_run(
         rupture_ctx_properties
     )
     if len(extra_site_parameters) > 0:
-        raise ValueError("unknown site property: " + extra_site_parameters)
+        raise ValueError(f"unknown site property: {extra_site_parameters}")
 
     extra_rup_properties = set(model.REQUIRES_RUPTURE_PARAMETERS).difference(
         rupture_ctx_properties
@@ -385,7 +385,7 @@ def oq_run(
         for period in periods:
             im = imt.SA(period=min(period, max_period))
             try:
-                result = oq_mean_stddevs(model, rupture_ctx, im, stddev_types)
+                result = oq_mean_stddevs(model, rupture_ctx, im, stddev_types,convert_mean=convert_mean)
             except KeyError as ke:
                 cause = ke.args[0]
                 # To make sure the KeyError is about missing pSA's period
@@ -397,7 +397,7 @@ def oq_run(
                     # Period is smaller than model's supported min_period E.g., ZA_06
                     # Interpolate between PGA(0.0) and model's min_period
                     low_result = oq_mean_stddevs(
-                        model, rupture_ctx, imt.PGA(), stddev_types
+                        model, rupture_ctx, imt.PGA(), stddev_types, convert_mean=convert_mean
                     )
                     high_period = avail_periods[period <= avail_periods][0]
                     high_result = oq_mean_stddevs(
@@ -405,6 +405,7 @@ def oq_run(
                         rupture_ctx,
                         imt.SA(period=high_period),
                         stddev_types,
+                        convert_mean=convert_mean
                     )
 
                     result = interpolate_with_pga(

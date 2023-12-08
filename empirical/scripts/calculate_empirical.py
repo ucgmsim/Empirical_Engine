@@ -13,8 +13,8 @@ from IM_calculation.source_site_dist import src_site_dist
 
 RJB_MAX = 200
 #IM_LIST = ["PGA", "PGV", "CAV", "AI", "Ds575", "Ds595", "pSA"]
-#IM_LIST = ["PGA", "CAV", "AI", "Ds575", "Ds595", "pSA"]
-IM_LIST = ["PGA","pSA"]
+IM_LIST = ["PGA", "PGV", "pSA"]
+
 
 PERIODS = [
     0.01,
@@ -65,11 +65,13 @@ OQ_INPUT_COLUMNS = [
     "rrup",
     "rjb",
     "z1pt0",
+    "z2pt5",
     "mag",
     "rake",
     "dip",
     "vs30measured",
     "ztor",
+    "zbot",
     "rx",
     "hypo_depth",
 ]
@@ -96,6 +98,16 @@ def estimate_z1p0(vs30):
     return (
         np.exp(28.5 - 3.82 / 8.0 * np.log(vs30**8.0 + 378.7**8.0)) / 1000.0
     )  # CY08 estimate in KM
+
+def estimate_z2p5(z1p0=None, z1p5=None):
+    if z1p5 is not None:
+        return 0.636 + 1.549 * z1p5
+    elif z1p0 is not None:
+        return 0.519 + 3.595 * z1p0
+    else:
+        print("no z2p5 able to be estimated")
+        exit()
+
 
 
 def load_srf_info(srf_info, event_name):
@@ -124,6 +136,12 @@ def load_srf_info(srf_info, event_name):
         fault["z_tor"] = np.min(attrs["dtop"])
     else:
         fault["z_tor"] = attrs["hdepth"]
+
+    if "dbottom" in attrs:
+        fault["z_bor"] = np.min(attrs["dbottom"])
+
+    else:
+        fault["z_bor"] = attrs["hdepth"]
 
     rake = attrs["rake"]
     if np.max(rake) == np.min(rake):
@@ -195,7 +213,7 @@ def run_emp_gmms(
 
     if srfinfo_ffp is None:
         fault_df = source_df.loc[
-            event_name, ["mag", "tect_class", "z_tor", "rake", "dip", "depth"]
+            event_name, ["mag", "tect_class", "z_tor", "z_bor", "rake", "dip", "depth"]
         ]
     else: # this will supercede source_df
         fault_df = load_srf_info(srfinfo_ffp, event_name)
@@ -234,10 +252,12 @@ def run_emp_gmms(
     )
     if z_ffp is not None and z_ffp.exists():
         z_df = pd.read_csv(z_ffp, index_col=0)
-        z_df = z_df.rename(columns={"Z_1.0(km)": "z1pt0"})
+        z_df = z_df.rename(columns={"Z_1.0(km)": "z1pt0", "Z_2.5(km)": "z2pt5"})
+
     else:
-        z_df = estimate_z1p0(vs30_df)
-        z_df = z_df.rename(columns={"vs30":"z1pt0"})
+        z1p0_df = estimate_z1p0(vs30_df)
+        z2p5_df = estimate_z2p5(z1p0_df)
+        z_df = pd.concat([z1p0_df.rename(columns={"vs30":"z1pt0"}),z2p5_df.rename(columns={"vs30":"z2pt5"})],axis=1)
 
     ### Data merging/re-naming and tidy up
     assert np.all(stations_df.index == vs30_df.index) and np.all(
@@ -269,7 +289,7 @@ def run_emp_gmms(
 
     # Add event data
     cur_data_df[
-        ["mag", "tect_class", "ztor", "rake", "dip", "hypo_depth"]
+        ["mag", "tect_class", "ztor", "zbot","rake", "dip", "hypo_depth"]
     ] = fault_df
 
     data_dfs.append(cur_data_df)
