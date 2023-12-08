@@ -13,7 +13,9 @@ from IM_calculation.source_site_dist import src_site_dist
 
 RJB_MAX = 200
 #IM_LIST = ["PGA", "PGV", "CAV", "AI", "Ds575", "Ds595", "pSA"]
-IM_LIST = ["PGA", "PGV", "pSA"]
+IM_LIST = ["PGA", "PGV", "pSA", "CAV"]
+#IM_LIST = ["AI"] # CB_12 keyerror
+
 
 
 PERIODS = [
