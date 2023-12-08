@@ -29,7 +29,7 @@
 ACTIVE_SHALLOW:
   PGV:
     geom:
-       - CB_14
+       - CY_14
   PGA:
     geom:
        - Br_10
