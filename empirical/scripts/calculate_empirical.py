@@ -12,47 +12,12 @@ from empirical.util.classdef import TectType, GMM
 from IM_calculation.source_site_dist import src_site_dist
 
 RJB_MAX = 200
-#IM_LIST = ["PGA", "PGV", "CAV", "AI", "Ds575", "Ds595", "pSA"]
+# IM_LIST = ["PGA", "PGV", "CAV", "AI", "Ds575", "Ds595", "pSA"]
 IM_LIST = ["PGA", "PGV", "pSA", "CAV"]
-#IM_LIST = ["AI"] # CB_12 keyerror
+# IM_LIST = ["AI"] # CB_12 keyerror
 
 
-
-PERIODS = [
-    0.01,
-    0.02,
-    0.03,
-    0.04,
-    0.05,
-    0.075,
-    0.1,
-    0.12,
-    0.15,
-    0.17,
-    0.2,
-    0.25,
-    0.3,
-    0.4,
-    0.5,
-    0.6,
-    0.7,
-    0.75,
-    0.8,
-    0.9,
-    1.0,
-    1.25,
-    1.5,
-    2.0,
-    2.5,
-    3.0,
-    4.0,
-    5.0,
-    6.0,
-    7.5,
-    10.0,
-]
-
-DEFAULT_GMM_CONFIG_NAME = Path(__file__).parents[1]/ "util" / "model_config.yaml"
+DEFAULT_GMM_CONFIG_NAME = Path(__file__).parents[1] / "util" / "model_config.yaml"
 NZ_GMDB_SOURCE_PATH = Path(__file__).parents[1] / "data" / "earthquake_source_table.csv"
 
 TECT_CLASS_MAPPING = {
@@ -78,6 +43,7 @@ OQ_INPUT_COLUMNS = [
     "hypo_depth",
 ]
 
+
 def get_tect_type_name(tect_type):
     found = None
     for key, val in TECT_CLASS_MAPPING.items():
@@ -85,6 +51,7 @@ def get_tect_type_name(tect_type):
             found = key
             break
     return found
+
 
 def read_model_dict(config=None):
     if config is None:
@@ -94,12 +61,11 @@ def read_model_dict(config=None):
     return model_dict
 
 
-
-
 def estimate_z1p0(vs30):
     return (
         np.exp(28.5 - 3.82 / 8.0 * np.log(vs30**8.0 + 378.7**8.0)) / 1000.0
     )  # CY08 estimate in KM
+
 
 def estimate_z2p5(z1p0=None, z1p5=None):
     if z1p5 is not None:
@@ -109,7 +75,6 @@ def estimate_z2p5(z1p0=None, z1p5=None):
     else:
         print("no z2p5 able to be estimated")
         exit()
-
 
 
 def load_srf_info(srf_info, event_name):
@@ -122,9 +87,7 @@ def load_srf_info(srf_info, event_name):
 
     if "tect_type" in attrs:
         try:
-            tect_type = TectType[
-                attrs["tect_type"]
-            ]  # ok if attrs['tect_type'] is str
+            tect_type = TectType[attrs["tect_type"]]  # ok if attrs['tect_type'] is str
         except KeyError:  # bytes
             tect_type = TectType[attrs["tect_type"].decode("utf-8")]
 
@@ -132,7 +95,6 @@ def load_srf_info(srf_info, event_name):
         print("tect_type not found assuming 'ACTIVE_SHALLOW'")
         tect_type = TectType.ACTIVE_SHALLOW
     fault["tect_class"] = get_tect_type_name(tect_type)
-
 
     if "dtop" in attrs:
         fault["z_tor"] = np.min(attrs["dtop"])
@@ -163,6 +125,7 @@ def load_srf_info(srf_info, event_name):
 
     return pd.Series(fault, name=event_name)
 
+
 def run_emp_gmms(
     output_dir: Path,
     ll_ffp: Path,
@@ -173,9 +136,10 @@ def run_emp_gmms(
     nz_gmdb_source_ffp: Path = NZ_GMDB_SOURCE_PATH,
     rjb_max: float = RJB_MAX,
     config_file: Path = None,
-    im_list = IM_LIST,
-    components = None,
-    periods = PERIODS
+    im_list=IM_LIST,
+    components=None,
+    periods=PERIODS,
+    extended_period=False,
 ):
     """
     Computes the empirical GMM parameters for all
@@ -199,6 +163,8 @@ def run_emp_gmms(
         The empirical GMM parameters for PGA
         and the default set of pSA periods
     """
+    if extended_period:
+        periods = np.unique(np.append(periods, constants.EXT_PERIOD))
 
     tect_type_model_dict = read_model_dict(config_file)
 
@@ -208,7 +174,7 @@ def run_emp_gmms(
 
     # events = [cur_ffp.stem for cur_ffp in srf_ffps]
     event = srf_ffp.stem
-    #TODO: consider if this is necessary when each event is Cybershake realisation
+    # TODO: consider if this is necessary when each event is Cybershake realisation
     event_name = event.split("_")[0]
     # Load source info
     source_df = pd.read_csv(nz_gmdb_source_ffp, index_col=0)
@@ -217,9 +183,8 @@ def run_emp_gmms(
         fault_df = source_df.loc[
             event_name, ["mag", "tect_class", "z_tor", "z_bor", "rake", "dip", "depth"]
         ]
-    else: # this will supercede source_df
+    else:  # this will supercede source_df
         fault_df = load_srf_info(srfinfo_ffp, event_name)
-
 
     # Load srf data
     # srf_points, plane_infos = {}, {}
@@ -231,8 +196,8 @@ def run_emp_gmms(
 
     # Load the site_data
     site_dir = ll_ffp.parent
-    #vs30_ffp = ll_ffp.with_suffix(".vs30")
-    #z_ffp = ll_ffp.with_suffix(".z")
+    # vs30_ffp = ll_ffp.with_suffix(".vs30")
+    # z_ffp = ll_ffp.with_suffix(".z")
 
     # assert ll_ffp.exists()
     # assert vs30_ffp.exists()
@@ -259,7 +224,13 @@ def run_emp_gmms(
     else:
         z1p0_df = estimate_z1p0(vs30_df)
         z2p5_df = estimate_z2p5(z1p0_df)
-        z_df = pd.concat([z1p0_df.rename(columns={"vs30":"z1pt0"}),z2p5_df.rename(columns={"vs30":"z2pt5"})],axis=1)
+        z_df = pd.concat(
+            [
+                z1p0_df.rename(columns={"vs30": "z1pt0"}),
+                z2p5_df.rename(columns={"vs30": "z2pt5"}),
+            ],
+            axis=1,
+        )
 
     ### Data merging/re-naming and tidy up
     assert np.all(stations_df.index == vs30_df.index) and np.all(
@@ -274,7 +245,6 @@ def run_emp_gmms(
     )
     data_dfs = []
 
-
     cur_data_df = site_df.copy(True)
     cur_data_df["rrup"], cur_data_df["rjb"] = src_site_dist.calc_rrup_rjb(
         srf_points, site_locs
@@ -287,11 +257,11 @@ def run_emp_gmms(
     cur_data_df = cur_data_df.loc[cur_data_df.rjb <= rjb_max]
     cur_data_df["site"] = cur_data_df.index.values
     cur_data_df["event"] = str(event)
-    #cur_data_df.index = np.add(f"{event}_", cur_data_df.index.values)
+    # cur_data_df.index = np.add(f"{event}_", cur_data_df.index.values)
 
     # Add event data
     cur_data_df[
-        ["mag", "tect_class", "ztor", "zbot","rake", "dip", "hypo_depth"]
+        ["mag", "tect_class", "ztor", "zbot", "rake", "dip", "hypo_depth"]
     ] = fault_df
 
     data_dfs.append(cur_data_df)
@@ -314,9 +284,9 @@ def run_emp_gmms(
                 continue
 
             cur_tect_type = TECT_CLASS_MAPPING[cur_tect_class]
-            im_comp_model =tect_type_model_dict[cur_tect_type.name]
+            im_comp_model = tect_type_model_dict[cur_tect_type.name]
 
-            im_results=[]
+            im_results = []
             for im in im_list:
                 for comp in components:
                     model_str = im_comp_model.get(im).get(comp)[0]
@@ -332,7 +302,7 @@ def run_emp_gmms(
                             data_df.loc[cur_tect_mask, OQ_INPUT_COLUMNS],
                             im,
                             periods,
-                            convert_mean=np.exp
+                            convert_mean=np.exp,
                         )
                     else:
                         result = oq_run(
@@ -340,7 +310,7 @@ def run_emp_gmms(
                             cur_tect_type,
                             data_df.loc[cur_tect_mask, OQ_INPUT_COLUMNS],
                             im,
-                            convert_mean=np.exp
+                            convert_mean=np.exp,
                         )
 
                     im_results.append(result)
@@ -376,7 +346,7 @@ def load_args():
     )
     parser.add_argument(
         "--z_ffp",
-        #required=True,
+        # required=True,
         type=Path,
         help="Path to the .z file that contains Z1.0",
     )
@@ -387,11 +357,17 @@ def load_args():
     #     help="Path to the rupture distance csv file",
     # )
     parser.add_argument(
-        "--srf_ffp", help="Path to the SRF file", required=True, type=Path,
+        "--srf_ffp",
+        help="Path to the SRF file",
+        required=True,
+        type=Path,
     )
 
     parser.add_argument(
-        "--srfinfo_ffp", help="Path to the SRF info file", required=False, type=Path,
+        "--srfinfo_ffp",
+        help="Path to the SRF info file",
+        required=False,
+        type=Path,
     )
     parser.add_argument(
         "-rm",
@@ -403,9 +379,7 @@ def load_args():
     )
 
     parser.add_argument(
-        "--nz_gmdb_source_ffp",
-        help="NZ GMDB source CSV",
-        default = NZ_GMDB_SOURCE_PATH
+        "--nz_gmdb_source_ffp", help="NZ GMDB source CSV", default=NZ_GMDB_SOURCE_PATH
     )
     parser.add_argument(
         "-c",
@@ -413,54 +387,68 @@ def load_args():
         help="configuration file to " "select which model is being used",
     )
     parser.add_argument(
-       "-e",
-       "--extended_period",
-       action="store_true",
-       help="Indicate the use of extended(100) pSA periods",
+        "-e",
+        "--extended_period",
+        action="store_true",
+        help="Indicate the use of extended(100) pSA periods",
     )
     parser.add_argument(
-       "-p",
-       "--periods",
-       nargs="+",
-       default= PERIODS,
-       type=float,
-       help="pSA period(s) separated by a " "space. eg: 0.02 0.05 0.1.",
+        "-p",
+        "--periods",
+        nargs="+",
+        default=constants.DEFAULT_PSA_PERIODS,
+        type=float,
+        help="pSA period(s) separated by a " "space. eg: 0.02 0.05 0.1.",
     )
     parser.add_argument(
-       "-m",
-       "--im",
-       nargs="+",
-       default=IM_LIST,
-       help="Intensity measure(s) separated by a "
-       "space(if more than one). eg: PGV PGA CAV.",
+        "-m",
+        "--im",
+        nargs="+",
+        default=IM_LIST,
+        help="Intensity measure(s) separated by a "
+        "space(if more than one). eg: PGV PGA CAV.",
     )
-#    # TODO: Put common argparse arguments between IM_calc and empirical in shared file
+    #    # TODO: Put common argparse arguments between IM_calc and empirical in shared file
     parser.add_argument(
-       "-comp",
-       "--components",
-       nargs="+",
-       choices=list(constants.Components.iterate_str_values()),
-       default=[constants.Components.cgeom.str_value],
-       help="The component(s) you want to calculate."
-       " Available components are: [%(choices)s]. Default is %(default)s",
-   )
-#
-#    parser.add_argument(
-#        "--gmm_param_config",
-#        default=None,
-#        help="the file that contains the extra parameters for models",
-#    )
+        "-comp",
+        "--components",
+        nargs="+",
+        choices=list(constants.Components.iterate_str_values()),
+        default=[constants.Components.cgeom.str_value],
+        help="The component(s) you want to calculate."
+        " Available components are: [%(choices)s]. Default is %(default)s",
+    )
+    #
+    #    parser.add_argument(
+    #        "--gmm_param_config",
+    #        default=None,
+    #        help="the file that contains the extra parameters for models",
+    #    )
 
     parser.add_argument("output", type=Path, help="output directory")
     args = parser.parse_args()
-    
+
     return args
 
 
 def main():
     args = load_args()
     setup_dir(args.output)
-    run_emp_gmms(args.output, args.ll_ffp, args.vs30_ffp, args.z_ffp, args.srf_ffp, args.srfinfo_ffp, args.nz_gmdb_source_ffp, args.max_rupture_distance, args.config, args.im, args.components, args.periods)
+    run_emp_gmms(
+        args.output,
+        args.ll_ffp,
+        args.vs30_ffp,
+        args.z_ffp,
+        args.srf_ffp,
+        args.srfinfo_ffp,
+        args.nz_gmdb_source_ffp,
+        args.max_rupture_distance,
+        args.config,
+        args.im,
+        args.components,
+        args.periods,
+        args.extended_period,
+    )
 
 
 if __name__ == "__main__":
