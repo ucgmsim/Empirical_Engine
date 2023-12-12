@@ -264,7 +264,7 @@ def run_emp_gmms(
             "dip",
             "hypo_depth",
         ],  # OQ_INPUT_COLUMNS corresponding FAULT_DF_COLUMNS
-    ] = fault_df[FAULT_DF_COLUMNS]
+    ] = fault_df.values
 
     data_dfs.append(cur_data_df)
 
