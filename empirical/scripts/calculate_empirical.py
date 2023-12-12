@@ -317,7 +317,9 @@ def run_emp_gmms(
 
             temp_df = pd.concat(im_results, axis=1)
             temp_df.index = data_df.loc[cur_tect_mask].index
-            cur_df = pd.concat([temp_df, data_df[["event", "site"]]], axis=1)
+            cur_df = pd.concat(
+                [temp_df, data_df.loc[cur_tect_mask, ["event", "site"]]], axis=1
+            )
 
             dfs.append(cur_df)
 
