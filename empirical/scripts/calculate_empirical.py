@@ -43,6 +43,16 @@ OQ_INPUT_COLUMNS = [
     "hypo_depth",
 ]
 
+FAULT_DF_COLUMNS = [
+    "mag",
+    "tect_class",
+    "z_tor",
+    "z_bor",
+    "rake",
+    "dip",
+    "depth",
+]  # following NZ_GMDB_SOURCE column names
+
 
 def get_tect_type_name(tect_type):
     found = None
@@ -141,27 +151,25 @@ def run_emp_gmms(
     periods=constants.DEFAULT_PSA_PERIODS,
     extended_period=False,
 ):
+
     """
-    Computes the empirical GMM parameters for all
-        specified sites and sources
+    Computes the empirical GMM parameters for all specified sites for a given event/source
 
     Parameters
     ----------
-    output_ffp: Path
-    ll_ffp: Path
-        Path to .ll file, make sure .vs30 and .z files are present in the same directory
-    srf_dir: Path
-        Directory that contains the srf files
-    nz_gmdb_source_ffp: Path
-        Path to the NZ-GMDB source file
-    rjb_max: float
-        RJB distance threshold
-
-    Returns
-    -------
-    result_df: DataFrame
-        The empirical GMM parameters for PGA
-        and the default set of pSA periods
+    output_dir
+    ll_ffp : path to .ll file
+    vs30_ffp : path to .vs30 file
+    z_ffp : path to .z file. If None, z-values will be estimated
+    srf_ffp : path
+    srfinfo_ffp : path to .info. Only supplied for a non-historical (eg. cybershake) event
+    nz_gmdb_source_ffp : path to nz_gmdb_source. To be used for a historical event
+    rjb_max: RJB distance threshod
+    config_file
+    im_list
+    components
+    periods
+    extended_period
     """
     if extended_period:
         periods = np.unique(np.append(periods, constants.EXT_PERIOD))
@@ -169,10 +177,6 @@ def run_emp_gmms(
     tect_type_model_dict = read_model_dict(config_file)
 
     ### Data loading
-    # Get all srf files
-    # srf_ffps = list(srf_dir.rglob("*.srf"))
-
-    # events = [cur_ffp.stem for cur_ffp in srf_ffps]
     event = srf_ffp.stem
     # TODO: consider if this is necessary when each event is Cybershake realisation
     event_name = event.split("_")[0]
@@ -180,28 +184,18 @@ def run_emp_gmms(
     source_df = pd.read_csv(nz_gmdb_source_ffp, index_col=0)
 
     if srfinfo_ffp is None:
-        fault_df = source_df.loc[
-            event_name, ["mag", "tect_class", "z_tor", "z_bor", "rake", "dip", "depth"]
-        ]
+        fault_df = source_df.loc[event_name, FAULT_DF_COLUMNS]
     else:  # this will supercede source_df
         fault_df = load_srf_info(srfinfo_ffp, event_name)
 
-    # Load srf data
-    # srf_points, plane_infos = {}, {}
-    # for cur_srf_ffp in srf_ffps:
-    #     srf_points[cur_srf_ffp.stem] = srf.read_srf_points(str(cur_srf_ffp))
-    #     plane_infos[cur_srf_ffp.stem] = srf.read_header(str(cur_srf_ffp), idx=True)
     srf_points = srf.read_srf_points(str(srf_ffp))
-    plane_infos = srf.read_header(str(srf_ffp), idx=True)
+    plane_info = srf.read_header(str(srf_ffp), idx=True)
 
     # Load the site_data
     site_dir = ll_ffp.parent
-    # vs30_ffp = ll_ffp.with_suffix(".vs30")
-    # z_ffp = ll_ffp.with_suffix(".z")
 
-    # assert ll_ffp.exists()
-    # assert vs30_ffp.exists()
-    # assert z_ffp.exists()
+    assert ll_ffp.exists()
+    assert vs30_ffp.exists()
 
     stations_df = pd.read_csv(
         ll_ffp,
@@ -251,18 +245,26 @@ def run_emp_gmms(
     )
 
     cur_data_df["rx"], cur_data_df["ry"] = src_site_dist.calc_rx_ry(
-        srf_points, plane_infos, site_locs
+        srf_points, plane_info, site_locs
     )
     # Enforce distance threshold
     cur_data_df = cur_data_df.loc[cur_data_df.rjb <= rjb_max]
     cur_data_df["site"] = cur_data_df.index.values
     cur_data_df["event"] = str(event)
-    # cur_data_df.index = np.add(f"{event}_", cur_data_df.index.values)
 
     # Add event data
     cur_data_df.loc[
-        :, ["mag", "tect_class", "ztor", "zbot", "rake", "dip", "hypo_depth"]
-    ] = fault_df
+        :,
+        [
+            "mag",
+            "tect_class",
+            "ztor",
+            "zbot",
+            "rake",
+            "dip",
+            "hypo_depth",
+        ],  # OQ_INPUT_COLUMNS corresponding FAULT_DF_COLUMNS
+    ] = fault_df[FAULT_DF_COLUMNS]
 
     data_dfs.append(cur_data_df)
 
@@ -386,6 +388,7 @@ def load_args():
     parser.add_argument(
         "-c",
         "--config",
+        default=DEFAULT_GMM_CONFIG_NAME,
         help="configuration file to " "select which model is being used",
     )
     parser.add_argument(
