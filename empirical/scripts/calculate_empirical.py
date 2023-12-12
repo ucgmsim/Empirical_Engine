@@ -138,7 +138,7 @@ def run_emp_gmms(
     config_file: Path = None,
     im_list=IM_LIST,
     components=None,
-    periods=PERIODS,
+    periods=constants.DEFAULT_PSA_PERIODS,
     extended_period=False,
 ):
     """
