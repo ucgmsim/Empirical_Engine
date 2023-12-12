@@ -260,8 +260,8 @@ def run_emp_gmms(
     # cur_data_df.index = np.add(f"{event}_", cur_data_df.index.values)
 
     # Add event data
-    cur_data_df[
-        ["mag", "tect_class", "ztor", "zbot", "rake", "dip", "hypo_depth"]
+    cur_data_df.loc[
+        :, ["mag", "tect_class", "ztor", "zbot", "rake", "dip", "hypo_depth"]
     ] = fault_df
 
     data_dfs.append(cur_data_df)
