@@ -63,12 +63,12 @@ OQ_MODELS = {
             region="NZL",
         ),
     },
-#    GMM.S_22: {TectType.ACTIVE_SHALLOW: gsim.stafford_2022.Stafford2022},
-#    GMM.A_22: {
-#        TectType.ACTIVE_SHALLOW: gsim.atkinson_2022.Atkinson2022Crust,
-#        TectType.SUBDUCTION_SLAB: gsim.atkinson_2022.Atkinson2022SSlab,
-#        TectType.SUBDUCTION_INTERFACE: gsim.atkinson_2022.Atkinson2022SInter,
-#    },
+    #    GMM.S_22: {TectType.ACTIVE_SHALLOW: gsim.stafford_2022.Stafford2022},
+    #    GMM.A_22: {
+    #        TectType.ACTIVE_SHALLOW: gsim.atkinson_2022.Atkinson2022Crust,
+    #        TectType.SUBDUCTION_SLAB: gsim.atkinson_2022.Atkinson2022SSlab,
+    #        TectType.SUBDUCTION_INTERFACE: gsim.atkinson_2022.Atkinson2022SInter,
+    #    },
     GMM.ASK_14: {TectType.ACTIVE_SHALLOW: gsim.abrahamson_2014.AbrahamsonEtAl2014},
     GMM.CY_14: {TectType.ACTIVE_SHALLOW: gsim.chiou_youngs_2014.ChiouYoungs2014},
     GMM.CB_14: {
@@ -92,10 +92,10 @@ OQ_MODELS = {
         TectType.SUBDUCTION_SLAB: gsim.kuehn_2020.KuehnEtAl2020SSlab,
         TectType.SUBDUCTION_INTERFACE: gsim.kuehn_2020.KuehnEtAl2020SInter,
     },
-#    GMM.P_21: {
-#        TectType.SUBDUCTION_SLAB: gsim.parker_2021.ParkerEtAl2021SSlab,
-#        TectType.SUBDUCTION_INTERFACE: gsim.parker_2021.ParkerEtAl2021SInter,
-#    },
+    #    GMM.P_21: {
+    #        TectType.SUBDUCTION_SLAB: gsim.parker_2021.ParkerEtAl2021SSlab,
+    #        TectType.SUBDUCTION_INTERFACE: gsim.parker_2021.ParkerEtAl2021SInter,
+    #    },
     GMM.GA_11: {
         TectType.ACTIVE_SHALLOW: gsim.gulerce_abrahamson_2011.GulerceAbrahamson2011
     },
@@ -128,7 +128,7 @@ def oq_mean_stddevs(
     ctx: contexts.RuptureContext,
     im: imt.IMT,
     stddev_types: Sequence[const.StdDev],
-    convert_mean = lambda x:x,
+    convert_mean=lambda x: x,
 ):
     """Calculate mean and standard deviations given openquake input structures.
     model: gsim.base.GMPE
@@ -229,7 +229,7 @@ def oq_run(
     im: str,
     periods: Sequence[Union[int, float]] = None,
     meta_config: Dict = None,
-    convert_mean = None,
+    convert_mean=None,
     **kwargs,
 ):
     """Run an openquake model with dataframe
@@ -385,7 +385,9 @@ def oq_run(
         for period in periods:
             im = imt.SA(period=min(period, max_period))
             try:
-                result = oq_mean_stddevs(model, rupture_ctx, im, stddev_types,convert_mean=convert_mean)
+                result = oq_mean_stddevs(
+                    model, rupture_ctx, im, stddev_types, convert_mean=convert_mean
+                )
             except KeyError as ke:
                 cause = ke.args[0]
                 # To make sure the KeyError is about missing pSA's period
@@ -397,7 +399,11 @@ def oq_run(
                     # Period is smaller than model's supported min_period E.g., ZA_06
                     # Interpolate between PGA(0.0) and model's min_period
                     low_result = oq_mean_stddevs(
-                        model, rupture_ctx, imt.PGA(), stddev_types, convert_mean=convert_mean
+                        model,
+                        rupture_ctx,
+                        imt.PGA(),
+                        stddev_types,
+                        convert_mean=convert_mean,
                     )
                     high_period = avail_periods[period <= avail_periods][0]
                     high_result = oq_mean_stddevs(
@@ -405,7 +411,7 @@ def oq_run(
                         rupture_ctx,
                         imt.SA(period=high_period),
                         stddev_types,
-                        convert_mean=convert_mean
+                        convert_mean=convert_mean,
                     )
 
                     result = interpolate_with_pga(
@@ -436,4 +442,6 @@ def oq_run(
     else:
         imc = getattr(imt, im)
         assert imc in model.DEFINED_FOR_INTENSITY_MEASURE_TYPES
-        return oq_mean_stddevs(model, rupture_ctx, imc(), stddev_types, convert_mean=convert_mean)
+        return oq_mean_stddevs(
+            model, rupture_ctx, imc(), stddev_types, convert_mean=convert_mean
+        )
