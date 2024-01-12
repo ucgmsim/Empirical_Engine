@@ -229,7 +229,7 @@ def oq_run(
     im: str,
     periods: Sequence[Union[int, float]] = None,
     meta_config: Dict = None,
-    convert_mean=None,
+    convert_mean=lambda x:x,
     **kwargs,
 ):
     """Run an openquake model with dataframe
