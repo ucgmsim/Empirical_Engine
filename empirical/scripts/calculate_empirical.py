@@ -78,206 +78,206 @@ def estimate_z2p5(z1p0=None, z1p5=None):
 
 
 
-# def run_emp(
-#     output_dir: Path,
-#     ll_ffp: Path,
-#     vs30_ffp: Path,
-#     z_ffp: Path,
-#     srf_ffp: Path,
-#     nhm_ffp: Path  = NHM_PATH,
-#     srfdata_ffp: Path = None,
-#     nz_gmdb_source_ffp: Path = NZ_GMDB_SOURCE_PATH,
-#     model_config_ffp: Path = DEFAULT_MODEL_CONFIG_FFP,
-#     meta_config_ffp: Path = DEFAULT_META_CONFIG_FFP,
-#     rjb_max: float = RJB_MAX,
-#     im_list=IM_LIST,
-#     component=None,
-#     periods=constants.DEFAULT_PSA_PERIODS,
-#     extended_period=False,
-#
-# ):
-#
-#     """
-#     Computes the empirical GMM parameters for all specified sites for a given event/source
-#
-#     Parameters
-#     ----------
-#     output_dir
-#     ll_ffp : path to .ll file
-#     vs30_ffp : path to .vs30 file
-#     z_ffp : path to .z file. If None, z-values will be estimated
-#     is_historical: bool
-#     srf_ffp : path
-#     nhm_ffp : path
-#     srfdata_ffp : path to .info or .csv. Only supplied for a non-historical (eg. cybershake) event
-#     nz_gmdb_source_ffp : path to nz_gmdb_source. To be used for a historical event
-#     rjb_max: RJB distance threshod
-#     config_file
-#     im_list
-#     component
-#     periods
-#     extended_period
-#     """
-#     if extended_period:
-#         periods = np.unique(np.append(periods, constants.EXT_PERIOD))
-#
-#     tect_type_model_dict = read_model_dict(model_config_ffp)
-#
-#     ### Data loading
-#
-#     source_df = pd.read_csv(nz_gmdb_source_ffp, index_col=0)
-#
-#     if srfdata_ffp is None:
-#         print(f"srfdata_ffp not provided. If historical, event info will be extracted from NZGMDB")
-#         if srf_ffp is None:
-#             print(f"Error: At least srf_ffp should be specified.")
-#             sys.exit()
-#         else:
-#             event = srf_ffp.stem
-#             event_name = event.split("_")[0]  # ie. fault_name for Cybershake
-#             # Load source info. Only useful when this is a historical event
-#             try:
-#                 fault_df = source_df.loc[event_name, FAULT_DF_COLUMNS]
-#             except:
-#                 print(f"Error: Unknown event {event_name}")
-#                 sys.exit()
-#
-#
-#     else:
-#         event = srfdata_ffp.stem
-#         fault_name = event.split("_")[0]
-#         if srfdata_ffp.suffix == ".info":
-#             fault_df = load_srf_info(srfdata_ffp, fault_name)
-#         else:  # .csv
-#             fault_df = load_rel_csv(srfdata_ffp, fault_name)
-#
-#         if srf_ffp is None:
-#             nhm_data = nhm.load_nhm(str(nhm_ffp))
-#             # Get fault data
-#             nhm_flt_info = nhm_data[fault_name]
-#             srf_ffp = nhm_flt_to_df(nhm_flt_info) # use NHM instead of srf_ffp later
-#
-#     # from now on, we have fault_df, and srf_ffp (can be either Path or NHM)
-#
-#
-#
-#     tect_type = TECT_CLASS_MAPPING[fault_df.tect_class]
-#
-#     assert ll_ffp.exists()
-#     assert vs30_ffp.exists()
-#
-#     stations_df = formats.load_station_file(ll_ffp)
-#     vs30_df = formats.load_vs30_file(vs30_ffp)
-#     if z_ffp is not None and z_ffp.exists():
-#         #z_df = pd.read_csv(z_ffp, index_col=0)
-#         z_df = formats.load_z_file(z_ffp)
-#         z_df = z_df.rename(columns={"Z_1.0(km)": "z1pt0", "Z_2.5(km)": "z2pt5"})
-#
-#     else:
-#         z1p0_df = estimate_z1p0(vs30_df)
-#         z2p5_df = estimate_z2p5(z1p0_df)
-#         z_df = pd.concat(
-#             [
-#                 z1p0_df.rename(columns={"vs30": "z1pt0"}),
-#                 z2p5_df.rename(columns={"vs30": "z2pt5"}),
-#             ],
-#             axis=1,
-#         )
-#
-#     ### Data merging/re-naming and tidy up
-#     assert np.all(stations_df.index == vs30_df.index) and np.all(
-#         stations_df.index == z_df.index
-#     )
-#     site_df = pd.concat([stations_df, vs30_df, z_df], axis=1)
-#     del stations_df, vs30_df, z_df
-#
-#     ### Distance calculation
-#
-#
-#     data_df = site_df.copy(True)
-#     rrup_df = get_site_source_data(srf_ffp, site_df[["lon", "lat"]].values)
-#
-#     data_df.loc[:,["rrup","rjb","rx","ry"]] = rrup_df.values
-#
-#     # Enforce distance threshold
-#     data_df = data_df.loc[data_df.rjb <= rjb_max]
-#     data_df["site"] = data_df.index.values
-#     data_df["event"] = str(event)
-#
-#     # Add event data
-#     data_df.loc[
-#         :,
-#         [
-#             "mag",
-#             "tect_class",
-#             "ztor",
-#             "zbot",
-#             "rake",
-#             "dip",
-#             "hypo_depth",
-#         ],  # OQ_INPUT_COLUMNS corresponding FAULT_DF_COLUMNS
-#
-#     ] = fault_df.values
-#
-#     data_df["vs30measured"] = False
-#
-#     ### GM prediction
-#     dfs = []
-#     sites = np.unique(data_df.site)
-#     for site_ix, cur_site in enumerate(sites):
-#         print(f"Processing site {cur_site}, {site_ix + 1}/{len(sites)}")
-#
-#         cur_site_mask = data_df.site.values == cur_site
-#
-#         for cur_tect_class in np.unique(data_df.loc[cur_site_mask].tect_class):
-#             cur_tect_mask = cur_site_mask & (data_df.tect_class == cur_tect_class)
-#
-#             if cur_tect_class not in TECT_CLASS_MAPPING:
-#                 continue
-#
-#             cur_tect_type = TECT_CLASS_MAPPING[cur_tect_class]
-#             im_comp_model = tect_type_model_dict[cur_tect_type.name]
-#
-#             im_results = []
-#             for im in im_list:
-#
-#                 model_str = im_comp_model.get(im).get(component)[0]
-#                 if model_str is None:
-#                     continue
-#
-#                 model = GMM[model_str]
-#
-#                 if im == "pSA":
-#                     result = oq_run(
-#                         model,
-#                         cur_tect_type,
-#                         data_df.loc[cur_tect_mask, OQ_INPUT_COLUMNS],
-#                         im,
-#                         periods,
-#                         convert_mean=np.exp,
-#                     )
-#                 else:
-#                     result = oq_run(
-#                         model,
-#                         cur_tect_type,
-#                         data_df.loc[cur_tect_mask, OQ_INPUT_COLUMNS],
-#                         im,
-#                         convert_mean=np.exp,
-#                     )
-#
-#                 im_results.append(result)
-#
-#             temp_df = pd.concat(im_results, axis=1)
-#             temp_df.index = data_df.loc[cur_tect_mask].index
-#             cur_df = pd.concat(
-#                 [temp_df, data_df.loc[cur_tect_mask, ["event", "site"]]], axis=1
-#             )
-#
-#             dfs.append(cur_df)
-#
-#     result_df = pd.concat(dfs, axis=0)
-#     output_ffp = output_dir / f"{event}.csv"
-#     result_df.to_csv(output_ffp, index_label="id")
+def run_emp2(
+    output_dir: Path,
+    ll_ffp: Path,
+    vs30_ffp: Path,
+    z_ffp: Path,
+    srf_ffp: Path,
+    nhm_ffp: Path  = NHM_PATH,
+    srfdata_ffp: Path = None,
+    nz_gmdb_source_ffp: Path = NZ_GMDB_SOURCE_PATH,
+    model_config_ffp: Path = DEFAULT_MODEL_CONFIG_FFP,
+    meta_config_ffp: Path = DEFAULT_META_CONFIG_FFP,
+    rjb_max: float = RJB_MAX,
+    im_list=IM_LIST,
+    component=None,
+    periods=constants.DEFAULT_PSA_PERIODS,
+    extended_period=False,
+
+):
+
+    """
+    Computes the empirical GMM parameters for all specified sites for a given event/source
+
+    Parameters
+    ----------
+    output_dir
+    ll_ffp : path to .ll file
+    vs30_ffp : path to .vs30 file
+    z_ffp : path to .z file. If None, z-values will be estimated
+    is_historical: bool
+    srf_ffp : path
+    nhm_ffp : path
+    srfdata_ffp : path to .info or .csv. Only supplied for a non-historical (eg. cybershake) event
+    nz_gmdb_source_ffp : path to nz_gmdb_source. To be used for a historical event
+    rjb_max: RJB distance threshod
+    config_file
+    im_list
+    component
+    periods
+    extended_period
+    """
+    if extended_period:
+        periods = np.unique(np.append(periods, constants.EXT_PERIOD))
+
+    tect_type_model_dict = read_model_dict(model_config_ffp)
+
+    ### Data loading
+
+    source_df = pd.read_csv(nz_gmdb_source_ffp, index_col=0)
+
+    if srfdata_ffp is None:
+        print(f"srfdata_ffp not provided. If historical, event info will be extracted from NZGMDB")
+        if srf_ffp is None:
+            print(f"Error: At least srf_ffp should be specified.")
+            sys.exit()
+        else:
+            event = srf_ffp.stem
+            event_name = event.split("_")[0]  # ie. fault_name for Cybershake
+            # Load source info. Only useful when this is a historical event
+            try:
+                fault_df = source_df.loc[event_name, FAULT_DF_COLUMNS]
+            except:
+                print(f"Error: Unknown event {event_name}")
+                sys.exit()
+
+
+    else:
+        event = srfdata_ffp.stem
+        fault_name = event.split("_")[0]
+        if srfdata_ffp.suffix == ".info":
+            fault_df = load_srf_info(srfdata_ffp, fault_name)
+        else:  # .csv
+            fault_df = load_rel_csv(srfdata_ffp, fault_name)
+
+        if srf_ffp is None:
+            nhm_data = nhm.load_nhm(str(nhm_ffp))
+            # Get fault data
+            nhm_flt_info = nhm_data[fault_name]
+            srf_ffp = nhm_flt_to_df(nhm_flt_info) # use NHM instead of srf_ffp later
+
+    # from now on, we have fault_df, and srf_ffp (can be either Path or NHM)
+
+
+
+    tect_type = TECT_CLASS_MAPPING[fault_df.tect_class]
+
+    assert ll_ffp.exists()
+    assert vs30_ffp.exists()
+
+    stations_df = formats.load_station_file(ll_ffp)
+    vs30_df = formats.load_vs30_file(vs30_ffp)
+    if z_ffp is not None and z_ffp.exists():
+        #z_df = pd.read_csv(z_ffp, index_col=0)
+        z_df = formats.load_z_file(z_ffp)
+        z_df = z_df.rename(columns={"z1p0": "z1pt0", "z2p5": "z2pt5"})
+
+    else:
+        z1p0_df = estimate_z1p0(vs30_df)
+        z2p5_df = estimate_z2p5(z1p0_df)
+        z_df = pd.concat(
+            [
+                z1p0_df.rename(columns={"vs30": "z1pt0"}),
+                z2p5_df.rename(columns={"vs30": "z2pt5"}),
+            ],
+            axis=1,
+        )
+
+    ### Data merging/re-naming and tidy up
+    assert np.all(stations_df.index == vs30_df.index) and np.all(
+        stations_df.index == z_df.index
+    )
+    site_df = pd.concat([stations_df, vs30_df, z_df], axis=1)
+    del stations_df, vs30_df, z_df
+
+    ### Distance calculation
+
+
+    data_df = site_df.copy(True)
+    rrup_df = get_site_source_data(srf_ffp, site_df[["lon", "lat"]].values)
+
+    data_df.loc[:,["rrup","rjb","rx","ry"]] = rrup_df.values
+
+    # Enforce distance threshold
+    data_df = data_df.loc[data_df.rjb <= rjb_max]
+    data_df["site"] = data_df.index.values
+    data_df["event"] = str(event)
+
+    # Add event data
+    data_df.loc[
+        :,
+        [
+            "mag",
+            "tect_class",
+            "ztor",
+            "zbot",
+            "rake",
+            "dip",
+            "hypo_depth",
+        ],  # OQ_INPUT_COLUMNS corresponding FAULT_DF_COLUMNS
+
+    ] = fault_df.values
+
+    data_df["vs30measured"] = False
+
+    ### GM prediction
+    dfs = []
+    sites = np.unique(data_df.site)
+    for site_ix, cur_site in enumerate(sites):
+        print(f"Processing site {cur_site}, {site_ix + 1}/{len(sites)}")
+
+        cur_site_mask = data_df.site.values == cur_site
+
+        for cur_tect_class in np.unique(data_df.loc[cur_site_mask].tect_class):
+            cur_tect_mask = cur_site_mask & (data_df.tect_class == cur_tect_class)
+
+            if cur_tect_class not in TECT_CLASS_MAPPING:
+                continue
+
+            cur_tect_type = TECT_CLASS_MAPPING[cur_tect_class]
+            im_comp_model = tect_type_model_dict[cur_tect_type.name]
+
+            im_results = []
+            for im in im_list:
+
+                model_str = im_comp_model.get(im).get(component)[0]
+                if model_str is None:
+                    continue
+
+                model = GMM[model_str]
+
+                if im == "pSA":
+                    result = oq_run(
+                        model,
+                        cur_tect_type,
+                        data_df.loc[cur_tect_mask, OQ_INPUT_COLUMNS],
+                        im,
+                        periods,
+                        convert_mean=np.exp,
+                    )
+                else:
+                    result = oq_run(
+                        model,
+                        cur_tect_type,
+                        data_df.loc[cur_tect_mask, OQ_INPUT_COLUMNS],
+                        im,
+                        convert_mean=np.exp,
+                    )
+
+                im_results.append(result)
+
+            temp_df = pd.concat(im_results, axis=1)
+            temp_df.index = data_df.loc[cur_tect_mask].index
+            cur_df = pd.concat(
+                [temp_df, data_df.loc[cur_tect_mask, ["event", "site"]]], axis=1
+            )
+
+            dfs.append(cur_df)
+
+    result_df = pd.concat(dfs, axis=0)
+    output_ffp = output_dir / f"{event}.csv"
+    result_df.to_csv(output_ffp, index_label="id")
 
 def run_emp(
         output_dir: Path,
@@ -310,10 +310,8 @@ def run_emp(
     stations_df = formats.load_station_file(ll_ffp)
     vs30_df = formats.load_vs30_file(vs30_ffp)
     if z_ffp is not None and z_ffp.exists():
-        #z_df = pd.read_csv(z_ffp, index_col=0)
         z_df = formats.load_z_file(z_ffp)
-        z_df = z_df.rename(columns={"Z_1.0(km)": "z1pt0", "Z_2.5(km)": "z2pt5"})
-
+        z_df = z_df.rename(columns={"z1p0": "z1pt0", "z2p5": "z2pt5"})
     else:
         z1p0_df = estimate_z1p0(vs30_df)
         z2p5_df = estimate_z2p5(z1p0_df)
@@ -366,6 +364,7 @@ def run_emp(
     tect_type = TECT_CLASS_MAPPING[fault_df.tect_class]
 
     locations_df = site_df.copy(True)
+
     rrup_df = get_site_source_data(srf_ffp, site_df[["lon", "lat"]].values)
 
     locations_df.loc[:,["rrup","rjb","rx","ry"]] = rrup_df.values
