@@ -1,4 +1,5 @@
 """Wrapper for openquake vectorized models."""
+
 import logging
 from typing import Sequence, Union, Dict
 from functools import partial
@@ -229,7 +230,7 @@ def oq_run(
     im: str,
     periods: Sequence[Union[int, float]] = None,
     meta_config: Dict = None,
-    convert_mean=lambda x:x,
+    convert_mean=lambda x: x,
     **kwargs,
 ):
     """Run an openquake model with dataframe
@@ -248,6 +249,7 @@ def oq_run(
         interpolate values between specified values, fails if outside range
     meta_config: Dict
         A dictionary contains models and its weight
+    convert_mean: function to be used to convert mean, by default does nothing
     kwargs: pass extra (model specific) parameters to models
     """
 
