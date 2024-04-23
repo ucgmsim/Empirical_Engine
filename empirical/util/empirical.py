@@ -8,7 +8,9 @@ import yaml
 import numpy as np
 import pandas as pd
 import multiprocessing as mp
+
 from empirical.util.classdef import TectType
+from empirical.util import classdef, openquake_wrapper_vectorized
 
 import IM_calculation.source_site_dist.src_site_dist as ssd
 from IM_calculation.IM.im_calculation import DEFAULT_IMS
@@ -21,10 +23,7 @@ from qcore import (
     constants,
     archive_structure,
 )
-from empirical.util import classdef, openquake_wrapper_vectorized
 
-# from cybershake_investigation import utils as ci_utils
-# from cybershake_investigation import site_source
 
 TECT_CLASS_MAPPING = {
     "Crustal": TectType.ACTIVE_SHALLOW,
@@ -33,11 +32,50 @@ TECT_CLASS_MAPPING = {
     "Undetermined": TectType.ACTIVE_SHALLOW,
 }
 
+NZ_GMDB_SOURCE_COLUMNS = [
+    "mag",
+    "tect_class",
+    "z_tor",
+    "z_bor",
+    "rake",
+    "dip",
+    "depth",
+]  # following NZ_GMDB_SOURCE column names
+
+OQ_INPUT_COLUMNS = [
+    "lot",
+    "lat",
+    "vs30",
+    "z1pt0",
+    "z2pt5",
+    "rrup",
+    "rjb",
+    "rx",
+    "ry",
+    "mag",
+    "tect_class",
+    "ztor",
+    "zbot",
+    "rake",
+    "dip",
+    "hypo_depth",
+    "vs30measured",
+]  # columns required by OpenQuake oq_run() function
+
 
 def get_site_source_data(flt: Union[nhm.NHMFault, Path], stations: np.ndarray):
     """
     Computes site-source data rrup, rjb, rx, ry
     for a single fault and a set of stations
+
+    Parameters
+    ----------
+    flt : nhm.NHMFault or Path
+    stations : np.ndarray
+
+    Returns
+    -------
+    pd.DataFrame : containing ["rrup", "rjb", "rx", "ry"] for a single fault and a set of stations
     """
     # Add depth for the stations (hardcoded to 0)
     filtered_station_np = np.concatenate(
@@ -71,11 +109,28 @@ def get_model(
 ):
     """
     Gets the appropriate model based on the model config given the tect_type, im and component
+
+    Parameters
+    ----------
+    model_config: dict
+        Contains the empirical model to be used for a given tect_type, im and component
+    tect_type:  classdef.TectType
+        Tectonic type of the fault
+    im : str
+        Intensity Measure to calculate
+    component:  str
+        Component to calculate results for
+
+    Returns
+    -------
+    classdef.GMM : The GMM model to be used
+
     """
     model = None
     try:
         model = classdef.GMM[model_config[tect_type.name][im][component][0]]
     except KeyError:
+        # if rotd50 component is requested and not found, try geom instead. (Do you know why @joel?)
         if component == constants.Components.crotd50.str_value:
             try:
                 model = classdef.GMM[
@@ -89,6 +144,15 @@ def get_model(
 
 
 def get_tect_type_name(tect_type):
+    """
+    Get the tectonic type name from the classdef.TectType (eg. Crustal, Slab, Interface, Undetermined)
+    ----------
+    tect_type: classdef.TectType
+
+    Returns
+    -------
+    str : Tectonic type name
+    """
     found = None
     for key, val in TECT_CLASS_MAPPING.items():
         if tect_type == val:
@@ -98,7 +162,20 @@ def get_tect_type_name(tect_type):
 
 
 def load_srf_info(srf_info, event_name):
-    """Create fault parameters"""
+    """Load srf_info file in HDF5 format and return a pandas Series with the fault parameters
+
+    Parameters
+    ----------
+    srf_info: Path
+        Path to the srf_info file
+    event_name: str
+        Name of the event
+
+    Returns
+    -------
+    pd.Series : containing fault parameters
+    """
+
     fault = {}
     f = h5py.File(srf_info, "r")
     attrs = f.attrs
@@ -112,7 +189,7 @@ def load_srf_info(srf_info, event_name):
             tect_type = TectType[attrs["tect_type"].decode("utf-8")]
 
     else:
-        print("tect_type not found assuming 'ACTIVE_SHALLOW'")
+        print("INFO: tect_type not found assuming 'ACTIVE_SHALLOW'")
         tect_type = TectType.ACTIVE_SHALLOW
     fault["tect_class"] = get_tect_type_name(tect_type)
 
@@ -147,8 +224,18 @@ def load_srf_info(srf_info, event_name):
 
 
 def load_rel_csv(source_csv: Path, event_name):
+    """
 
-    required_columns = [
+    Parameters
+    ----------
+    source_csv
+    event_name
+
+    Returns
+    -------
+
+    """
+    rel_csv_columns = [
         "dtop",
         "dbottom",
         "dip",
@@ -160,11 +247,7 @@ def load_rel_csv(source_csv: Path, event_name):
     ]
 
     csv_info = pd.read_csv(source_csv)
-
-    missing_cols = []
-    for col in required_columns:
-        if col not in csv_info.columns:
-            missing_cols.append(col)
+    missing_cols = set(rel_csv_columns) - set(csv_info.columns)
 
     if len(missing_cols) > 0:
         print(
@@ -188,10 +271,9 @@ def load_rel_csv(source_csv: Path, event_name):
 
 
 def create_emp_rel_csv(
-    source_csv: Path,
+    rel_name,
     periods: List[str],
-    nhm_flt_data: pd.DataFrame,
-    filtered_site_source: pd.DataFrame,
+    rupture_df: pd.DataFrame,
     ims: list,
     component: str,
     tect_type: classdef.TectType,
@@ -202,16 +284,12 @@ def create_emp_rel_csv(
 ):
     """
     Calculates and saves a single empirical realisation csv file based on IM's specified.
+
     Parameters
     ----------
-    source_csv: Path
-        Path to the Realisation Source csv file
-    periods: List[str]
-        List of period columns to calculate as strings
-    nhm_flt_data: pd.DataFrame
-        NHM loaded data for this specific fault
-    filtered_site_source: pd.DataFrame
-        The site_source dataframe with rrup data for specific stations for this fault
+    rel_name
+    periods
+    rupture_df
     ims: list
         list of IM's to calculate
     component: str
@@ -226,49 +304,8 @@ def create_emp_rel_csv(
         categorized by IM, TectType then Model
     output_flt_dir: Path
         Output path to generate results in
-    convert_mean: function to convert mean values, by default no conversion is done
+    convert_mean: function to convert mean values, eg) convert_mean=np.exp for log space. by default no conversion
     """
-    rel_name = source_csv.stem
-
-    csv_info = pd.read_csv(source_csv)
-    nhm_flt_data.loc[nhm_flt_data.index.values[0], "mag"] = csv_info.loc[0, "magnitude"]
-
-    hypo_depth = (
-        csv_info["dtop"] + math.sin(math.radians(csv_info["dip"])) * csv_info["dhypo"]
-    )
-
-    filtered_site_source["hypo_depth"] = hypo_depth.values[0]
-    filtered_site_source["zbot"] = csv_info["dbottom"]
-
-    locations_df = nhm_flt_data.join(filtered_site_source, how="outer").ffill().iloc[1:]
-
-    create_emp_df(
-        rel_name,
-        periods,
-        locations_df,
-        ims,
-        component,
-        tect_type,
-        model_config,
-        meta_config,
-        output_flt_dir,
-        convert_mean,
-    )
-
-
-def create_emp_df(
-    rel_name,
-    periods: List[str],
-    locations_df: pd.DataFrame,
-    ims: list,
-    component: str,
-    tect_type: classdef.TectType,
-    model_config: dict,
-    meta_config: dict,
-    output_flt_dir: Path,
-    convert_mean=lambda x: x,
-):
-
     im_df_list = []
     for im in ims:
         if im == "AI":
@@ -301,7 +338,7 @@ def create_emp_df(
                 )
                 else tect_type
             ),
-            locations_df,
+            rupture_df,
             im,
             periods=periods if im == "pSA" else None,
             meta_config=im_meta_config,
@@ -312,7 +349,7 @@ def create_emp_df(
     result_df = pd.concat(im_df_list, axis=1)
 
     result_df.insert(0, "component", component)
-    result_df.insert(0, "station", locations_df.index.values)
+    result_df.insert(0, "station", rupture_df.index.values)
 
     Path.mkdir(output_flt_dir, exist_ok=True, parents=True)
     result_df.to_csv(output_flt_dir / f"{rel_name}.csv", index=False)

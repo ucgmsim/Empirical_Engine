@@ -10,68 +10,56 @@ from empirical.util.openquake_wrapper_vectorized import oq_run
 from empirical.util.classdef import GMM
 
 
-from empirical.util.empirical import (
-    create_emp_df,
-    get_site_source_data,
-    load_srf_info,
-    load_rel_csv,
-    nhm_flt_to_df,
-    TECT_CLASS_MAPPING,
-)
+from empirical.util import empirical
 
 RJB_MAX = 200
-# IM_LIST = ["PGA", "PGV", "CAV", "AI", "Ds575", "Ds595", "pSA"]
-IM_LIST = ["PGA", "PGV", "pSA", "CAV"]
-# IM_LIST = ["AI"] # CB_12 keyerror
-
+IM_LIST = [
+    "PGA",
+    "PGV",
+    "pSA",
+    "CAV",
+    "Ds575",
+    "Ds595",
+]  # Other IMs: AI (CB_12 keyerror)
 
 DEFAULT_MODEL_CONFIG_FFP = Path(__file__).parents[1] / "util" / "model_config.yaml"
 DEFAULT_META_CONFIG_FFP = Path(__file__).parents[1] / "util" / "meta_config.yaml"
 NZ_GMDB_SOURCE_PATH = Path(__file__).parents[1] / "data" / "earthquake_source_table.csv"
 NHM_PATH = Path(__file__).parents[1] / "data" / "NZ_FLTmodel_2010_v18p6.txt"
 
-OQ_INPUT_COLUMNS = [
-    "vs30",
-    "rrup",
-    "rjb",
-    "z1pt0",
-    "z2pt5",
-    "mag",
-    "rake",
-    "dip",
-    "vs30measured",
-    "ztor",
-    "zbot",
-    "rx",
-    "hypo_depth",
-]
 
-FAULT_DF_COLUMNS = [
-    "mag",
-    "tect_class",
-    "z_tor",
-    "z_bor",
-    "rake",
-    "dip",
-    "depth",
-]  # following NZ_GMDB_SOURCE column names
+def estimate_z1p0(vs30: object):
+    """
+    Estimate Z1.0 from Vs30 using CY08 model
 
+    Parameters
+    ----------
+    vs30: vs30 values in any format
 
-def read_model_dict(config=None):
-    if config is None:
-        config = DEFAULT_MODEL_CONFIG_FFP
+    Returns
+    -------
+    z1p0: Z1.0 values in the same format as vs30
 
-    model_dict = yaml.safe_load(open(config))
-    return model_dict
-
-
-def estimate_z1p0(vs30):
+    """
     return (
         np.exp(28.5 - 3.82 / 8.0 * np.log(vs30**8.0 + 378.7**8.0)) / 1000.0
     )  # CY08 estimate in KM
 
 
-def estimate_z2p5(z1p0=None, z1p5=None):
+def estimate_z2p5(z1p0: object = None, z1p5: object = None):
+    """
+    Estimate Z2.5 from Z1.0 or Z1.5
+
+    Parameters
+    ----------
+    z1p0: Z1.0 values in any format
+    z1p5: Z1.5 values in any format
+
+    Returns
+    -------
+    z2p5: Z2.5 values in the same format as z1p0 or z1p5
+
+    """
     if z1p5 is not None:
         return 0.636 + 1.549 * z1p5
     elif z1p0 is not None:
@@ -98,7 +86,43 @@ def run_emp(
     periods=constants.DEFAULT_PSA_PERIODS,
     extended_period=False,
 ):
+    """
+    Run empirical calculations for a given historical event or a fuature event from a specifeid fault.
 
+    Parameters
+    ----------
+    output_dir  : Path
+        Path to the output directory
+    ll_ffp  : Path
+        lat lon file path for the stations
+    vs30_ffp    : Path
+        vs30 file path for vs30 values at the stations
+    z_ffp   : Path
+        z file path for z1.0 and z2.5 values at the stations
+    srf_ffp : Path
+        srf file path for the fault data.
+    nhm_ffp : Path
+        nhm file path for the collection of faults data (default: NZ_FLTmodel_2010_v18p6.txt
+    srfdata_ffp : Path
+        srfdata file path for the fault data. Can be either relisation .csv or .info file
+    nz_gmdb_source_ffp  : Path
+        nz_gmdb_source file path for the source data
+    model_config_ffp    : Path
+        model_config file path for the empirical model. prescribes the model to be used for teconic class, IM and component
+    meta_config_ffp : Path
+        meta_config file path for the empirical model. prescribes the weight of the model for IM and Tectonic class
+    rjb_max : float
+        Maximum rupture distance
+    im_list : list
+        List of intensity measures. Currently supported: PGA, PGV, pSA, CAV, Ds575, Ds595
+    component   : str
+        Component of the IM (eg. geom, rotd50) to calculate empiricals for
+    periods : list
+        List of periods for pSA. Default is qcore.constants.DEFAULT_PSA_PERIODS
+    extended_period : bool
+        Indicate the use of extended(100) pSA periods
+
+    """
     ### Data loading
     model_config = utils.load_yaml(model_config_ffp)
     # Using Full Loader for the meta config due to the python tuple pSA/PGA
@@ -126,56 +150,71 @@ def run_emp(
     site_df = pd.concat([stations_df, vs30_df, z_df], axis=1)
     del stations_df, vs30_df, z_df
 
-    source_df = pd.read_csv(nz_gmdb_source_ffp, index_col=0)
+    source_df = pd.read_csv(
+        nz_gmdb_source_ffp, index_col=0
+    )  # Not useful if this is not a historical event
 
     if srfdata_ffp is None:
-        print(f"srfdata_ffp not provided.")
+        # If srfdata_ffp is not supplied, but if srf_ffp is supplied and this is a historical event,we can still proceed
+        print(f"INFO: srfdata_ffp not provided.")
         if srf_ffp is None:
-            print(f"Error: At least srf_ffp should be specified.")
+            print(f"ERROR: Either srfdata_ffp or srf_ffp should be specified.")
             sys.exit()
-        else:
+        else:  # srf_ffp is provided. check if this is a valid historical event
             event = srf_ffp.stem
-            event_name = event.split("_")[0]  # ie. fault_name for Cybershake
+            event_name = event.split("_")[0]
             # Load source info. Only useful when this is a historical event
             try:
-                fault_df = source_df.loc[event_name, FAULT_DF_COLUMNS]
-            except:
-                print(f"Error: Unknown event {event_name}")
+                fault_df = source_df.loc[event_name, empirical.NZ_GMDB_SOURCE_COLUMNS]
+            except KeyError:
+                print(f"ERROR: Unknown event {event_name}")
                 sys.exit()
             else:
-                print(f"Found {event_name} in NZGMDB.")
+                print(f"INFO: Found {event_name} in NZGMDB.")
 
     else:
+        # srfdata_ffp is supplied. This can be either .csv or .info
         event = srfdata_ffp.stem
         fault_name = event.split("_")[0]
         if srfdata_ffp.suffix == ".info":
-            fault_df = load_srf_info(srfdata_ffp, fault_name)
+            fault_df = empirical.load_srf_info(srfdata_ffp, fault_name)
         else:  # .csv
-            fault_df = load_rel_csv(srfdata_ffp, fault_name)
+            fault_df = empirical.load_rel_csv(srfdata_ffp, fault_name)
+        # Either .csv or .info, fault_df has consistent columns defined in NZ_GMDB_SOURCE_COLUMNS
 
         if srf_ffp is None:
+            # Even if srf_ffp is not supplied, if it is a valid fault, we can use NHM to get the fault data and proceed
             nhm_data = nhm.load_nhm(str(nhm_ffp))
             # Get fault data
-            nhm_flt_info = nhm_data[fault_name]
-            srf_ffp = nhm_flt_to_df(nhm_flt_info)  # use NHM instead of srf_ffp later
+            try:
+                nhm_flt_info = nhm_data[fault_name]
+            except KeyError:
+                print(f"ERROR: Unknown fault {fault_name}")
+                sys.exit()
+            else:
+                print(f"INFO: Found {fault_name} in NHM.")
+            # srf_ffp was None, but we are reconstructing it from nhm. we will save returned NHM object as srf_ffp temporarily
+            srf_ffp = empirical.nhm_flt_to_df(nhm_flt_info)
 
-    # from now on, we have fault_df, and srf_ffp (can be either Path or NHM)
+    # at this point, we have both fault_df, and srf_ffp (can be either Path or NHM)
 
-    tect_type = TECT_CLASS_MAPPING[fault_df.tect_class]
+    tect_type = empirical.TECT_CLASS_MAPPING[fault_df.tect_class]
 
-    locations_df = site_df.copy(True)
+    # will be crafting oq_rupture_df from site_df, rrup_df and fault_df, following the columns in OQ_INPUT_COLUMNS
+    oq_rupture_df = site_df.copy(True)
 
-    rrup_df = get_site_source_data(srf_ffp, site_df[["lon", "lat"]].values)
+    # Get site source data. srf_ffp is either Path or NHM.
+    rrup_df = empirical.get_site_source_data(srf_ffp, site_df[["lon", "lat"]].values)
 
-    locations_df.loc[:, ["rrup", "rjb", "rx", "ry"]] = rrup_df.values
+    oq_rupture_df.loc[:, ["rrup", "rjb", "rx", "ry"]] = rrup_df.values
 
     # Enforce distance threshold
-    locations_df = locations_df.loc[locations_df.rjb <= rjb_max]
-    locations_df["site"] = locations_df.index.values
-    locations_df["event"] = str(event)
+    oq_rupture_df = oq_rupture_df.loc[oq_rupture_df.rjb <= rjb_max]
+    oq_rupture_df["site"] = oq_rupture_df.index.values
+    oq_rupture_df["event"] = str(event)
 
     # Add event data
-    locations_df.loc[
+    oq_rupture_df.loc[
         :,
         [
             "mag",
@@ -185,15 +224,15 @@ def run_emp(
             "rake",
             "dip",
             "hypo_depth",
-        ],  # OQ_INPUT_COLUMNS corresponding FAULT_DF_COLUMNS
-    ] = fault_df.values
+        ],  # rename columns to follow OQ_INPUT_COLUMN
+    ] = fault_df.values  # fault_df has NZ_GMDB_SOURCE_COLUMNS
 
-    locations_df["vs30measured"] = False
+    oq_rupture_df["vs30measured"] = False
 
-    create_emp_df(
+    empirical.create_emp_rel_csv(
         event,
         periods,
-        locations_df,
+        oq_rupture_df,
         im_list,
         component,
         tect_type,
@@ -225,21 +264,13 @@ def load_args():
     )
     parser.add_argument(
         "--z_ffp",
-        # required=True,
         type=Path,
         help="Path to the .z file that contains Z1.0",
     )
-    # parser.add_argument(
-    #     "-r",
-    #     "--rupture_distance",
-    #     required=True,
-    #     help="Path to the rupture distance csv file",
-    # )
 
     parser.add_argument(
         "--srf_ffp",
         help="Path to the SRF file",
-        # required=True,
         type=Path,
     )
 
@@ -247,14 +278,12 @@ def load_args():
         "--nhm_ffp",
         help="Path to the NHM file",
         default=NHM_PATH,
-        # required=True,
         type=Path,
     )
 
     parser.add_argument(
         "--srfdata_ffp",
         help="Path to the SRF .info or .csv file",
-        # required=False,
         type=Path,
     )
 
@@ -281,7 +310,6 @@ def load_args():
     parser.add_argument(
         "--meta_config_ffp",
         type=Path,
-        #        default=DEFAULT_META_CONFIG_FFP,
         help="Path to the meta_config weight file. Found in Empirical util.",
     )
     parser.add_argument(
