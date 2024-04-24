@@ -8,6 +8,7 @@ import yaml
 from qcore import constants, nhm, formats, utils
 from empirical.util.openquake_wrapper_vectorized import oq_run
 from empirical.util.classdef import GMM
+from empirical.util import z_model_calculations
 
 
 from empirical.util import empirical
@@ -28,27 +29,31 @@ NZ_GMDB_SOURCE_PATH = Path(__file__).parents[1] / "data" / "earthquake_source_ta
 NHM_PATH = Path(__file__).parents[1] / "data" / "NZ_FLTmodel_2010_v18p6.txt"
 
 
-def estimate_z1p0(vs30: object):
+def estimate_z1p0(vs30: object, fn=z_model_calculations.chiou_young_08_calc_z1p0):
     """
     Estimate Z1.0 from Vs30 using CY08 model
 
     Parameters
     ----------
     vs30: vs30 values in any format
+    fn: function to use for the estimation. Default is CY08
 
     Returns
     -------
     z1p0: Z1.0 values in the same format as vs30
 
     """
-    return (
-        np.exp(28.5 - 3.82 / 8.0 * np.log(vs30**8.0 + 378.7**8.0)) / 1000.0
-    )  # CY08 estimate in KM
+
+    return fn(vs30)  # in Km
 
 
-def estimate_z2p5(z1p0: object = None, z1p5: object = None):
+def estimate_z2p5(
+    z1p0: object = None,
+    z1p5: object = None,
+    fn=z_model_calculations.chiou_young_08_calc_z2p5,
+):
     """
-    Estimate Z2.5 from Z1.0 or Z1.5
+    Estimate Z2.5 from Z1.0 or Z1.5 based on CY08 model
 
     Parameters
     ----------
@@ -60,13 +65,8 @@ def estimate_z2p5(z1p0: object = None, z1p5: object = None):
     z2p5: Z2.5 values in the same format as z1p0 or z1p5
 
     """
-    if z1p5 is not None:
-        return 0.636 + 1.549 * z1p5
-    elif z1p0 is not None:
-        return 0.519 + 3.595 * z1p0
-    else:
-        print("no z2p5 able to be estimated")
-        exit()
+
+    return fn(z1p0=z1p0, z1p5=z1p5)  # in Km
 
 
 def run_emp(
@@ -138,7 +138,7 @@ def run_emp(
         z_df = z_df.rename(columns={"z1p0": "z1pt0", "z2p5": "z2pt5"})
     else:
         z1p0_df = estimate_z1p0(vs30_df)
-        z2p5_df = estimate_z2p5(z1p0_df)
+        z2p5_df = estimate_z2p5(z1p0=z1p0_df)
         z_df = pd.concat(
             [
                 z1p0_df.rename(columns={"vs30": "z1pt0"}),
@@ -150,7 +150,7 @@ def run_emp(
     site_df = pd.concat([stations_df, vs30_df, z_df], axis=1)
     del stations_df, vs30_df, z_df
 
-    source_df = pd.read_csv(
+    nz_gmdb_source_df = pd.read_csv(
         nz_gmdb_source_ffp, index_col=0
     )  # Not useful if this is not a historical event
 
@@ -165,7 +165,9 @@ def run_emp(
             event_name = event.split("_")[0]
             # Load source info. Only useful when this is a historical event
             try:
-                fault_df = source_df.loc[event_name, empirical.NZ_GMDB_SOURCE_COLUMNS]
+                fault_df = nz_gmdb_source_df.loc[
+                    event_name, empirical.NZ_GMDB_SOURCE_COLUMNS
+                ]
             except KeyError:
                 print(f"ERROR: Unknown event {event_name}")
                 sys.exit()
@@ -196,38 +198,55 @@ def run_emp(
             # srf_ffp was None, but we are reconstructing it from nhm. we will save returned NHM object as srf_ffp temporarily
             srf_ffp = empirical.nhm_flt_to_df(nhm_flt_info)
 
-    # at this point, we have both fault_df, and srf_ffp (can be either Path or NHM)
+    # at this point, we have valid fault_df, and srf_ffp (can be either Path or NHM)
 
     tect_type = empirical.TECT_CLASS_MAPPING[fault_df.tect_class]
 
-    # will be crafting oq_rupture_df from site_df, rrup_df and fault_df, following the columns in OQ_INPUT_COLUMNS
-    oq_rupture_df = site_df.copy(True)
+    # Each model (determined by model_config, tect_type, im, component) has different set of required columns for site and rupture
+    # We need to craft a dataframe oq_rupture_df that contains all these required columns
+
+    site_columns, rupture_columns, rrup_columns = empirical.oq_columns_required(
+        model_config, tect_type, im_list, component
+    )
+    oq_columns_required = set(site_columns + rupture_columns + rrup_columns)
+
+    # will be crafting oq_rupture_df from site_df, rrup_df and fault_df to contain all required columns
+    oq_rupture_df = site_df.copy(
+        True
+    )  # site_df already has (lon, lat, vs30, z1pt0, z2pt5)
 
     # Get site source data. srf_ffp is either Path or NHM.
     rrup_df = empirical.get_site_source_data(srf_ffp, site_df[["lon", "lat"]].values)
 
-    oq_rupture_df.loc[:, ["rrup", "rjb", "rx", "ry"]] = rrup_df.values
+    oq_rupture_df.loc[:, rrup_columns] = rrup_df[rrup_columns].values
 
     # Enforce distance threshold
     oq_rupture_df = oq_rupture_df.loc[oq_rupture_df.rjb <= rjb_max]
     oq_rupture_df["site"] = oq_rupture_df.index.values
-    oq_rupture_df["event"] = str(event)
+    #    oq_rupture_df["fault_name"] = str(event)
 
     # Add event data
     oq_rupture_df.loc[
         :,
-        [
-            "mag",
-            "tect_class",
-            "ztor",
-            "zbot",
-            "rake",
-            "dip",
-            "hypo_depth",
-        ],  # rename columns to follow OQ_INPUT_COLUMN
-    ] = fault_df.values  # fault_df has NZ_GMDB_SOURCE_COLUMNS
+        empirical.OQ_RUPTURE_COLUMNS,  # rename columns to follow OQ_RUPTURE_COLUMNS
+    ] = fault_df[
+        empirical.NZ_GMDB_SOURCE_COLUMNS
+    ].values  # fault_df has NZ_GMDB_SOURCE_COLUMNS
 
-    oq_rupture_df["vs30measured"] = False
+    # So far, we have automatically extracted columns from site_df (derived from .ll/.vs30/.z), rrup_df (derived from srf_ffp, site_df)
+    # and fault_df (derived from srf info or csv. Some model specific columns may be missing here.
+
+    print(
+        f"INFO: Columns not auto-filled: {oq_columns_required.difference(oq_rupture_df.columns)}"
+    )
+
+    # TODO: Handle missing columns more systematically
+    oq_rupture_df["vs30measured"] = False  # Bradley10
+
+    # At this point, oq_rupture_df has all required columns
+    assert (
+        len(oq_columns_required.difference(oq_rupture_df.columns)) == 0
+    ), f"ERROR: Missing columns: {oq_columns_required.difference(oq_rupture_df.columns)}"
 
     empirical.create_emp_rel_csv(
         event,

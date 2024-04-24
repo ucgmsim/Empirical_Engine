@@ -10,7 +10,8 @@ import pandas as pd
 import multiprocessing as mp
 
 from empirical.util.classdef import TectType
-from empirical.util import classdef, openquake_wrapper_vectorized
+from empirical.util import classdef
+from empirical.util import openquake_wrapper_vectorized as oq_wrapper
 
 import IM_calculation.source_site_dist.src_site_dist as ssd
 from IM_calculation.IM.im_calculation import DEFAULT_IMS
@@ -42,16 +43,7 @@ NZ_GMDB_SOURCE_COLUMNS = [
     "depth",
 ]  # following NZ_GMDB_SOURCE column names
 
-OQ_INPUT_COLUMNS = [
-    "lot",
-    "lat",
-    "vs30",
-    "z1pt0",
-    "z2pt5",
-    "rrup",
-    "rjb",
-    "rx",
-    "ry",
+OQ_RUPTURE_COLUMNS = [
     "mag",
     "tect_class",
     "ztor",
@@ -59,8 +51,9 @@ OQ_INPUT_COLUMNS = [
     "rake",
     "dip",
     "hypo_depth",
-    "vs30measured",
-]  # columns required by OpenQuake oq_run() function
+]
+
+NZGMDB_OQ_COL_MAPPING = dict(zip(NZ_GMDB_SOURCE_COLUMNS, OQ_RUPTURE_COLUMNS))
 
 
 def get_site_source_data(flt: Union[nhm.NHMFault, Path], stations: np.ndarray):
@@ -325,7 +318,7 @@ def create_emp_rel_csv(
         # Volcanic types are very similar to Active shallow - Brendon
         if tect_type == classdef.TectType.VOLCANIC:
             tect_type = classdef.TectType.ACTIVE_SHALLOW
-        im_df = openquake_wrapper_vectorized.oq_run(
+        im_df = oq_wrapper.oq_run(
             model,
             (
                 classdef.TectType.ACTIVE_SHALLOW
@@ -363,7 +356,7 @@ def nhm_flt_to_df(nhm_flt: nhm.NHMFault):
     rupture_dict = {
         nhm_flt.name: [
             nhm_flt.name,
-            nhm_flt.name,
+            #     nhm_flt.name,
             nhm_flt.mw,
             nhm_flt.dip,
             nhm_flt.rake,
@@ -378,13 +371,31 @@ def nhm_flt_to_df(nhm_flt: nhm.NHMFault):
         orient="index",
         columns=[
             "fault_name",
-            "rupture_name",
+            #     "rupture_name",
             "mag",
             "dip",
             "rake",
             "dbot",
             "ztor",
-            "tect_type",
+            "tect_class",
             "recurrance_rate",
         ],
     ).reset_index()
+
+
+def oq_columns_required(model_config, tect_type, im_list, component):
+    site_columns = []
+    rupture_columns = []
+    distance_columns = []
+    for im in im_list:
+        model, scols, rcols, dcols = oq_wrapper.oq_model_columns(
+            get_model(model_config, tect_type, im, component), tect_type
+        )
+        site_columns.extend(scols)
+        rupture_columns.extend(rcols)
+        distance_columns.extend(dcols)
+    return (
+        sorted(list(set(site_columns))),
+        sorted(list(set(rupture_columns))),
+        sorted(list(set(distance_columns))),
+    )

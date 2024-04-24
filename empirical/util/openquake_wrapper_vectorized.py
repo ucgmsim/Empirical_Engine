@@ -223,6 +223,16 @@ def interpolate_with_pga(
     )
 
 
+def oq_model_columns(model_type: GMM, tect_type: TectType, **kwargs):
+    model = OQ_MODELS[model_type][tect_type](**kwargs)
+    return (
+        model,
+        model.REQUIRES_SITES_PARAMETERS,
+        model.REQUIRES_RUPTURE_PARAMETERS,
+        model.REQUIRES_DISTANCES,
+    )
+
+
 def oq_run(
     model_type: GMM,
     tect_type: TectType,
@@ -263,6 +273,7 @@ def oq_run(
 
         # Compute the weighted average
         return np.sum(meta_results * pd.Series(meta_config.values()))
+
     model = OQ_MODELS[model_type][tect_type](**kwargs)
 
     # Check the given tect_type with its model's tect type
