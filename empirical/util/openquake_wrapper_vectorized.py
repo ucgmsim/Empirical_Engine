@@ -64,12 +64,13 @@ OQ_MODELS = {
             region="NZL",
         ),
     },
-    #    GMM.S_22: {TectType.ACTIVE_SHALLOW: gsim.stafford_2022.Stafford2022},
-    #    GMM.A_22: {
-    #        TectType.ACTIVE_SHALLOW: gsim.atkinson_2022.Atkinson2022Crust,
-    #        TectType.SUBDUCTION_SLAB: gsim.atkinson_2022.Atkinson2022SSlab,
-    #        TectType.SUBDUCTION_INTERFACE: gsim.atkinson_2022.Atkinson2022SInter,
-    #    },
+    # TODO: openquake.hazardlib.gsim has no sttaford_2022
+    # GMM.S_22: {TectType.ACTIVE_SHALLOW: gsim.stafford_2022.Stafford2022},
+    # GMM.A_22: {
+    #    TectType.ACTIVE_SHALLOW: gsim.atkinson_2022.Atkinson2022Crust,
+    #    TectType.SUBDUCTION_SLAB: gsim.atkinson_2022.Atkinson2022SSlab,
+    #    TectType.SUBDUCTION_INTERFACE: gsim.atkinson_2022.Atkinson2022SInter,
+    # },
     GMM.ASK_14: {TectType.ACTIVE_SHALLOW: gsim.abrahamson_2014.AbrahamsonEtAl2014},
     GMM.CY_14: {TectType.ACTIVE_SHALLOW: gsim.chiou_youngs_2014.ChiouYoungs2014},
     GMM.CB_14: {
@@ -93,10 +94,11 @@ OQ_MODELS = {
         TectType.SUBDUCTION_SLAB: gsim.kuehn_2020.KuehnEtAl2020SSlab,
         TectType.SUBDUCTION_INTERFACE: gsim.kuehn_2020.KuehnEtAl2020SInter,
     },
-    #    GMM.P_21: {
-    #        TectType.SUBDUCTION_SLAB: gsim.parker_2021.ParkerEtAl2021SSlab,
-    #        TectType.SUBDUCTION_INTERFACE: gsim.parker_2021.ParkerEtAl2021SInter,
-    #    },
+    # TODO: openquake.hazardlib.gsim has no parker_2021
+    # GMM.P_21: {
+    #     TectType.SUBDUCTION_SLAB: gsim.parker_2021.ParkerEtAl2021SSlab,
+    #     TectType.SUBDUCTION_INTERFACE: gsim.parker_2021.ParkerEtAl2021SInter,
+    # },
     GMM.GA_11: {
         TectType.ACTIVE_SHALLOW: gsim.gulerce_abrahamson_2011.GulerceAbrahamson2011
     },
@@ -224,6 +226,24 @@ def interpolate_with_pga(
 
 
 def oq_model_columns(model_type: GMM, tect_type: TectType, **kwargs):
+    """
+    Get the columns required for the given model. This is useful for checking if the all required columns are present
+    and column names are consistent with names used by OpenQuake models
+
+    Parameters
+    ----------
+    model_type: GMM
+    tect_type:  TectType
+    kwargs: extra (model specific) parameters to models
+
+    Returns
+    -------
+    model: gsim.base.GMPE
+    requires_site_parameters: List[str]
+    requires_rupture_parameters: List[str]
+    requires_distances: List[str]
+
+    """
     model = OQ_MODELS[model_type][tect_type](**kwargs)
     return (
         model,

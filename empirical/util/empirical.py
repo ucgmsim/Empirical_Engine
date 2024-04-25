@@ -182,7 +182,7 @@ def load_srf_info(srf_info, event_name):
             tect_type = TectType[attrs["tect_type"].decode("utf-8")]
 
     else:
-        print("INFO: tect_type not found assuming 'ACTIVE_SHALLOW'")
+        print("INFO: tect_type not found.  Default 'ACTIVE_SHALLOW' is used.")
         tect_type = TectType.ACTIVE_SHALLOW
     fault["tect_class"] = get_tect_type_name(tect_type)
 
