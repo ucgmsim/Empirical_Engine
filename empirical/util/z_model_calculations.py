@@ -162,7 +162,10 @@ def chiou_young_08_calc_z1p0(vs30: Union[float, np.ndarray, pd.DataFrame]):
     return z1p0
 
 
-def chiou_young_08_calc_z2p5(z1p0: Union[float, np.ndarray, pd.DataFrame] = None, z1p5: Union[float, np.ndarray, pd.DataFrame] = None):
+def chiou_young_08_calc_z2p5(
+    z1p0: Union[float, np.ndarray, pd.DataFrame] = None,
+    z1p5: Union[float, np.ndarray, pd.DataFrame] = None,
+):
     """
     Calculates the z2p5 value using z1p0 or z1p5 for the Chiou and Youngs (2008) model
 

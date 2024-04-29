@@ -95,8 +95,12 @@ def run_emp(
         z_df = formats.load_z_file(z_ffp)
         z_df = z_df.rename(columns={"z1p0": "z1pt0", "z2p5": "z2pt5"})
     else:
-        z1p0_df = z_model_calculations.chiou_young_08_calc_z1p0(vs30_df) # estimate z1.0 from vs30
-        z2p5_df = z_model_calculations.chiou_young_08_calc_z2p5(z1p0=z1p0_df) #estimate z2p5 from z1.0
+        z1p0_df = z_model_calculations.chiou_young_08_calc_z1p0(
+            vs30_df
+        )  # estimate z1.0 from vs30
+        z2p5_df = z_model_calculations.chiou_young_08_calc_z2p5(
+            z1p0=z1p0_df
+        )  # estimate z2p5 from z1.0
         z_df = pd.concat(
             [
                 z1p0_df.rename(columns={"vs30": "z1pt0"}),
@@ -155,7 +159,6 @@ def run_emp(
             else:
                 print(f"INFO: Found {fault_name} in NHM.")
 
-
     # at this point, we have valid fault_df, and srf_ffp (can be either Path or NHMFault)
 
     tect_type = empirical.TECT_CLASS_MAPPING[fault_df.tect_class]
@@ -172,7 +175,9 @@ def run_emp(
     rrup_df = empirical.get_site_source_data(srf_ffp, site_df[["lon", "lat"]].values)
 
     # will be crafting oq_rupture_df from site_df, rrup_df and fault_df to contain all required columns
-    oq_rupture_df = empirical.get_oq_rupture_df(site_df, rrup_df, fault_df, rjb_max=rjb_max)
+    oq_rupture_df = empirical.get_oq_rupture_df(
+        site_df, rrup_df, fault_df, rjb_max=rjb_max
+    )
 
     # So far, we have automatically extracted columns from site_df (derived from .ll/.vs30/.z), rrup_df (derived from srf_ffp, site_df)
     # and fault_df (derived from srf info or csv. Some model specific columns may be missing here.

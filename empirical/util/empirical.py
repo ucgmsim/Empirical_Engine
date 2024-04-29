@@ -223,7 +223,7 @@ def load_rel_csv(source_csv: Path, event_name: str):
     pd.Series : containing fault parameters
 
     """
-    rel_csv_columns = [ # columns in the source csv file
+    rel_csv_columns = [  # columns in the source csv file
         "dtop",
         "dbottom",
         "dip",
@@ -274,31 +274,31 @@ def create_emp_rel_csv(
     convert_mean=lambda x: x,
 ):
     """
-    Calculates and saves a single empirical realisation csv file based on IM's specified.
+     Calculates and saves a single empirical realisation csv file based on IM's specified.
 
-    Parameters
-    ----------
-    rel_name: str
-        Name of the realisation
-   periods: list
-        List of periods to calculate pSA for
-    rupture_df: pd.DataFrame
-        Dataframe containing rupture data that should include all columns required for OpenQuake calculations
-    ims: list
-        list of IM's to calculate
-    component: str
-        Component to calculate results for
-    tect_type: classdef.TectType
-        Tectonic Type of the fault
-    model_config: Dict
-        Loaded model config yaml dict which contains the models to use for
-        the given TectType, IM, Component
-    meta_config: Dict
-        loaded meta config yaml dict which contains the weightings for each model
-        categorized by IM, TectType then Model
-    output_flt_dir: Path
-        Output path to generate results in
-    convert_mean: function to convert mean values, eg) convert_mean=np.exp for log space. by default no conversion
+     Parameters
+     ----------
+     rel_name: str
+         Name of the realisation
+    periods: list
+         List of periods to calculate pSA for
+     rupture_df: pd.DataFrame
+         Dataframe containing rupture data that should include all columns required for OpenQuake calculations
+     ims: list
+         list of IM's to calculate
+     component: str
+         Component to calculate results for
+     tect_type: classdef.TectType
+         Tectonic Type of the fault
+     model_config: Dict
+         Loaded model config yaml dict which contains the models to use for
+         the given TectType, IM, Component
+     meta_config: Dict
+         loaded meta config yaml dict which contains the weightings for each model
+         categorized by IM, TectType then Model
+     output_flt_dir: Path
+         Output path to generate results in
+     convert_mean: function to convert mean values, eg) convert_mean=np.exp for log space. by default no conversion
     """
     im_df_list = []
     for im in ims:
@@ -384,7 +384,9 @@ def nhm_flt_to_df(nhm_flt: nhm.NHMFault):
     ).reset_index()
 
 
-def oq_columns_required(model_config: dict, tect_type: TectType, im_list: List, component: str) :
+def oq_columns_required(
+    model_config: dict, tect_type: TectType, im_list: List, component: str
+):
     """
     Get the columns required for OpenQuake calculations for a given model config, tect_type, im_list and component
     Parameters
@@ -417,7 +419,13 @@ def oq_columns_required(model_config: dict, tect_type: TectType, im_list: List, 
         sorted(list(set(distance_columns))),
     )
 
-def get_oq_rupture_df(site_df: pd.DataFrame, rrup_df: pd.DataFrame, fault_df: pd.Series, rjb_max: float = None):
+
+def get_oq_rupture_df(
+    site_df: pd.DataFrame,
+    rrup_df: pd.DataFrame,
+    fault_df: pd.Series,
+    rjb_max: float = None,
+):
     """
     Get the rupture dataframe for OpenQuake calculations. Assumes site_df and rrup_df are in alignment (ie. same length, same order)
 
@@ -441,7 +449,7 @@ def get_oq_rupture_df(site_df: pd.DataFrame, rrup_df: pd.DataFrame, fault_df: pd
     oq_rupture_df["site"] = oq_rupture_df.index.values
 
     # Merge site_df and rrup_df
-    oq_rupture_df=pd.concat([site_df,rrup_df.set_index(site_df.index)],axis=1)
+    oq_rupture_df = pd.concat([site_df, rrup_df.set_index(site_df.index)], axis=1)
 
     # Filter site_df to only include sites with rjb <= rjb_max
     if rjb_max is not None:
