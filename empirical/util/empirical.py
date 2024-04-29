@@ -238,10 +238,9 @@ def load_rel_csv(source_csv: Path, event_name: str):
     missing_cols = set(rel_csv_columns) - set(csv_info.columns)
 
     if len(missing_cols) > 0:
-        print(
+        raise KeyError(
             f"Error: Column {missing_cols} are not found. Consider using SRF .info file instead."
         )
-        sys.exit()
 
     rel_info = csv_info.loc[0]
 
@@ -357,7 +356,6 @@ def nhm_flt_to_df(nhm_flt: nhm.NHMFault):
     rupture_dict = {
         nhm_flt.name: [
             nhm_flt.name,
-            #     nhm_flt.name,
             nhm_flt.mw,
             nhm_flt.dip,
             nhm_flt.rake,
@@ -372,7 +370,6 @@ def nhm_flt_to_df(nhm_flt: nhm.NHMFault):
         orient="index",
         columns=[
             "fault_name",
-            #     "rupture_name",
             "mag",
             "dip",
             "rake",

@@ -5,6 +5,7 @@ from pathlib import Path
 import sys
 import yaml
 
+import qcore.constants
 from qcore import constants, nhm, formats, utils
 from empirical.util import z_model_calculations
 
@@ -81,6 +82,10 @@ def run_emp(
         Indicate the use of extended(100) pSA periods
 
     """
+
+    if extended_period:
+        periods = constants.EXT_PERIOD
+
     ### Data loading
     model_config = utils.load_yaml(model_config_ffp)
     # Using Full Loader for the meta config due to the python tuple pSA/PGA
@@ -289,7 +294,7 @@ def load_args():
         nargs="+",
         default=constants.DEFAULT_PSA_PERIODS,
         type=float,
-        help="pSA period(s) separated by a " "space. eg: 0.02 0.05 0.1.",
+        help='pSA period(s) separated by a " " space. eg: 0.02 0.05 0.1.',
     )
     parser.add_argument(
         "-m",

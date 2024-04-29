@@ -184,8 +184,7 @@ def chiou_young_08_calc_z2p5(
     elif z1p0 is not None:
         return 0.519 + 3.595 * z1p0
     else:
-        print("no z2p5 able to be estimated")
-        exit()
+        raise ValueError("no z2p5 able to be estimated")
 
 
 def abrahamson_gulerce_20_calc_z2p5(vs30: Union[float, np.ndarray], region: str):
