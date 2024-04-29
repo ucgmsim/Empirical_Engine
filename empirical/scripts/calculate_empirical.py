@@ -6,8 +6,6 @@ import sys
 import yaml
 
 from qcore import constants, nhm, formats, utils
-from empirical.util.openquake_wrapper_vectorized import oq_run
-from empirical.util.classdef import GMM
 from empirical.util import z_model_calculations
 
 
@@ -29,46 +27,6 @@ NZ_GMDB_SOURCE_PATH = Path(__file__).parents[1] / "data" / "earthquake_source_ta
 NHM_PATH = Path(__file__).parents[1] / "data" / "NZ_FLTmodel_2010_v18p6.txt"
 
 
-def estimate_z1p0(vs30: object, fn=z_model_calculations.chiou_young_08_calc_z1p0):
-    """
-    Estimate Z1.0 from Vs30 using CY08 model
-
-    Parameters
-    ----------
-    vs30: vs30 values in any format
-    fn: function to use for the estimation. Default is CY08
-
-    Returns
-    -------
-    z1p0: Z1.0 values in the same format as vs30
-
-    """
-
-    return fn(vs30)  # in Km
-
-
-def estimate_z2p5(
-    z1p0: object = None,
-    z1p5: object = None,
-    fn=z_model_calculations.chiou_young_08_calc_z2p5,
-):
-    """
-    Estimate Z2.5 from Z1.0 or Z1.5 based on CY08 model
-
-    Parameters
-    ----------
-    z1p0: Z1.0 values in any format
-    z1p5: Z1.5 values in any format
-
-    Returns
-    -------
-    z2p5: Z2.5 values in the same format as z1p0 or z1p5
-
-    """
-
-    return fn(z1p0=z1p0, z1p5=z1p5)  # in Km
-
-
 def run_emp(
     output_dir: Path,
     ll_ffp: Path,
@@ -81,13 +39,13 @@ def run_emp(
     model_config_ffp: Path = DEFAULT_MODEL_CONFIG_FFP,
     meta_config_ffp: Path = DEFAULT_META_CONFIG_FFP,
     rjb_max: float = RJB_MAX,
-    im_list=IM_LIST,
+    im_list: list[str] = IM_LIST,
     component=None,
     periods=constants.DEFAULT_PSA_PERIODS,
     extended_period=False,
 ):
     """
-    Run empirical calculations for a given historical event or a fuature event from a specifeid fault.
+    Run empirical calculations for a given historical event or a future event from a specified fault.
 
     Parameters
     ----------
@@ -102,7 +60,7 @@ def run_emp(
     srf_ffp : Path
         srf file path for the fault data.
     nhm_ffp : Path
-        nhm file path for the collection of faults data (default: NZ_FLTmodel_2010_v18p6.txt
+        nhm file path for the collection of faults data (default: NZ_FLTmodel_2010_v18p6.txt)
     srfdata_ffp : Path
         srfdata file path for the fault data. Can be either relisation .csv or .info file
     nz_gmdb_source_ffp  : Path
@@ -137,8 +95,8 @@ def run_emp(
         z_df = formats.load_z_file(z_ffp)
         z_df = z_df.rename(columns={"z1p0": "z1pt0", "z2p5": "z2pt5"})
     else:
-        z1p0_df = estimate_z1p0(vs30_df)
-        z2p5_df = estimate_z2p5(z1p0=z1p0_df)
+        z1p0_df = z_model_calculations.chiou_young_08_calc_z1p0(vs30_df) # estimate z1.0 from vs30
+        z2p5_df = z_model_calculations.chiou_young_08_calc_z2p5(z1p0=z1p0_df) #estimate z2p5 from z1.0
         z_df = pd.concat(
             [
                 z1p0_df.rename(columns={"vs30": "z1pt0"}),
@@ -152,7 +110,7 @@ def run_emp(
 
     nz_gmdb_source_df = pd.read_csv(
         nz_gmdb_source_ffp, index_col=0
-    )  # Not useful if this is not a historical event
+    )  # Not useful if this is not a historical event, but we load it anyway
 
     if srfdata_ffp is None:
         # If srfdata_ffp is not supplied, but if srf_ffp is supplied and this is a historical event,we can still proceed
@@ -189,16 +147,16 @@ def run_emp(
             nhm_data = nhm.load_nhm(str(nhm_ffp))
             # Get fault data
             try:
-                nhm_flt_info = nhm_data[fault_name]
+                # We are reconstructing missing srf_ffp from nhm.
+                srf_ffp = nhm_data[fault_name]
             except KeyError:
                 print(f"ERROR: Unknown fault {fault_name}")
                 sys.exit()
             else:
                 print(f"INFO: Found {fault_name} in NHM.")
-            # srf_ffp was None, but we are reconstructing it from nhm. we will save returned NHM object as srf_ffp temporarily
-            srf_ffp = empirical.nhm_flt_to_df(nhm_flt_info)
 
-    # at this point, we have valid fault_df, and srf_ffp (can be either Path or NHM)
+
+    # at this point, we have valid fault_df, and srf_ffp (can be either Path or NHMFault)
 
     tect_type = empirical.TECT_CLASS_MAPPING[fault_df.tect_class]
 
@@ -210,28 +168,11 @@ def run_emp(
     )
     oq_columns_required = set(site_columns + rupture_columns + rrup_columns)
 
-    # will be crafting oq_rupture_df from site_df, rrup_df and fault_df to contain all required columns
-    oq_rupture_df = site_df.copy(
-        True
-    )  # site_df already has (lon, lat, vs30, z1pt0, z2pt5)
-
     # Get site source data. srf_ffp is either Path or NHM.
     rrup_df = empirical.get_site_source_data(srf_ffp, site_df[["lon", "lat"]].values)
 
-    oq_rupture_df.loc[:, rrup_columns] = rrup_df[rrup_columns].values
-
-    # Enforce distance threshold
-    oq_rupture_df = oq_rupture_df.loc[oq_rupture_df.rjb <= rjb_max]
-    oq_rupture_df["site"] = oq_rupture_df.index.values
-    #    oq_rupture_df["fault_name"] = str(event)
-
-    # Add event data
-    oq_rupture_df.loc[
-        :,
-        empirical.OQ_RUPTURE_COLUMNS,  # rename columns to follow OQ_RUPTURE_COLUMNS
-    ] = fault_df[
-        empirical.NZ_GMDB_SOURCE_COLUMNS
-    ].values  # fault_df has NZ_GMDB_SOURCE_COLUMNS
+    # will be crafting oq_rupture_df from site_df, rrup_df and fault_df to contain all required columns
+    oq_rupture_df = empirical.get_oq_rupture_df(site_df, rrup_df, fault_df, rjb_max=rjb_max)
 
     # So far, we have automatically extracted columns from site_df (derived from .ll/.vs30/.z), rrup_df (derived from srf_ffp, site_df)
     # and fault_df (derived from srf info or csv. Some model specific columns may be missing here.
@@ -284,7 +225,7 @@ def load_args():
     parser.add_argument(
         "--z_ffp",
         type=Path,
-        help="Path to the .z file that contains Z1.0",
+        help="Path to the .z file that contains Z1.0 and Z2.5",
     )
 
     parser.add_argument(

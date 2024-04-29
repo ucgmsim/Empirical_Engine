@@ -1,28 +1,20 @@
-import math
-import functools
 import sys
-from typing import List, Dict, Union
+from typing import List, Union
 from pathlib import Path
 import h5py
-import yaml
 import numpy as np
 import pandas as pd
-import multiprocessing as mp
 
 from empirical.util.classdef import TectType
 from empirical.util import classdef
 from empirical.util import openquake_wrapper_vectorized as oq_wrapper
 
 import IM_calculation.source_site_dist.src_site_dist as ssd
-from IM_calculation.IM.im_calculation import DEFAULT_IMS
+
 from qcore import (
     nhm,
     srf,
-    formats,
-    simulation_structure,
-    utils,
     constants,
-    archive_structure,
 )
 
 
@@ -216,19 +208,22 @@ def load_srf_info(srf_info, event_name):
     return pd.Series(fault, name=event_name)
 
 
-def load_rel_csv(source_csv: Path, event_name):
+def load_rel_csv(source_csv: Path, event_name: str):
     """
 
     Parameters
     ----------
-    source_csv
-    event_name
+    source_csv: Path
+        Path to the source csv file
+    event_name: str
+        Name of the event
 
     Returns
     -------
+    pd.Series : containing fault parameters
 
     """
-    rel_csv_columns = [
+    rel_csv_columns = [ # columns in the source csv file
         "dtop",
         "dbottom",
         "dip",
@@ -248,17 +243,20 @@ def load_rel_csv(source_csv: Path, event_name):
         )
         sys.exit()
 
+    rel_info = csv_info.loc[0]
+
     hypo_depth = (
-        csv_info["dtop"] + math.sin(math.radians(csv_info["dip"])) * csv_info["dhypo"]
+        rel_info["dtop"] + np.sin(np.radians(rel_info["dip"])) * rel_info["dhypo"]
     )
     fault = {}
-    fault["mag"] = csv_info.loc[0, "magnitude"]
-    fault["tect_class"] = csv_info["tect_type"]
-    fault["z_tor"] = csv_info["dtop"]
-    fault["z_bor"] = csv_info["dbottom"]
-    fault["rake"] = csv_info["rake"]
-    fault["dip"] = csv_info["dip"]
-    fault["depth"] = hypo_depth.values[0]
+
+    fault["mag"] = rel_info["magnitude"]
+    fault["tect_class"] = rel_info["tect_type"]
+    fault["z_tor"] = rel_info["dtop"]
+    fault["z_bor"] = rel_info["dbottom"]
+    fault["rake"] = rel_info["rake"]
+    fault["dip"] = rel_info["dip"]
+    fault["depth"] = hypo_depth
 
     return pd.Series(fault, name=event_name)
 
@@ -280,9 +278,12 @@ def create_emp_rel_csv(
 
     Parameters
     ----------
-    rel_name
-    periods
-    rupture_df
+    rel_name: str
+        Name of the realisation
+   periods: list
+        List of periods to calculate pSA for
+    rupture_df: pd.DataFrame
+        Dataframe containing rupture data that should include all columns required for OpenQuake calculations
     ims: list
         list of IM's to calculate
     component: str
@@ -383,7 +384,23 @@ def nhm_flt_to_df(nhm_flt: nhm.NHMFault):
     ).reset_index()
 
 
-def oq_columns_required(model_config, tect_type, im_list, component):
+def oq_columns_required(model_config: dict, tect_type: TectType, im_list: List, component: str) :
+    """
+    Get the columns required for OpenQuake calculations for a given model config, tect_type, im_list and component
+    Parameters
+    ----------
+    model_config : dict
+    tect_type: TectType
+    im_list: List
+    component: str
+
+
+    Returns
+    -------
+    site_columns: List
+    rupture_columns: List
+    distance_columns: List
+    """
     site_columns = []
     rupture_columns = []
     distance_columns = []
@@ -399,3 +416,43 @@ def oq_columns_required(model_config, tect_type, im_list, component):
         sorted(list(set(rupture_columns))),
         sorted(list(set(distance_columns))),
     )
+
+def get_oq_rupture_df(site_df: pd.DataFrame, rrup_df: pd.DataFrame, fault_df: pd.Series, rjb_max: float = None):
+    """
+    Get the rupture dataframe for OpenQuake calculations. Assumes site_df and rrup_df are in alignment (ie. same length, same order)
+
+    Parameters
+    ----------
+    site_df: pd.DataFrame
+        Dataframe containing site data (columns: (lon, lat, vs30, z1pt0, z2pt5))
+    rrup_df: pd.DataFrame
+        Dataframe containing site-source distances (columns: (rrup, rjb, rx, ry))
+    fault_df: pd.Series
+        Series containing fault data (columns: NZ_GMDB_SOURCE_COLUMNS)
+    rjb_max: float
+        Maximum Rjb distance to consider
+
+    Returns
+    -------
+    oq_rupture_df: pd.DataFrame
+
+    """
+    oq_rupture_df = site_df.copy()
+    oq_rupture_df["site"] = oq_rupture_df.index.values
+
+    # Merge site_df and rrup_df
+    oq_rupture_df=pd.concat([site_df,rrup_df.set_index(site_df.index)],axis=1)
+
+    # Filter site_df to only include sites with rjb <= rjb_max
+    if rjb_max is not None:
+        oq_rupture_df = oq_rupture_df.loc[oq_rupture_df.rjb <= rjb_max]
+
+    # Add event/fault data
+    oq_rupture_df.loc[
+        :,
+        OQ_RUPTURE_COLUMNS,  # rename columns to follow OQ_RUPTURE_COLUMNS
+    ] = fault_df[
+        NZ_GMDB_SOURCE_COLUMNS
+    ].values  # fault_df has NZ_GMDB_SOURCE_COLUMNS
+
+    return oq_rupture_df

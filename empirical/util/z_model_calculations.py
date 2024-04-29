@@ -1,6 +1,7 @@
 from typing import Union
 
 import numpy as np
+import pandas as pd
 from scipy.special import erf
 
 from empirical.util.classdef import GMM
@@ -143,13 +144,13 @@ def campbell_bozorgina_14_calc_z2p5(vs30: Union[float, np.ndarray], region: str 
     return z2p5  # In km
 
 
-def chiou_young_08_calc_z1p0(vs30: Union[float, np.ndarray]):
+def chiou_young_08_calc_z1p0(vs30: Union[float, np.ndarray, pd.DataFrame]):
     """
     Calculates the z2p5 value for the Chiou and Youngs (2008) model
 
     Parameters
     ----------
-    vs30 : Union[float, np.ndarray]
+    vs30 : Union[float, np.ndarray, pd.DataFrame]
         The Vs30 value or values, in meters per second
 
     Returns
@@ -161,17 +162,18 @@ def chiou_young_08_calc_z1p0(vs30: Union[float, np.ndarray]):
     return z1p0
 
 
-def chiou_young_08_calc_z2p5(z1p0: object = None, z1p5: object = None):
+def chiou_young_08_calc_z2p5(z1p0: Union[float, np.ndarray, pd.DataFrame] = None, z1p5: Union[float, np.ndarray, pd.DataFrame] = None):
     """
     Calculates the z2p5 value using z1p0 or z1p5 for the Chiou and Youngs (2008) model
+
     Parameters
     ----------
-    z1p0: Z1.0 values in any format
-    z1p5: Z1.5 values in any format
+    z1p0: Z1.0 values in Union[float, np.ndarray, pd.DataFrame]
+    z1p5: Z1.5 values in Union[float, np.ndarray, pd.DataFrame]
 
     Returns
     -------
-    z2p5: Z2.5 values in the same format as z1p0 or z1p5
+    z2p5: Z2.5 values in the same format as z1p0 or z1p5 in km
 
     """
     if z1p5 is not None:
