@@ -22,6 +22,8 @@ IM_LIST = [
     "Ds595",
 ]  # Other IMs: AI (CB_12 keyerror)
 
+COMP_LIST = ["geom"]
+
 DEFAULT_MODEL_CONFIG_FFP = Path(__file__).parents[1] / "util" / "model_config.yaml"
 DEFAULT_META_CONFIG_FFP = Path(__file__).parents[1] / "util" / "meta_config.yaml"
 NZ_GMDB_SOURCE_PATH = Path(__file__).parents[1] / "data" / "earthquake_source_table.csv"
@@ -41,7 +43,7 @@ def run_emp(
     meta_config_ffp: Path = DEFAULT_META_CONFIG_FFP,
     rjb_max: float = RJB_MAX,
     im_list: list[str] = IM_LIST,
-    component=None,
+    comp_list: list[str] = COMP_LIST,
     periods=constants.DEFAULT_PSA_PERIODS,
     extended_period=False,
 ):
@@ -74,8 +76,8 @@ def run_emp(
         Maximum rupture distance
     im_list : list
         List of intensity measures. Currently supported: PGA, PGV, pSA, CAV, Ds575, Ds595
-    component   : str
-        Component of the IM (eg. geom, rotd50) to calculate empiricals for
+    comp_list   : list
+        List of components of the IM (eg. geom, rotd50) to calculate empirical for
     periods : list
         List of periods for pSA. Default is qcore.constants.DEFAULT_PSA_PERIODS
     extended_period : bool
@@ -125,8 +127,8 @@ def run_emp(
         # If srfdata_ffp is not supplied, but if srf_ffp is supplied and this is a historical event,we can still proceed
         print(f"INFO: srfdata_ffp not provided.")
         if srf_ffp is None:
-            print(f"ERROR: Either srfdata_ffp or srf_ffp should be specified.")
-            sys.exit()
+            raise RuntimeError(f"Either srfdata_ffp or srf_ffp should be specified.")
+
         else:  # srf_ffp is provided. check if this is a valid historical event
             event = srf_ffp.stem
             event_name = event.split("_")[0]
@@ -136,8 +138,8 @@ def run_emp(
                     event_name, empirical.NZ_GMDB_SOURCE_COLUMNS
                 ]
             except KeyError:
-                print(f"ERROR: Unknown event {event_name}")
-                sys.exit()
+                print(f"Unknown event {event_name}")
+                raise
             else:
                 print(f"INFO: Found {event_name} in NZGMDB.")
 
@@ -160,7 +162,7 @@ def run_emp(
                 srf_ffp = nhm_data[fault_name]
             except KeyError:
                 print(f"ERROR: Unknown fault {fault_name}")
-                sys.exit()
+                raise
             else:
                 print(f"INFO: Found {fault_name} in NHM.")
 
@@ -172,7 +174,7 @@ def run_emp(
     # We need to craft a dataframe oq_rupture_df that contains all these required columns
 
     site_columns, rupture_columns, rrup_columns = empirical.oq_columns_required(
-        model_config, tect_type, im_list, component
+        model_config, tect_type, im_list, comp_list
     )
     oq_columns_required = set(site_columns + rupture_columns + rrup_columns)
 
@@ -204,7 +206,7 @@ def run_emp(
         periods,
         oq_rupture_df,
         im_list,
-        component,
+        comp_list,
         tect_type,
         model_config,
         meta_config,
@@ -301,8 +303,7 @@ def load_args():
         "--im",
         nargs="+",
         default=IM_LIST,
-        help="Intensity measure(s) separated by a "
-        "space(if more than one). eg: PGV PGA CAV.",
+        help='Intensity measure(s) separated by a " " space(if more than one). eg: PGV PGA CAV.',
     )
     #    # TODO: Put common argparse arguments between IM_calc and empirical in shared file
     parser.add_argument(
@@ -310,9 +311,8 @@ def load_args():
         "--component",
         nargs="+",
         choices=list(constants.Components.iterate_str_values()),
-        default=constants.Components.cgeom.str_value,
-        help="The component(s) you want to calculate."
-        " Available components are: [%(choices)s]. Default is %(default)s",
+        default=[constants.Components.cgeom.str_value],
+        help="The component(s) you want to calculate. Available components are: [%(choices)s]. Default is %(default)",
     )
 
     parser.add_argument("output", type=Path, help="output directory")

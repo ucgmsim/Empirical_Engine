@@ -115,16 +115,9 @@ def get_model(
     try:
         model = classdef.GMM[model_config[tect_type.name][im][component][0]]
     except KeyError:
-        # if rotd50 component is requested and not found, try geom instead. (Do you know why @joel?)
-        if component == constants.Components.crotd50.str_value:
-            try:
-                model = classdef.GMM[
-                    model_config[tect_type.name][im][
-                        constants.Components.cgeom.str_value
-                    ][0]
-                ]
-            except KeyError:
-                pass
+        print(
+            f"Warning: Model not found for {tect_type.name}, {im}, {component}. Skipping..."
+        )
     return model
 
 
@@ -382,7 +375,7 @@ def nhm_flt_to_df(nhm_flt: nhm.NHMFault):
 
 
 def oq_columns_required(
-    model_config: dict, tect_type: TectType, im_list: List, component: str
+    model_config: dict, tect_type: TectType, im_list: List, comp_list: List
 ):
     """
     Get the columns required for OpenQuake calculations for a given model config, tect_type, im_list and component
@@ -391,7 +384,7 @@ def oq_columns_required(
     model_config : dict
     tect_type: TectType
     im_list: List
-    component: str
+    comp_list: List
 
 
     Returns
@@ -404,12 +397,16 @@ def oq_columns_required(
     rupture_columns = []
     distance_columns = []
     for im in im_list:
-        model, scols, rcols, dcols = oq_wrapper.oq_model_columns(
-            get_model(model_config, tect_type, im, component), tect_type
-        )
-        site_columns.extend(scols)
-        rupture_columns.extend(rcols)
-        distance_columns.extend(dcols)
+        for comp in comp_list:
+            model_type = get_model(model_config, tect_type, im, comp)
+            if model_type is None:
+                continue
+            model, scols, rcols, dcols = oq_wrapper.oq_model_columns(
+                model_type, tect_type
+            )
+            site_columns.extend(scols)
+            rupture_columns.extend(rcols)
+            distance_columns.extend(dcols)
     return (
         sorted(list(set(site_columns))),
         sorted(list(set(rupture_columns))),

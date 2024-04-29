@@ -244,7 +244,10 @@ def oq_model_columns(model_type: GMM, tect_type: TectType, **kwargs):
     requires_distances: List[str]
 
     """
-    model = OQ_MODELS[model_type][tect_type](**kwargs)
+    try:
+        model = OQ_MODELS[model_type][tect_type](**kwargs)
+    except KeyError:
+        raise ValueError(f"Model {model_type} not found for tectonic type {tect_type}")
     return (
         model,
         model.REQUIRES_SITES_PARAMETERS,

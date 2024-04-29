@@ -28,14 +28,20 @@
 # Options for each model are listed to the right
 ACTIVE_SHALLOW:
   PGV:
+    rotd50:
+      - META
     geom:
-       - CY_14
+      - CY_14
   PGA:
+    rotd50:
+      - META
     geom:
-       - Br_10
+      - Br_10
   pSA:
+    rotd50:
+      - META
     geom:
-       - Br_10
+      - Br_10
   CAV:
     geom:
       - CB_10
