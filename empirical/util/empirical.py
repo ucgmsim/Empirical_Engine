@@ -90,7 +90,11 @@ def get_site_source_data(flt: Union[nhm.NHMFault, Path], stations: np.ndarray):
 
 
 def get_model(
-    model_config: dict, tect_type: classdef.TectType, im: str, component: str
+    model_config: dict,
+    tect_type: classdef.TectType,
+    im: str,
+    component: str,
+    fallback_comp: str = constants.Components.cgeom.str_value,
 ):
     """
     Gets the appropriate model based on the model config given the tect_type, im and component
@@ -105,6 +109,8 @@ def get_model(
         Intensity Measure to calculate
     component:  str
         Component to calculate results for
+    fallback_comp: str (optional)
+        Component to fallback to if the requested component is not found
 
     Returns
     -------
@@ -115,9 +121,20 @@ def get_model(
     try:
         model = classdef.GMM[model_config[tect_type.name][im][component][0]]
     except KeyError:
-        print(
-            f"Warning: Model not found for {tect_type.name}, {im}, {component}. Skipping..."
-        )
+        if fallback_comp is not None:
+            # if rotd50 component is requested and not found, try geom instead. (Do you know why @joel?)
+            if component == constants.Components.crotd50.str_value:
+                try:
+                    model = classdef.GMM[
+                        model_config[tect_type.name][im][fallback_comp][0]
+                    ]
+                except KeyError:
+                    pass
+
+        else:
+            print(
+                f"Warning: Model not found for {tect_type.name}, {im}, {component}. Skipping..."
+            )
     return model
 
 
@@ -266,38 +283,37 @@ def create_emp_rel_csv(
     convert_mean=lambda x: x,
 ):
     """
-     Calculates and saves a single empirical realisation csv file based on IM's specified.
+    Calculates and saves a single empirical realisation csv file based on IM's specified.
 
-     Parameters
-     ----------
-     rel_name: str
-         Name of the realisation
+    Parameters
+    ----------
+    rel_name: str
+        Name of the realisation
     periods: list
-         List of periods to calculate pSA for
-     rupture_df: pd.DataFrame
-         Dataframe containing rupture data that should include all columns required for OpenQuake calculations
-     ims: list
-         list of IM's to calculate
-     component: str
-         Component to calculate results for
-     tect_type: classdef.TectType
-         Tectonic Type of the fault
-     model_config: Dict
-         Loaded model config yaml dict which contains the models to use for
-         the given TectType, IM, Component
-     meta_config: Dict
-         loaded meta config yaml dict which contains the weightings for each model
-         categorized by IM, TectType then Model
-     output_flt_dir: Path
-         Output path to generate results in
-     convert_mean: function to convert mean values, eg) convert_mean=np.exp for log space. by default no conversion
+        List of periods to calculate pSA for
+    rupture_df: pd.DataFrame
+        Dataframe containing rupture data that should include all columns required for OpenQuake calculations
+    ims: list
+        list of IM's to calculate
+    component: str
+        component to calculate results for
+    tect_type: classdef.TectType
+        Tectonic Type of the fault
+    model_config: Dict
+        Loaded model config yaml dict which contains the models to use for
+        the given TectType, IM, Component
+    meta_config: Dict
+        loaded meta config yaml dict which contains the weightings for each model
+        categorized by IM, TectType then Model
+    output_flt_dir: Path
+        Output path to generate results in
+    convert_mean: function to convert mean values, eg) convert_mean=np.exp for log space. by default no conversion
     """
     im_df_list = []
     for im in ims:
         if im == "AI":
             # Ignoring AI IM due to non vectorised GMM CB_12
             continue
-
         model = get_model(model_config, tect_type, im, component)
         if model is None:
             continue
@@ -375,16 +391,21 @@ def nhm_flt_to_df(nhm_flt: nhm.NHMFault):
 
 
 def oq_columns_required(
-    model_config: dict, tect_type: TectType, im_list: List, comp_list: List
+    model_config: dict,
+    meta_config: dict,
+    tect_type: TectType,
+    im_list: List,
+    compoment: str,
 ):
     """
     Get the columns required for OpenQuake calculations for a given model config, tect_type, im_list and component
     Parameters
     ----------
     model_config : dict
+    meta_config : dict
     tect_type: TectType
     im_list: List
-    comp_list: List
+    component: str
 
 
     Returns
@@ -397,16 +418,15 @@ def oq_columns_required(
     rupture_columns = []
     distance_columns = []
     for im in im_list:
-        for comp in comp_list:
-            model_type = get_model(model_config, tect_type, im, comp)
-            if model_type is None:
-                continue
-            model, scols, rcols, dcols = oq_wrapper.oq_model_columns(
-                model_type, tect_type
-            )
-            site_columns.extend(scols)
-            rupture_columns.extend(rcols)
-            distance_columns.extend(dcols)
+        model_type = get_model(model_config, tect_type, im, compoment)
+        if model_type is None:
+            continue
+        scols, rcols, dcols = oq_wrapper.oq_model_columns(
+            model_type, meta_config, tect_type
+        )
+        site_columns.extend(scols)
+        rupture_columns.extend(rcols)
+        distance_columns.extend(dcols)
     return (
         sorted(list(set(site_columns))),
         sorted(list(set(rupture_columns))),

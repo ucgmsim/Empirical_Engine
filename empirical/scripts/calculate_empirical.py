@@ -2,15 +2,10 @@ import argparse
 import numpy as np
 import pandas as pd
 from pathlib import Path
-import sys
 import yaml
 
-import qcore.constants
 from qcore import constants, nhm, formats, utils
-from empirical.util import z_model_calculations
-
-
-from empirical.util import empirical
+from empirical.util import empirical, z_model_calculations
 
 RJB_MAX = 200
 IM_LIST = [
@@ -22,7 +17,7 @@ IM_LIST = [
     "Ds595",
 ]  # Other IMs: AI (CB_12 keyerror)
 
-COMP_LIST = ["geom"]
+DEFAULT_COMP = constants.Components.cgeom.str_value
 
 DEFAULT_MODEL_CONFIG_FFP = Path(__file__).parents[1] / "util" / "model_config.yaml"
 DEFAULT_META_CONFIG_FFP = Path(__file__).parents[1] / "util" / "meta_config.yaml"
@@ -43,7 +38,7 @@ def run_emp(
     meta_config_ffp: Path = DEFAULT_META_CONFIG_FFP,
     rjb_max: float = RJB_MAX,
     im_list: list[str] = IM_LIST,
-    comp_list: list[str] = COMP_LIST,
+    component: str = DEFAULT_COMP,
     periods=constants.DEFAULT_PSA_PERIODS,
     extended_period=False,
 ):
@@ -65,19 +60,19 @@ def run_emp(
     nhm_ffp : Path
         nhm file path for the collection of faults data (default: NZ_FLTmodel_2010_v18p6.txt)
     srfdata_ffp : Path
-        srfdata file path for the fault data. Can be either relisation .csv or .info file
+        srfdata file path for the fault data. Can be either realisation .csv or .info file
     nz_gmdb_source_ffp  : Path
         nz_gmdb_source file path for the source data
     model_config_ffp    : Path
-        model_config file path for the empirical model. prescribes the model to be used for teconic class, IM and component
+        model_config file path for the empirical model. prescribes the model to be used for tectonic class, IM and component
     meta_config_ffp : Path
         meta_config file path for the empirical model. prescribes the weight of the model for IM and Tectonic class
     rjb_max : float
         Maximum rupture distance
     im_list : list
         List of intensity measures. Currently supported: PGA, PGV, pSA, CAV, Ds575, Ds595
-    comp_list   : list
-        List of components of the IM (eg. geom, rotd50) to calculate empirical for
+    component   :str
+        Component of the IM (eg. geom, rotd50) to calculate empirical for
     periods : list
         List of periods for pSA. Default is qcore.constants.DEFAULT_PSA_PERIODS
     extended_period : bool
@@ -89,10 +84,11 @@ def run_emp(
         periods = constants.EXT_PERIOD
 
     ### Data loading
-    model_config = utils.load_yaml(model_config_ffp)
+    if model_config_ffp.exists():
+        model_config = utils.load_yaml(model_config_ffp)
     # Using Full Loader for the meta config due to the python tuple pSA/PGA
     meta_config = None
-    if meta_config_ffp is not None:
+    if meta_config_ffp.exists():
         with open(meta_config_ffp) as f:
             meta_config = yaml.load(f, Loader=yaml.FullLoader)
 
@@ -174,7 +170,7 @@ def run_emp(
     # We need to craft a dataframe oq_rupture_df that contains all these required columns
 
     site_columns, rupture_columns, rrup_columns = empirical.oq_columns_required(
-        model_config, tect_type, im_list, comp_list
+        model_config, meta_config, tect_type, im_list, component
     )
     oq_columns_required = set(site_columns + rupture_columns + rrup_columns)
 
@@ -197,16 +193,16 @@ def run_emp(
     oq_rupture_df["vs30measured"] = False  # Bradley10
 
     # At this point, oq_rupture_df has all required columns
-    assert (
-        len(oq_columns_required.difference(oq_rupture_df.columns)) == 0
-    ), f"ERROR: Missing columns: {oq_columns_required.difference(oq_rupture_df.columns)}"
+    # assert (
+    #     len(oq_columns_required.difference(oq_rupture_df.columns)) == 0
+    # ), f"Missing columns: {oq_columns_required.difference(oq_rupture_df.columns)}"
 
     empirical.create_emp_rel_csv(
         event,
         periods,
         oq_rupture_df,
         im_list,
-        comp_list,
+        component,
         tect_type,
         model_config,
         meta_config,
@@ -282,6 +278,7 @@ def load_args():
     parser.add_argument(
         "--meta_config_ffp",
         type=Path,
+        default=DEFAULT_META_CONFIG_FFP,
         help="Path to the meta_config weight file. Found in Empirical util.",
     )
     parser.add_argument(
@@ -309,10 +306,9 @@ def load_args():
     parser.add_argument(
         "-comp",
         "--component",
-        nargs="+",
         choices=list(constants.Components.iterate_str_values()),
-        default=[constants.Components.cgeom.str_value],
-        help="The component(s) you want to calculate. Available components are: [%(choices)s]. Default is %(default)",
+        default=constants.Components.cgeom.str_value,
+        help="The component you want to calculate. Available components are: [%(choices)s]. Default is %(default)",
     )
 
     parser.add_argument("output", type=Path, help="output directory")

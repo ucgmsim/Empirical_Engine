@@ -225,7 +225,7 @@ def interpolate_with_pga(
     )
 
 
-def oq_model_columns(model_type: GMM, tect_type: TectType, **kwargs):
+def oq_model_columns(model_type: GMM, meta_config: Dict, tect_type: TectType, **kwargs):
     """
     Get the columns required for the given model. This is useful for checking if the all required columns are present
     and column names are consistent with names used by OpenQuake models
@@ -238,18 +238,40 @@ def oq_model_columns(model_type: GMM, tect_type: TectType, **kwargs):
 
     Returns
     -------
-    model: gsim.base.GMPE
     requires_site_parameters: List[str]
     requires_rupture_parameters: List[str]
     requires_distances: List[str]
 
     """
+    if model_type.name == "META":
+        all_site_params = []
+        all_rupture_params = []
+        all_distances = []
+
+        if meta_config is None:
+            raise ValueError("meta_config must be provided for META model")
+
+        for im_list in meta_config.keys():
+            for im in im_list:
+                model_list = meta_config[im_list][tect_type.name]
+                for model in model_list:
+                    site_params, rupture_params, distances = oq_model_columns(
+                        GMM[model], None, tect_type, **kwargs
+                    )
+                    all_site_params.extend(site_params)
+                    all_rupture_params.extend(rupture_params)
+                    all_distances.extend(distances)
+        return (
+            list(set(all_site_params)),
+            list(set(all_rupture_params)),
+            list(set(all_distances)),
+        )
+
     try:
         model = OQ_MODELS[model_type][tect_type](**kwargs)
     except KeyError:
         raise ValueError(f"Model {model_type} not found for tectonic type {tect_type}")
     return (
-        model,
         model.REQUIRES_SITES_PARAMETERS,
         model.REQUIRES_RUPTURE_PARAMETERS,
         model.REQUIRES_DISTANCES,
