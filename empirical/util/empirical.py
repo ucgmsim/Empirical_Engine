@@ -301,6 +301,8 @@ def create_emp_rel_csv(
         if tect_type == classdef.TectType.VOLCANIC:
             tect_type = classdef.TectType.ACTIVE_SHALLOW
 
+        model = get_model(model_config, tect_type, im, component)
+
         if tect_type != classdef.TectType.ACTIVE_SHALLOW and model.name in (
             "CB_10",
             "CB_12",
@@ -308,7 +310,6 @@ def create_emp_rel_csv(
         ):
             tect_type = classdef.TectType.ACTIVE_SHALLOW
 
-        model = get_model(model_config, tect_type, im, component)
         if model is None:
             continue
 
