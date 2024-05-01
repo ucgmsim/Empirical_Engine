@@ -177,8 +177,8 @@ def run_emp(
 
     # In reality,some model specific columns may be still missing.
     # Such exception handling is done by openquake_wrapper_vectorized.oq_prerun_exception_handle()
-    # If any column is missing, it will raise an exception with the missing column names.
-    # You could add more exceptions there.
+    # If any column is missing, it will raise an error with detailed info.
+    # You could add more exception rules there.
 
     empirical.create_emp_rel_csv(
         event,
