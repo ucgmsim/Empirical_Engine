@@ -296,15 +296,6 @@ def create_emp_rel_csv(
         if im == "AI":
             # Ignoring AI IM due to non vectorised GMM CB_12
             continue
-        model = get_model(model_config, tect_type, im, component)
-        if model is None:
-            continue
-
-        im_meta_config = None
-        if meta_config is not None:
-            for meta_key in meta_config.keys():
-                if im in meta_key:
-                    im_meta_config = meta_config[meta_key][tect_type.name]
 
         # Volcanic types are very similar to Active shallow - Brendon
         if tect_type == classdef.TectType.VOLCANIC:
@@ -316,6 +307,16 @@ def create_emp_rel_csv(
             "AS_16",
         ):
             tect_type = classdef.TectType.ACTIVE_SHALLOW
+
+        model = get_model(model_config, tect_type, im, component)
+        if model is None:
+            continue
+
+        im_meta_config = None
+        if meta_config is not None:
+            for meta_key in meta_config.keys():
+                if im in meta_key:
+                    im_meta_config = meta_config[meta_key][tect_type.name]
 
         im_df = oq_wrapper.oq_run(
             model,
