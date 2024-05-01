@@ -43,15 +43,21 @@ ACTIVE_SHALLOW:
     geom:
       - Br_10
   CAV:
+    rotd50:
+      - CB_10
     geom:
       - CB_10
   AI:
     geom:
       - CB_12
   Ds575:
+    rotd50:
+      - AS_16
     geom:
       - AS_16
   Ds595:
+    rotd50:
+      - AS_16
     geom:
       - AS_16
   Ds2080:

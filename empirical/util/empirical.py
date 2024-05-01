@@ -87,7 +87,6 @@ def get_model(
     tect_type: classdef.TectType,
     im: str,
     component: str,
-    fallback_comp: str = constants.Components.cgeom.str_value,
 ):
     """
     Gets the appropriate model based on the model config given the tect_type, im and component
@@ -102,8 +101,6 @@ def get_model(
         Intensity Measure to calculate
     component:  str
         Component to calculate results for
-    fallback_comp: str (optional)
-        Component to fallback to if the requested component is not found
 
     Returns
     -------
@@ -114,20 +111,10 @@ def get_model(
     try:
         model = classdef.GMM[model_config[tect_type.name][im][component][0]]
     except KeyError:
-        if fallback_comp is not None:
-            # if rotd50 component is requested and not found, try geom instead. (Do you know why @joel?)
-            if component == constants.Components.crotd50.str_value:
-                try:
-                    model = classdef.GMM[
-                        model_config[tect_type.name][im][fallback_comp][0]
-                    ]
-                except KeyError:
-                    pass
-
-        else:
-            print(
-                f"Warning: Model not found for {tect_type.name}, {im}, {component}. Skipping..."
-            )
+        print(
+            f"Warning: No model found for {tect_type.name}, {im}, {component} in model_config file."
+        )
+        raise
     return model
 
 
