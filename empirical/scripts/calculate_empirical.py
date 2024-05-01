@@ -166,20 +166,19 @@ def run_emp(
 
     tect_type = empirical.TECT_CLASS_MAPPING[fault_df.tect_class]
 
-    # Each model (determined by model_config, tect_type, im, component) has different set of required columns
-
     # Get site source data. srf_ffp is either Path or NHM.
     rrup_df = empirical.get_site_source_data(srf_ffp, site_df[["lon", "lat"]].values)
 
-    # will be crafting oq_rupture_df from site_df, rrup_df and fault_df to contain all (hopefully!) required columns
+    # Each model (determined by model_config, tect_type, im, component) has different set of required columns
+    # Let's make oq_rupture_df from site_df, rrup_df and fault_df, and hopefully(!) it has all required columns
     oq_rupture_df = empirical.get_oq_rupture_df(
         site_df, rrup_df, fault_df, rjb_max=rjb_max
     )
 
-    # So far, we have automatically extracted columns from site_df (derived from .ll/.vs30/.z), rrup_df (derived from srf_ffp, site_df)
-    # and fault_df (derived from srf info or csv).
-    # Some model specific columns may be still missing.
-    # Such exception handling is done via adding new rules to openquake_wrapper_vectorized.oq_prerun_exception_handle()
+    # In reality,some model specific columns may be still missing.
+    # Such exception handling is done by openquake_wrapper_vectorized.oq_prerun_exception_handle()
+    # If any column is missing, it will raise an exception with the missing column names.
+    # You could add more exceptions there.
 
     empirical.create_emp_rel_csv(
         event,
