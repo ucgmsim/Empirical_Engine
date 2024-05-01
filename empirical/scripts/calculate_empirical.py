@@ -166,36 +166,20 @@ def run_emp(
 
     tect_type = empirical.TECT_CLASS_MAPPING[fault_df.tect_class]
 
-    # Each model (determined by model_config, tect_type, im, component) has different set of required columns for site and rupture
-    # We need to craft a dataframe oq_rupture_df that contains all these required columns
-
-    site_columns, rupture_columns, rrup_columns = empirical.oq_columns_required(
-        model_config, meta_config, tect_type, im_list, component
-    )
-    oq_columns_required = set(site_columns + rupture_columns + rrup_columns)
+    # Each model (determined by model_config, tect_type, im, component) has different set of required columns
 
     # Get site source data. srf_ffp is either Path or NHM.
     rrup_df = empirical.get_site_source_data(srf_ffp, site_df[["lon", "lat"]].values)
 
-    # will be crafting oq_rupture_df from site_df, rrup_df and fault_df to contain all required columns
+    # will be crafting oq_rupture_df from site_df, rrup_df and fault_df to contain all (hopefully!) required columns
     oq_rupture_df = empirical.get_oq_rupture_df(
         site_df, rrup_df, fault_df, rjb_max=rjb_max
     )
 
     # So far, we have automatically extracted columns from site_df (derived from .ll/.vs30/.z), rrup_df (derived from srf_ffp, site_df)
-    # and fault_df (derived from srf info or csv. Some model specific columns may be missing here.
-
-    print(
-        f"INFO: Columns not auto-filled: {oq_columns_required.difference(oq_rupture_df.columns)}"
-    )
-
-    # TODO: Handle missing columns more systematically
-    oq_rupture_df["vs30measured"] = False  # Bradley10
-
-    # At this point, oq_rupture_df has all required columns
-    # assert (
-    #     len(oq_columns_required.difference(oq_rupture_df.columns)) == 0
-    # ), f"Missing columns: {oq_columns_required.difference(oq_rupture_df.columns)}"
+    # and fault_df (derived from srf info or csv).
+    # Some model specific columns may be still missing.
+    # Such exception handling is done via adding new rules to openquake_wrapper_vectorized.oq_prerun_exception_handle()
 
     empirical.create_emp_rel_csv(
         event,

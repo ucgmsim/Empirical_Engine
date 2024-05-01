@@ -1,28 +1,21 @@
-import sys
 from typing import List, Union
 from pathlib import Path
 import h5py
 import numpy as np
 import pandas as pd
 
-from empirical.util.classdef import TectType
-from empirical.util import classdef
-from empirical.util import openquake_wrapper_vectorized as oq_wrapper
+from empirical.util import classdef, openquake_wrapper_vectorized as oq_wrapper
 
 import IM_calculation.source_site_dist.src_site_dist as ssd
 
-from qcore import (
-    nhm,
-    srf,
-    constants,
-)
+from qcore import nhm, srf, constants
 
 
 TECT_CLASS_MAPPING = {
-    "Crustal": TectType.ACTIVE_SHALLOW,
-    "Slab": TectType.SUBDUCTION_SLAB,
-    "Interface": TectType.SUBDUCTION_INTERFACE,
-    "Undetermined": TectType.ACTIVE_SHALLOW,
+    "Crustal": classdef.TectType.ACTIVE_SHALLOW,
+    "Slab": classdef.TectType.SUBDUCTION_SLAB,
+    "Interface": classdef.TectType.SUBDUCTION_INTERFACE,
+    "Undetermined": classdef.TectType.ACTIVE_SHALLOW,
 }
 
 NZ_GMDB_SOURCE_COLUMNS = [
@@ -179,13 +172,15 @@ def load_srf_info(srf_info, event_name):
 
     if "tect_type" in attrs:
         try:
-            tect_type = TectType[attrs["tect_type"]]  # ok if attrs['tect_type'] is str
+            tect_type = classdef.TectType[
+                attrs["tect_type"]
+            ]  # ok if attrs['tect_type'] is str
         except KeyError:  # bytes
-            tect_type = TectType[attrs["tect_type"].decode("utf-8")]
+            tect_type = classdef.TectType[attrs["tect_type"].decode("utf-8")]
 
     else:
         print("INFO: tect_type not found.  Default 'ACTIVE_SHALLOW' is used.")
-        tect_type = TectType.ACTIVE_SHALLOW
+        tect_type = classdef.TectType.ACTIVE_SHALLOW
     fault["tect_class"] = get_tect_type_name(tect_type)
 
     if "dtop" in attrs:
@@ -327,19 +322,17 @@ def create_emp_rel_csv(
         # Volcanic types are very similar to Active shallow - Brendon
         if tect_type == classdef.TectType.VOLCANIC:
             tect_type = classdef.TectType.ACTIVE_SHALLOW
+
+        if tect_type != classdef.TectType.ACTIVE_SHALLOW and model.name in (
+            "CB_10",
+            "CB_12",
+            "AS_16",
+        ):
+            tect_type = classdef.TectType.ACTIVE_SHALLOW
+
         im_df = oq_wrapper.oq_run(
             model,
-            (
-                classdef.TectType.ACTIVE_SHALLOW
-                if tect_type != classdef.TectType.ACTIVE_SHALLOW
-                and model.name
-                in (
-                    "CB_10",
-                    "CB_12",
-                    "AS_16",
-                )
-                else tect_type
-            ),
+            tect_type,
             rupture_df,
             im,
             periods=periods if im == "pSA" else None,
@@ -388,50 +381,6 @@ def nhm_flt_to_df(nhm_flt: nhm.NHMFault):
             "recurrance_rate",
         ],
     ).reset_index()
-
-
-def oq_columns_required(
-    model_config: dict,
-    meta_config: dict,
-    tect_type: TectType,
-    im_list: List,
-    compoment: str,
-):
-    """
-    Get the columns required for OpenQuake calculations for a given model config, tect_type, im_list and component
-    Parameters
-    ----------
-    model_config : dict
-    meta_config : dict
-    tect_type: TectType
-    im_list: List
-    component: str
-
-
-    Returns
-    -------
-    site_columns: List
-    rupture_columns: List
-    distance_columns: List
-    """
-    site_columns = []
-    rupture_columns = []
-    distance_columns = []
-    for im in im_list:
-        model_type = get_model(model_config, tect_type, im, compoment)
-        if model_type is None:
-            continue
-        scols, rcols, dcols = oq_wrapper.oq_model_columns(
-            model_type, meta_config, tect_type
-        )
-        site_columns.extend(scols)
-        rupture_columns.extend(rcols)
-        distance_columns.extend(dcols)
-    return (
-        sorted(list(set(site_columns))),
-        sorted(list(set(rupture_columns))),
-        sorted(list(set(distance_columns))),
-    )
 
 
 def get_oq_rupture_df(
