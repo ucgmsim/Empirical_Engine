@@ -17,6 +17,7 @@ TECT_CLASS_MAPPING = {
     "Interface": classdef.TectType.SUBDUCTION_INTERFACE,
     "Undetermined": classdef.TectType.ACTIVE_SHALLOW,
 }
+REVERSE_TECT_CLASS_MAPPING = {value: key for key, value in TECT_CLASS_MAPPING.items()}
 
 NZ_GMDB_SOURCE_COLUMNS = [
     "mag",
@@ -115,24 +116,6 @@ def get_model(
     return model
 
 
-def get_tect_type_name(tect_type):
-    """
-    Get the tectonic type name from the classdef.TectType (eg. Crustal, Slab, Interface, Undetermined)
-    ----------
-    tect_type: classdef.TectType
-
-    Returns
-    -------
-    str : Tectonic type name
-    """
-    found = None
-    for key, val in TECT_CLASS_MAPPING.items():
-        if tect_type == val:
-            found = key
-            break
-    return found
-
-
 def load_srf_info(srf_info, event_name):
     """Load srf_info file in HDF5 format and return a pandas Series with the fault parameters
 
@@ -166,7 +149,7 @@ def load_srf_info(srf_info, event_name):
     else:
         print("INFO: tect_type not found.  Default 'ACTIVE_SHALLOW' is used.")
         tect_type = classdef.TectType.ACTIVE_SHALLOW
-    fault["tect_class"] = get_tect_type_name(tect_type)
+    fault["tect_class"] = REVERSE_TECT_CLASS_MAPPING.get(tect_type)
 
     if "dtop" in attrs:
         fault["z_tor"] = np.min(attrs["dtop"])
