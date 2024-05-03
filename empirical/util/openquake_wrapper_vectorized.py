@@ -128,7 +128,6 @@ def oq_mean_stddevs(
     ctx: contexts.RuptureContext,
     im: imt.IMT,
     stddev_types: Sequence[const.StdDev],
-    convert_mean=lambda x: x,
 ):
     """Calculate mean and standard deviations given openquake input structures.
     model: gsim.base.GMPE
@@ -140,14 +139,13 @@ def oq_mean_stddevs(
         - Rupture
     im: imt.IMT
     stddev_types: Sequence[const.StdDev]
-    convert_mean: function to be used to convert mean, by default does nothing
     """
     # contexts.get_mean_stds returns ndarray, size of 4
     # mean, std_total, std_inter and std_intra
     # std_devs order may vary
     results = contexts.get_mean_stds(model, ctx, [im])
 
-    mean_stddev_dict = {f"{convert_im_label(im)}_mean": convert_mean(results[0][0])}
+    mean_stddev_dict = {f"{convert_im_label(im)}_mean": results[0][0]}
     for idx, std_dev in enumerate(stddev_types):
         # std_devs are index between 1 and 3 from results
         mean_stddev_dict[f"{convert_im_label(im)}_std_{std_dev.split()[0]}"] = results[
@@ -357,7 +355,6 @@ def oq_run(
     im: str,
     periods: Sequence[Union[int, float]] = None,
     meta_config: Dict = None,
-    convert_mean=lambda x: x,
     **kwargs,
 ):
     """Run an openquake model with dataframe
@@ -376,7 +373,6 @@ def oq_run(
         interpolate values between specified values, fails if outside range
     meta_config: Dict
         A dictionary contains models and its weight
-    convert_mean: function to be used to convert mean, by default does nothing
     kwargs: pass extra (model specific) parameters to models
     """
 
@@ -448,9 +444,7 @@ def oq_run(
         for period in periods:
             im = imt.SA(period=min(period, max_period))
             try:
-                result = oq_mean_stddevs(
-                    model, rupture_ctx, im, stddev_types, convert_mean=convert_mean
-                )
+                result = oq_mean_stddevs(model, rupture_ctx, im, stddev_types)
             except KeyError as ke:
                 cause = ke.args[0]
                 # To make sure the KeyError is about missing pSA's period
@@ -466,7 +460,6 @@ def oq_run(
                         rupture_ctx,
                         imt.PGA(),
                         stddev_types,
-                        convert_mean=convert_mean,
                     )
                     high_period = avail_periods[period <= avail_periods][0]
                     high_result = oq_mean_stddevs(
@@ -474,7 +467,6 @@ def oq_run(
                         rupture_ctx,
                         imt.SA(period=high_period),
                         stddev_types,
-                        convert_mean=convert_mean,
                     )
 
                     result = interpolate_with_pga(
@@ -505,6 +497,4 @@ def oq_run(
     else:
         imc = getattr(imt, im)
         assert imc in model.DEFINED_FOR_INTENSITY_MEASURE_TYPES
-        return oq_mean_stddevs(
-            model, rupture_ctx, imc(), stddev_types, convert_mean=convert_mean
-        )
+        return oq_mean_stddevs(model, rupture_ctx, imc(), stddev_types)

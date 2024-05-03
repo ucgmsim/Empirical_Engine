@@ -190,7 +190,6 @@ def run_emp(
         model_config,
         meta_config,
         output_dir,
-        convert_mean=np.exp,
     )
 
 

@@ -261,7 +261,6 @@ def create_emp_rel_csv(
     model_config: dict,
     meta_config: dict,
     output_flt_dir: Path,
-    convert_mean=lambda x: x,
 ):
     """
     Calculates and saves a single empirical realisation csv file based on IM's specified.
@@ -288,7 +287,6 @@ def create_emp_rel_csv(
         categorized by IM, TectType then Model
     output_flt_dir: Path
         Output path to generate results in
-    convert_mean: function to convert mean values, eg) convert_mean=np.exp for log space. by default no conversion
     """
     im_df_list = []
     for im in ims:
@@ -335,7 +333,6 @@ def create_emp_rel_csv(
             im,
             periods=periods if im == "pSA" else None,
             meta_config=im_meta_config,
-            convert_mean=convert_mean,
         )
         im_df_list.append(im_df)
 
