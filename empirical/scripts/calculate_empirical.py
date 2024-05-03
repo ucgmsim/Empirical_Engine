@@ -17,7 +17,7 @@ IM_LIST = [
     "Ds595",
 ]  # Other IMs: AI (CB_12 keyerror)
 
-DEFAULT_COMP = constants.Components.cgeom.str_value
+DEFAULT_COMP = constants.Components.crotd50.str_value
 
 DEFAULT_MODEL_CONFIG_FFP = Path(__file__).parents[1] / "util" / "model_config.yaml"
 DEFAULT_META_CONFIG_FFP = Path(__file__).parents[1] / "util" / "meta_config.yaml"
