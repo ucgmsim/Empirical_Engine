@@ -111,10 +111,7 @@ def get_model(
     try:
         model = classdef.GMM[model_config[tect_type.name][im][component][0]]
     except KeyError:
-        print(
-            f"Warning: No model found for {tect_type.name}, {im}, {component} in model_config file."
-        )
-        raise
+        pass
     return model
 
 
@@ -152,8 +149,9 @@ def load_srf_info(srf_info, event_name):
     """
 
     fault = {}
-    f = h5py.File(srf_info, "r")
-    attrs = f.attrs
+
+    with h5py.File(srf_info, "r") as f:
+        attrs = dict(f.attrs)
 
     fault["mag"] = np.max(attrs["mag"])
 
@@ -202,6 +200,7 @@ def load_srf_info(srf_info, event_name):
 
 def load_rel_csv(source_csv: Path, event_name: str):
     """
+    Load realisation csv file and return a pandas Series with the fault parameters
 
     Parameters
     ----------
@@ -299,6 +298,10 @@ def create_emp_rel_csv(
 
         # Volcanic types are very similar to Active shallow - Brendon
         if tect_type == classdef.TectType.VOLCANIC:
+
+            print(
+                f"INFO: ({rel_name},{tect_type.name},{im},{component}): Will be treated as Active Shallow"
+            )
             tect_type = classdef.TectType.ACTIVE_SHALLOW
 
         model = get_model(model_config, tect_type, im, component)
@@ -308,9 +311,15 @@ def create_emp_rel_csv(
             "CB_12",
             "AS_16",
         ):
+            print(
+                f"INFO: ({rel_name},{tect_type.name},{im},{component}): Will be treated as Active Shallow using {model.name}"
+            )
             tect_type = classdef.TectType.ACTIVE_SHALLOW
 
         if model is None:
+            print(
+                f"WARNING: ({rel_name},{tect_type.name},{im},{component}): No model found, to be skipped."
+            )
             continue
 
         im_meta_config = None
