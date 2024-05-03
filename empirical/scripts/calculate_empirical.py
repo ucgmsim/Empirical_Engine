@@ -94,23 +94,9 @@ def run_emp(
 
     stations_df = formats.load_station_file(ll_ffp)
     vs30_df = formats.load_vs30_file(vs30_ffp)
-    if z_ffp is not None and z_ffp.exists():
-        z_df = formats.load_z_file(z_ffp)
-        z_df = z_df.rename(columns={"z1p0": "z1pt0", "z2p5": "z2pt5"})
-    else:
-        z1p0_df = z_model_calculations.chiou_young_08_calc_z1p0(
-            vs30_df
-        )  # estimate z1.0 from vs30
-        z2p5_df = z_model_calculations.chiou_young_08_calc_z2p5(
-            z1p0=z1p0_df
-        )  # estimate z2p5 from z1.0
-        z_df = pd.concat(
-            [
-                z1p0_df.rename(columns={"vs30": "z1pt0"}),
-                z2p5_df.rename(columns={"vs30": "z2pt5"}),
-            ],
-            axis=1,
-        )
+
+    z_df = formats.load_z_file(z_ffp)
+    z_df = z_df.rename(columns={"z1p0": "z1pt0", "z2p5": "z2pt5"})
 
     site_df = pd.concat([stations_df, vs30_df, z_df], axis=1)
     del stations_df, vs30_df, z_df
@@ -214,8 +200,11 @@ def load_args():
     )
     parser.add_argument(
         "--z_ffp",
+        required=True,
         type=Path,
-        help="Path to the .z file that contains Z1.0 and Z2.5",
+        help="Path to the .z file that contains Z1.0 and Z2.5. "
+        "If you don't have this file, estimate from vs30 utilizing relations in z_model_calculations.py. (eg. chiou_young_08_calc_z1p0)"
+        "The file should have columns: station, z1p0, z2p5, sigma",
     )
 
     parser.add_argument(
