@@ -1,11 +1,10 @@
 import argparse
-import numpy as np
 import pandas as pd
 from pathlib import Path
 import yaml
 
 from qcore import constants, nhm, formats, utils
-from empirical.util import empirical, z_model_calculations
+from empirical.util import empirical
 
 RJB_MAX = 200
 IM_LIST = [
@@ -21,8 +20,6 @@ DEFAULT_COMP = constants.Components.crotd50.str_value
 
 DEFAULT_MODEL_CONFIG_FFP = Path(__file__).parents[1] / "util" / "model_config.yaml"
 DEFAULT_META_CONFIG_FFP = Path(__file__).parents[1] / "util" / "meta_config.yaml"
-NZ_GMDB_SOURCE_PATH = Path(__file__).parents[1] / "data" / "earthquake_source_table.csv"
-NHM_PATH = Path(__file__).parents[1] / "data" / "NZ_FLTmodel_2010_v18p6.txt"
 
 
 def run_emp(
@@ -31,9 +28,9 @@ def run_emp(
     vs30_ffp: Path,
     z_ffp: Path,
     srf_ffp: Path,
-    nhm_ffp: Path = NHM_PATH,
+    nhm_ffp: Path = None,
     srfdata_ffp: Path = None,
-    nz_gmdb_source_ffp: Path = NZ_GMDB_SOURCE_PATH,
+    nz_gmdb_source_ffp: Path = None,
     model_config_ffp: Path = DEFAULT_MODEL_CONFIG_FFP,
     meta_config_ffp: Path = DEFAULT_META_CONFIG_FFP,
     rjb_max: float = RJB_MAX,
@@ -58,13 +55,14 @@ def run_emp(
     srf_ffp : Path
         srf file path for the fault data.
     nhm_ffp : Path
-        nhm file path for the collection of faults data (default: NZ_FLTmodel_2010_v18p6.txt)
+        nhm file path for the collection of faults data (eg: NZ_FLTmodel_2010_v18p6.txt)
     srfdata_ffp : Path
         srfdata file path for the fault data. Can be either realisation .csv or .info file
     nz_gmdb_source_ffp  : Path
         nz_gmdb_source file path for the source data
     model_config_ffp    : Path
-        model_config file path for the empirical model. prescribes the model to be used for tectonic class, IM and component
+        model_config file path for the empirical model. prescribes the model to be used for tectonic class,
+        IM and component
     meta_config_ffp : Path
         meta_config file path for the empirical model. prescribes the weight of the model for IM and Tectonic class
     rjb_max : float
@@ -84,6 +82,7 @@ def run_emp(
         periods = constants.EXT_PERIOD
 
     ### Data loading
+    model_config = None
     if model_config_ffp.exists():
         model_config = utils.load_yaml(model_config_ffp)
     # Using Full Loader for the meta config due to the python tuple pSA/PGA
@@ -101,10 +100,6 @@ def run_emp(
     site_df = pd.concat([stations_df, vs30_df, z_df], axis=1)
     del stations_df, vs30_df, z_df
 
-    nz_gmdb_source_df = pd.read_csv(
-        nz_gmdb_source_ffp, index_col=0
-    )  # Not useful if this is not a historical event, but we load it anyway
-
     if srfdata_ffp is None:
         # If srfdata_ffp is not supplied, but if srf_ffp is supplied and this is a historical event,we can still proceed
         print(f"INFO: srfdata_ffp not provided.")
@@ -115,16 +110,23 @@ def run_emp(
             event = srf_ffp.stem
             event_name = event.split("_")[0]
             # Load source info. Only useful when this is a historical event
-            try:
-                fault_df = nz_gmdb_source_df.loc[
-                    event_name, empirical.NZ_GMDB_SOURCE_COLUMNS
-                ]
-            except KeyError:
-                print(f"Unknown event {event_name}")
-                raise
+            if nz_gmdb_source_ffp is not None:
+                nz_gmdb_source_df = pd.read_csv(
+                    nz_gmdb_source_ffp, index_col=0
+                )  # Not useful if this is not a historical event, but we load it anyway
+                try:
+                    fault_df = nz_gmdb_source_df.loc[
+                        event_name, empirical.NZ_GMDB_SOURCE_COLUMNS
+                    ]
+                except KeyError:
+                    print(f"Unknown event {event_name}")
+                    raise
+                else:
+                    print(f"INFO: Found {event_name} in NZGMDB.")
             else:
-                print(f"INFO: Found {event_name} in NZGMDB.")
-
+                raise RuntimeError(
+                    f"nz_gmdb_source_ffp is required for historical events. Use earthquake_source_table.csv from GMDB.zip"
+                )
     else:
         # srfdata_ffp is supplied. This can be either .csv or .info
         event = srfdata_ffp.stem
@@ -202,9 +204,7 @@ def load_args():
         "--z_ffp",
         required=True,
         type=Path,
-        help="Path to the .z file that contains Z1.0 and Z2.5. "
-        "If you don't have this file, estimate from vs30 utilizing relations in z_model_calculations.py. (eg. chiou_young_08_calc_z1p0)"
-        "The file should have columns: station, z1p0, z2p5, sigma",
+        help="Path to the .z file that contains Z1.0 and Z2.5. If not available, estimate from vs30 utilizing relations in z_model_calculations.py. (eg. chiou_young_08_calc_z1p0). The file should have columns: station, z1p0, z2p5, sigma",
     )
 
     parser.add_argument(
@@ -215,8 +215,8 @@ def load_args():
 
     parser.add_argument(
         "--nhm_ffp",
-        help="Path to the NHM file",
-        default=NHM_PATH,
+        help="Path to the NHM file. If srf_ffp is not provided, this is used to get the fault data. "
+        "Get one from https://t.ly/X6PGm",
         type=Path,
     )
 
@@ -231,12 +231,13 @@ def load_args():
         "--max_rupture_distance",
         type=float,
         default=RJB_MAX,
-        help="Only calculate empiricals for stations "
-        "that are within X distance to rupture",
+        help="Only calculate empiricals for stations that are within X distance to rupture",
     )
 
     parser.add_argument(
-        "--nz_gmdb_source_ffp", help="NZ GMDB source CSV", default=NZ_GMDB_SOURCE_PATH
+        "--nz_gmdb_source_ffp",
+        type=Path,
+        help="NZ GMDB source CSV. Required for historical events when srfdata is missing. Use earthquake_source_table.csv from GMDB.zip https://t.ly/4lxty ",
     )
 
     parser.add_argument(
@@ -279,7 +280,7 @@ def load_args():
         "--component",
         choices=list(constants.Components.iterate_str_values()),
         default=constants.Components.cgeom.str_value,
-        help="The component you want to calculate. Available components are: [%(choices)s]. Default is %(default)",
+        help="The component you want to calculate.",
     )
 
     parser.add_argument("output", type=Path, help="output directory")
