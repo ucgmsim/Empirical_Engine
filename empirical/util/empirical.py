@@ -287,6 +287,12 @@ def create_emp_rel_csv(
 
         model = get_model(model_config, tect_type, im, component)
 
+        if model is None:
+            print(
+                f"WARNING: ({rel_name},{tect_type.name},{im},{component}): No model found, to be skipped."
+            )
+            continue
+
         if tect_type != classdef.TectType.ACTIVE_SHALLOW and model.name in (
             "CB_10",
             "CB_12",
@@ -296,12 +302,6 @@ def create_emp_rel_csv(
                 f"INFO: ({rel_name},{tect_type.name},{im},{component}): Will be treated as Active Shallow using {model.name}"
             )
             tect_type = classdef.TectType.ACTIVE_SHALLOW
-
-        if model is None:
-            print(
-                f"WARNING: ({rel_name},{tect_type.name},{im},{component}): No model found, to be skipped."
-            )
-            continue
 
         im_meta_config = None
         if meta_config is not None:
