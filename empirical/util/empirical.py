@@ -293,6 +293,9 @@ def create_emp_rel_csv(
             )
             continue
 
+        # CB_10, CB_12 and AS_16 are for AI, CAV, Ds575, Ds595, but only available for Active Shallow
+        # So we consider them as Active Shallow even if the tect_type is not.
+        # https: // wiki.canterbury.ac.nz / display / QuakeCore / Empirical + Engine
         if tect_type != classdef.TectType.ACTIVE_SHALLOW and model.name in (
             "CB_10",
             "CB_12",
