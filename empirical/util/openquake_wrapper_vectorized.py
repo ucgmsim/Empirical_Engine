@@ -234,17 +234,24 @@ def oq_prerun_exception_handle(
     Parameters
     ----------
     model_type: GMM
+        OQ model
     tect_type: TectType
+        One of the tectonic types from ACTIVE_SHALLOW, SUBDUCTION_SLAB and SUBDUCTION_INTERFACE
     rupture_df: pd.DataFrame
+        Columns for properties. E.g., vs30, z1pt0, rrup, rjb, mag, rake, dip....
     im: str
-    kwargs: dict
+        intensity measure
+    kwargs: pass extra (model specific) parameters to models
 
 
     Returns
     -------
     model: gsim.base.GMPE
+
     rupture_df: pd.DataFrame
+        updated rupture_df
     im: str
+        intensity measure (updated if necessary)
     """
 
     model = OQ_MODELS[model_type][tect_type](**kwargs)
@@ -267,13 +274,25 @@ def oq_prerun_exception_handle(
     # Make a copy in case the original rupture_df used with other functions
     rupture_df = rupture_df.copy()
 
-    # If the specific model requires any additional columns that are not in the rupture_df
-    # we can manually assign a value, work out from the existing columns or raise an error
-    # The following are the exceptions that we know how to handle
-
     def _handle_missing_property(
-        model_type_name: str, col_missing, value=None, col_to_rename=None
+        model_type_name: str, col_missing: str, value=None, col_to_rename=None
     ):
+        """
+        If the specific model requires any additional columns that are not in the rupture_df
+        we can manually assign a value, work out from the existing columns or raise an error
+
+        Parameters
+        ----------
+        model_type_name: str
+            model type name
+        col_missing : str
+            column name that is missing in the rupture_df
+        value: any
+            value to assign to the missing column
+        col_to_rename: str
+            column name to rename to col_missing
+
+        """
         if model_type.name == model_type_name:
             if col_missing not in rupture_df:
                 if col_to_rename is not None:
@@ -282,6 +301,9 @@ def oq_prerun_exception_handle(
                     )
                 else:
                     rupture_df[col_missing] = value
+
+    # The following are the exceptions that we know how to handle
+    # You may wish to add more exceptions here
 
     _handle_missing_property("ASK_14", "vs30measured", value=False)
 
@@ -323,11 +345,21 @@ def oq_prerun_exception_handle(
     # Check if df contains what model requires
     rupture_ctx_properties = set(rupture_df.columns.values)
 
-    # Check if all required columns are present. If not, raise an error.
-    # Possibly you might need to add a new exception
     def _confirm_all_properties_exist(
         type: str, params_required: set, params_present: set
     ):
+        """
+        Check if all required columns are present. If not, raise an error.
+
+        Parameters
+        ----------
+        type: str
+            site, rupture or distance
+        params_required: set
+            set of required columns
+        params_present: set
+            set of columns present in the dataframe
+        """
         extra_params = set(params_required - params_present)
         if len(extra_params) > 0:
             raise ValueError(

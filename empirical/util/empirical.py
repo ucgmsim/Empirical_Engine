@@ -50,7 +50,7 @@ def get_site_source_data(flt: Union[nhm.NHMFault, Path], stations: np.ndarray):
     Parameters
     ----------
     flt : nhm.NHMFault or Path
-    stations : np.ndarray
+    stations : np.ndarray (eg. [[lon1, lat1], [lon2, lat2], ...])
 
     Returns
     -------
@@ -167,14 +167,14 @@ def load_srf_info(srf_info, event_name):
         fault["rake"] = np.min(rake)
     else:
         print("unexpected rake value")
-        exit()
+        raise ValueError
 
     dip = attrs["dip"]
     if np.max(dip) == np.min(dip):
         fault["dip"] = np.min(dip)
     else:
         print("unexpected dip value")
-        exit()
+        raise ValueError
 
     fault["depth"] = attrs["hdepth"]
 
@@ -335,6 +335,15 @@ def nhm_flt_to_df(nhm_flt: nhm.NHMFault):
     """
     Custom nhm fault to dataframe to do renaming
     and ensure only one load of the NHM
+
+    Parameters
+    ----------
+    nhm_flt : nhm.NHMFault
+        NHM fault object
+
+    Returns
+    -------
+    pd.DataFrame : containing fault parameters
     """
     rupture_dict = {
         nhm_flt.name: [

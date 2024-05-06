@@ -184,7 +184,7 @@ def run_emp(
 def load_args():
     parser = argparse.ArgumentParser(
         description="Script to calculate IMs for empirical models."
-        "Produces one .csv for each IM containing "
+        "Produces one .csv for each fault (event) containing "
         "all specified sites."
     )
 
