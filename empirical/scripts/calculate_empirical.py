@@ -119,8 +119,7 @@ def run_emp(
                         event_name, empirical.NZ_GMDB_SOURCE_COLUMNS
                     ]
                 except KeyError:
-                    print(f"Unknown event {event_name}")
-                    raise
+                    raise ValueError(f"Unknown event {event_name}")
                 else:
                     print(f"INFO: Found {event_name} in NZGMDB.")
             else:
@@ -145,8 +144,7 @@ def run_emp(
                 # We are reconstructing missing srf_ffp from nhm.
                 srf_ffp = nhm_data[fault_name]
             except KeyError:
-                print(f"ERROR: Unknown fault {fault_name}")
-                raise
+                raise ValueError(f"ERROR: Unknown fault {fault_name}")
             else:
                 print(f"INFO: Found {fault_name} in NHM.")
 

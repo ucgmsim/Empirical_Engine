@@ -166,15 +166,13 @@ def load_srf_info(srf_info, event_name):
     if np.max(rake) == np.min(rake):
         fault["rake"] = np.min(rake)
     else:
-        print("unexpected rake value")
-        raise ValueError
+        raise ValueError("unexpected rake value")
 
     dip = attrs["dip"]
     if np.max(dip) == np.min(dip):
         fault["dip"] = np.min(dip)
     else:
-        print("unexpected dip value")
-        raise ValueError
+        raise ValueError("unexpected dip value")
 
     fault["depth"] = attrs["hdepth"]
 
