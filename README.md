@@ -49,7 +49,8 @@ This is designed to accommodate fairly flexible situations. In practice, we ofte
 - If srf_ffp is not supplied, and it is a known fault in NHM, it will extract the srf data directly from NHM.
 - srfdata_ffp can be either .csv or .info.
 - If neither .csv nor .info is supplied, and if it is a historical event (found in NZ_GMDB) , it will find the event info from NZ_GMDB and carry on.
-
+- Z-values must be supplied. Z1.0 and Z2.5 can be estimated from vs30 using the relations in z_model_calculations.py.
+- 
 Data files can be downloaded from the following links:
 
 - earthquake_source_table.csv can be found in the GMDB.zip file from https://t.ly/4lxty
