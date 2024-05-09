@@ -275,7 +275,10 @@ def oq_prerun_exception_handle(
     rupture_df = rupture_df.copy()
 
     def _handle_missing_property(
-        model_type_name: str, col_missing: str, value=None, col_to_rename=None
+        model_type_name: str,
+        col_missing: str,
+        value: any = None,
+        col_to_rename: str = None,
     ):
         """
         If the specific model requires any additional columns that are not in the rupture_df

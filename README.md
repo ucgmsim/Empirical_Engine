@@ -44,17 +44,20 @@ options:
                         The component you want to calculate.
 
 ```
-This is designed to accommodate fairly flexible situations. In practice, we often find .srf, .info and some .csv files missing. I implemented a few fallback scenarios.
-
+This is designed to accommodate fairly flexible situations. In practice, we often find .srf, .info and some .csv files missing.
 - If srf_ffp is not supplied, and it is a known fault in NHM, it will extract the srf data directly from NHM.
 - srfdata_ffp can be either .csv or .info.
 - If neither .csv nor .info is supplied, and if it is a historical event (found in NZ_GMDB) , it will find the event info from NZ_GMDB and carry on.
-- Z-values must be supplied. Z1.0 and Z2.5 can be estimated from vs30 using the relations in z_model_calculations.py.
-- 
-Data files can be downloaded from the following links:
 
+Data files can be downloaded from the following links:
 - earthquake_source_table.csv can be found in the [GMDB.zip](https://osf.io/q9yrg/?view_only=05337ba1ebc744fc96b9924de633ca0e)
-- NHM file : [NZ_FLTmodel_2010_v18p6.txt](https://github.com/ucgmsim/Empirical_Engine/files/15256612/NZ_FLTmodel_2010_v18p6.txt)
+- NHM file : [NZ_FLTmodel_2010_v18p6.txt](https://github.com/ucgmsim/Empirical_Engine/files/15256612/NZ_FLTmodel_2010_v18p6.txt) (Credit: GNS Science https://www.gns.cri.nz/data-and-resources/2010-national-seismic-hazard-model/
+
+Note that  
+- Z-values must be supplied. Z1.0 and Z2.5 can be estimated from vs30 using the relations in z_model_calculations.py.
+- If the model_config_ffp is not supplied, it will use the default model_config found in Empirical util.
+- If the meta_config_ffp is not supplied, it will use the default meta_config found in Empirical util.
+
 
 Internally, it calls the function oq_run in util.openquake_wrapper_vectorised.py with the following parameters:
 

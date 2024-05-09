@@ -214,7 +214,7 @@ def load_args():
     parser.add_argument(
         "--nhm_ffp",
         help="Path to the NHM file. If srf_ffp is not provided, this is used to get the fault data. "
-        "Get one from https://t.ly/X6PGm",
+        "Get one from https://github.com/ucgmsim/Empirical_Engine/files/15256612/NZ_FLTmodel_2010_v18p6.txt",
         type=Path,
     )
 
@@ -235,7 +235,8 @@ def load_args():
     parser.add_argument(
         "--nz_gmdb_source_ffp",
         type=Path,
-        help="NZ GMDB source CSV. Required for historical events when srfdata is missing. Use earthquake_source_table.csv from GMDB.zip https://t.ly/4lxty ",
+        help="NZ GMDB source CSV. Required for historical events when srfdata is missing. Use earthquake_source_table.csv "
+        "contained in GMDB.zip from https://osf.io/q9yrg/?view_only=05337ba1ebc744fc96b9924de633ca0e",
     )
 
     parser.add_argument(
