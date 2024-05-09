@@ -51,7 +51,7 @@ This is designed to accommodate fairly flexible situations. In practice, we ofte
 
 Data files can be downloaded from the following links:
 - earthquake_source_table.csv can be found in the [GMDB.zip](https://osf.io/q9yrg/?view_only=05337ba1ebc744fc96b9924de633ca0e)
-- NHM file : [NZ_FLTmodel_2010_v18p6.txt](https://github.com/ucgmsim/Empirical_Engine/files/15256612/NZ_FLTmodel_2010_v18p6.txt) (Credit: GNS Science https://www.gns.cri.nz/data-and-resources/2010-national-seismic-hazard-model/
+- NHM file : [NZ_FLTmodel_2010_v18p6.txt](https://github.com/ucgmsim/Empirical_Engine/files/15256612/NZ_FLTmodel_2010_v18p6.txt) (Credit: [GNS Science](https://www.gns.cri.nz/data-and-resources/2010-national-seismic-hazard-model/))
 
 Note that  
 - Z-values must be supplied. Z1.0 and Z2.5 can be estimated from vs30 using the relations in z_model_calculations.py.
