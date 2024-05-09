@@ -22,14 +22,14 @@ options:
                         should have columns: station, z1p0, z2p5, sigma
   --srf_ffp SRF_FFP     Path to the SRF file
   --nhm_ffp NHM_FFP     Path to the NHM file. If srf_ffp is not provided, this is used to get the fault data. Get
-                        one from https://t.ly/X6PGm
+                        one from https://github.com/ucgmsim/Empirical_Engine/files/15256612/NZ_FLTmodel_2010_v18p6.txt
   --srfdata_ffp SRFDATA_FFP
                         Path to the SRF .info or .csv file
   -rm MAX_RUPTURE_DISTANCE, --max_rupture_distance MAX_RUPTURE_DISTANCE
                         Only calculate empiricals for stations that are within X distance to rupture
   --nz_gmdb_source_ffp NZ_GMDB_SOURCE_FFP
                         NZ GMDB source CSV. Required for historical events when srfdata is missing. Use
-                        earthquake_source_table.csv from GMDB.zip https://t.ly/4lxty
+                        earthquake_source_table.csv contained in GMDB.zip from https://osf.io/q9yrg/?view_only=05337ba1ebc744fc96b9924de633ca0e 
   --model_config_ffp MODEL_CONFIG_FFP
                         Path to the model_config file. Found in Empirical util.
   --meta_config_ffp META_CONFIG_FFP
@@ -53,8 +53,8 @@ This is designed to accommodate fairly flexible situations. In practice, we ofte
 - 
 Data files can be downloaded from the following links:
 
-- earthquake_source_table.csv can be found in the GMDB.zip file from https://t.ly/4lxty
-- NHM file : https://t.ly/X6PGm
+- earthquake_source_table.csv can be found in the [GMDB.zip](https://osf.io/q9yrg/?view_only=05337ba1ebc744fc96b9924de633ca0e)
+- NHM file : [NZ_FLTmodel_2010_v18p6.txt](https://github.com/ucgmsim/Empirical_Engine/files/15256612/NZ_FLTmodel_2010_v18p6.txt)
 
 Internally, it calls the function oq_run in util.openquake_wrapper_vectorised.py with the following parameters:
 
