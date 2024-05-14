@@ -1,10 +1,11 @@
 import argparse
-import pandas as pd
 from pathlib import Path
+
+import pandas as pd
 import yaml
 
-from qcore import constants, nhm, formats, utils
 from empirical.util import empirical
+from qcore import constants, nhm, formats, utils
 
 RJB_MAX = 200
 IM_LIST = [
@@ -84,11 +85,13 @@ def run_emp(
     ### Data loading
     model_config = None
     if model_config_ffp.exists():
-        model_config = utils.load_yaml(model_config_ffp)
+        with open(model_config_ffp, "r") as f:
+            model_config = yaml.safe_load(f)
+
     # Using Full Loader for the meta config due to the python tuple pSA/PGA
     meta_config = None
     if meta_config_ffp.exists():
-        with open(meta_config_ffp) as f:
+        with open(meta_config_ffp, "r") as f:
             meta_config = yaml.load(f, Loader=yaml.FullLoader)
 
     stations_df = formats.load_station_file(ll_ffp)
@@ -138,15 +141,18 @@ def run_emp(
 
         if srf_ffp is None:
             # Even if srf_ffp is not supplied, if it is a valid fault, we can use NHM to get the fault data and proceed
-            nhm_data = nhm.load_nhm(str(nhm_ffp))
-            # Get fault data
-            try:
-                # We are reconstructing missing srf_ffp from nhm.
-                srf_ffp = nhm_data[fault_name]
-            except KeyError:
-                raise ValueError(f"ERROR: Unknown fault {fault_name}")
+            if nhm_ffp is not None:
+                nhm_data = nhm.load_nhm(str(nhm_ffp))
+                # Get fault data
+                try:
+                    # We are reconstructing missing srf_ffp from nhm.
+                    srf_ffp = nhm_data[fault_name]
+                except KeyError:
+                    raise ValueError(f"Unknown fault {fault_name}")
+                else:
+                    print(f"INFO: Found {fault_name} in NHM.")
             else:
-                print(f"INFO: Found {fault_name} in NHM.")
+                raise RuntimeError(f"nhm_ffp is required if srf_ffp is not provided.")
 
     # at this point, we have valid fault_df, and srf_ffp (can be either Path or NHMFault)
 

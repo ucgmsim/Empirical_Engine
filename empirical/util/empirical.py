@@ -1,15 +1,13 @@
-from typing import List, Union
 from pathlib import Path
+from typing import List, Union
+
+import IM_calculation.source_site_dist.src_site_dist as ssd
 import h5py
 import numpy as np
 import pandas as pd
 
 from empirical.util import classdef, openquake_wrapper_vectorized as oq_wrapper
-
-import IM_calculation.source_site_dist.src_site_dist as ssd
-
-from qcore import nhm, srf, constants
-
+from qcore import nhm, srf
 
 TECT_CLASS_MAPPING = {
     "Crustal": classdef.TectType.ACTIVE_SHALLOW,
@@ -50,11 +48,13 @@ def get_site_source_data(flt: Union[nhm.NHMFault, Path], stations: np.ndarray):
     Parameters
     ----------
     flt : nhm.NHMFault or Path
-    stations : np.ndarray (eg. [[lon1, lat1], [lon2, lat2], ...])
+    stations : np.ndarray
+        (eg. [[lon1, lat1], [lon2, lat2], ...])
 
     Returns
     -------
-    pd.DataFrame : containing ["rrup", "rjb", "rx", "ry"] for a single fault and a set of stations
+    pd.DataFrame
+        containing ["rrup", "rjb", "rx", "ry"] for a single fault and a set of stations
     """
     # Add depth for the stations (hardcoded to 0)
     filtered_station_np = np.concatenate(
@@ -105,15 +105,15 @@ def get_model(
 
     Returns
     -------
-    classdef.GMM : The GMM model to be used
+    classdef.GMM
+        The GMM model to be used. Returns None if no model is found
 
     """
-    model = None
+
     try:
-        model = classdef.GMM[model_config[tect_type.name][im][component][0]]
+        return classdef.GMM[model_config[tect_type.name][im][component][0]]
     except KeyError:
         pass
-    return model
 
 
 def load_srf_info(srf_info, event_name):
@@ -139,12 +139,16 @@ def load_srf_info(srf_info, event_name):
     fault["mag"] = np.max(attrs["mag"])
 
     if "tect_type" in attrs:
-        try:
-            tect_type = classdef.TectType[
-                attrs["tect_type"]
-            ]  # ok if attrs['tect_type'] is str
-        except KeyError:  # bytes
-            tect_type = classdef.TectType[attrs["tect_type"].decode("utf-8")]
+        tect_type_key = attrs[
+            "tect_type"
+        ]  # tect_type is sometimes stored as bytes, sometimes as string
+        tect_type = classdef.TectType[
+            (
+                tect_type_key
+                if isinstance(tect_type_key, str)
+                else tect_type_key.decode("utf-8")
+            )
+        ]
 
     else:
         print("INFO: tect_type not found.  Default 'ACTIVE_SHALLOW' is used.")
@@ -306,7 +310,7 @@ def create_emp_rel_csv(
 
         im_meta_config = None
         if meta_config is not None:
-            for meta_key in meta_config.keys():
+            for meta_key in meta_config:
                 if im in meta_key:
                     im_meta_config = meta_config[meta_key][tect_type.name]
 
@@ -325,7 +329,7 @@ def create_emp_rel_csv(
     result_df.insert(0, "component", component)
     result_df.insert(0, "station", rupture_df.index.values)
 
-    Path.mkdir(output_flt_dir, exist_ok=True, parents=True)
+    output_flt_dir.mkdir(exist_ok=True, parents=True)
     result_df.to_csv(output_flt_dir / f"{rel_name}.csv", index=False)
 
 

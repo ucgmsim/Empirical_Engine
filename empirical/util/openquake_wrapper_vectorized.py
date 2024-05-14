@@ -1,15 +1,16 @@
 """Wrapper for openquake vectorized models."""
 
 import logging
-from typing import Sequence, Union, Dict
 from functools import partial
+from typing import Sequence, Union, Dict
 
 import numpy as np
 import pandas as pd
-from scipy import interpolate
 from openquake.hazardlib import const, imt, gsim, contexts
-from empirical.util.classdef import TectType, GMM
+from scipy import interpolate
+
 from empirical.util import estimations
+from empirical.util.classdef import TectType, GMM
 
 
 def OQ_model(model, **kwargs):
@@ -247,7 +248,7 @@ def oq_prerun_exception_handle(
     Returns
     -------
     model: gsim.base.GMPE
-
+        OQ_MODEL for a given model_type and tect_type
     rupture_df: pd.DataFrame
         updated rupture_df
     im: str
