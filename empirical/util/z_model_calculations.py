@@ -1,6 +1,7 @@
 from typing import Union
 
 import numpy as np
+import pandas as pd
 from scipy.special import erf
 
 from empirical.util.classdef import GMM
@@ -115,9 +116,7 @@ def mod_chiou_young_14_calc_z1p0(vs30: Union[float, np.ndarray], region: str = N
             -5.23 / 2 * np.log((vs30**2 + 412.39**2) / (1360**4 + 412.39**4))
         )  # In meters
     else:
-        z1p0 = (
-            -7.15 / 4 * np.log((vs30**4 + 610**4) / (1360**4 + 610**4))
-        )  # In meters
+        z1p0 = -7.15 / 4 * np.log((vs30**4 + 610**4) / (1360**4 + 610**4))  # In meters
     return np.exp(z1p0) / 1000  # In km
 
 
@@ -145,13 +144,13 @@ def campbell_bozorgina_14_calc_z2p5(vs30: Union[float, np.ndarray], region: str 
     return z2p5  # In km
 
 
-def chiou_young_08_calc_z1p0(vs30: Union[float, np.ndarray]):
+def chiou_young_08_calc_z1p0(vs30: Union[float, np.ndarray, pd.DataFrame]):
     """
     Calculates the z2p5 value for the Chiou and Youngs (2008) model
 
     Parameters
     ----------
-    vs30 : Union[float, np.ndarray]
+    vs30 : Union[float, np.ndarray, pd.DataFrame]
         The Vs30 value or values, in meters per second
 
     Returns
@@ -159,8 +158,33 @@ def chiou_young_08_calc_z1p0(vs30: Union[float, np.ndarray]):
     Union[float, np.ndarray]
         The z1p0 value or values, in km
     """
-    z1p0 = np.exp(28.5 - 3.82 / 8 * np.log(vs30**8 + 378.7**8))
-    return z1p0  # In km
+    z1p0 = np.exp(28.5 - 3.82 / 8 * np.log(vs30**8 + 378.7**8)) / 1000  # In km
+    return z1p0
+
+
+def chiou_young_08_calc_z2p5(
+    z1p0: Union[float, np.ndarray, pd.DataFrame] = None,
+    z1p5: Union[float, np.ndarray, pd.DataFrame] = None,
+):
+    """
+    Calculates the z2p5 value using z1p0 or z1p5 for the Chiou and Youngs (2008) model
+
+    Parameters
+    ----------
+    z1p0: Z1.0 values in Union[float, np.ndarray, pd.DataFrame]
+    z1p5: Z1.5 values in Union[float, np.ndarray, pd.DataFrame]
+
+    Returns
+    -------
+    z2p5: Z2.5 values in the same format as z1p0 or z1p5 in km
+
+    """
+    if z1p5 is not None:
+        return 0.636 + 1.549 * z1p5
+    elif z1p0 is not None:
+        return 0.519 + 3.595 * z1p0
+    else:
+        raise ValueError("no z2p5 able to be estimated")
 
 
 def abrahamson_gulerce_20_calc_z2p5(vs30: Union[float, np.ndarray], region: str):

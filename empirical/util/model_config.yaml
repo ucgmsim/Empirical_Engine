@@ -30,33 +30,34 @@ ACTIVE_SHALLOW:
   PGV:
     rotd50:
       - META
-    ver:
-      - BC_16 # S_16
+    geom:
+      - CY_14
   PGA:
     rotd50:
       - META
-    ver:
-      - BC_16 # S16
-      - S_16
+    geom:
+      - Br_10
   pSA:
     rotd50:
       - META
-    rotd100_50:
-      - SB_13
-    ver:
-      - BC_16 # S16 or G_17
-      - S_16
-      - G_17
+    geom:
+      - Br_10
   CAV:
+    rotd50:
+      - CB_10
     geom:
       - CB_10
   AI:
     geom:
       - CB_12
   Ds575:
+    rotd50:
+      - AS_16
     geom:
       - AS_16
   Ds595:
+    rotd50:
+      - AS_16
     geom:
       - AS_16
   Ds2080:
@@ -65,6 +66,7 @@ ACTIVE_SHALLOW:
   IESDR:
     geom:
       - BB_13
+
 VOLCANIC:
   PGV:
     geom:

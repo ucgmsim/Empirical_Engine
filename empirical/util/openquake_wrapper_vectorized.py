@@ -1,12 +1,13 @@
 """Wrapper for openquake vectorized models."""
+
 import logging
-from typing import Sequence, Union, Dict
 from functools import partial
+from typing import Sequence, Union, Dict
 
 import numpy as np
 import pandas as pd
-from scipy import interpolate
 from openquake.hazardlib import const, imt, gsim, contexts
+from scipy import interpolate
 
 from empirical.util import estimations
 from empirical.util.classdef import TectType, GMM
@@ -63,11 +64,11 @@ OQ_MODELS = {
             region="NZL",
         ),
     },
-    GMM.S_22: {TectType.ACTIVE_SHALLOW: gsim.stafford_2022.Stafford2022},
+    GMM.S_22: {TectType.ACTIVE_SHALLOW: gsim.nz22.stafford_2022.Stafford2022},
     GMM.A_22: {
-        TectType.ACTIVE_SHALLOW: gsim.atkinson_2022.Atkinson2022Crust,
-        TectType.SUBDUCTION_SLAB: gsim.atkinson_2022.Atkinson2022SSlab,
-        TectType.SUBDUCTION_INTERFACE: gsim.atkinson_2022.Atkinson2022SInter,
+        TectType.ACTIVE_SHALLOW: gsim.nz22.atkinson_2022.Atkinson2022Crust,
+        TectType.SUBDUCTION_SLAB: gsim.nz22.atkinson_2022.Atkinson2022SSlab,
+        TectType.SUBDUCTION_INTERFACE: gsim.nz22.atkinson_2022.Atkinson2022SInter,
     },
     GMM.ASK_14: {TectType.ACTIVE_SHALLOW: gsim.abrahamson_2014.AbrahamsonEtAl2014},
     GMM.CY_14: {TectType.ACTIVE_SHALLOW: gsim.chiou_youngs_2014.ChiouYoungs2014},
@@ -93,8 +94,8 @@ OQ_MODELS = {
         TectType.SUBDUCTION_INTERFACE: gsim.kuehn_2020.KuehnEtAl2020SInter,
     },
     GMM.P_21: {
-        TectType.SUBDUCTION_SLAB: gsim.parker_2021.ParkerEtAl2021SSlab,
-        TectType.SUBDUCTION_INTERFACE: gsim.parker_2021.ParkerEtAl2021SInter,
+        TectType.SUBDUCTION_SLAB: gsim.nz22.nz_nshm2022_parker.NZNSHM2022_ParkerEtAl2020SInterB,
+        TectType.SUBDUCTION_INTERFACE: gsim.nz22.nz_nshm2022_parker.NZNSHM2022_ParkerEtAl2020SInterB,
     },
     GMM.GA_11: {
         TectType.ACTIVE_SHALLOW: gsim.gulerce_abrahamson_2011.GulerceAbrahamson2011
@@ -220,6 +221,169 @@ def interpolate_with_pga(
     )
 
 
+def oq_prerun_exception_handle(
+    model_type: GMM,
+    tect_type: TectType,
+    rupture_df: pd.DataFrame,
+    im: str,
+    **kwargs,
+):
+    """
+    Handle exceptions for the given model and rupture_df, and returns an updated set of
+    (model, rupture_df, im)
+
+    Parameters
+    ----------
+    model_type: GMM
+        OQ model
+    tect_type: TectType
+        One of the tectonic types from ACTIVE_SHALLOW, SUBDUCTION_SLAB and SUBDUCTION_INTERFACE
+    rupture_df: pd.DataFrame
+        Columns for properties. E.g., vs30, z1pt0, rrup, rjb, mag, rake, dip....
+    im: str
+        intensity measure
+    kwargs: pass extra (model specific) parameters to models
+
+
+    Returns
+    -------
+    model: gsim.base.GMPE
+        OQ_MODEL for a given model_type and tect_type
+    rupture_df: pd.DataFrame
+        updated rupture_df
+    im: str
+        intensity measure (updated if necessary)
+    """
+
+    model = OQ_MODELS[model_type][tect_type](**kwargs)
+
+    # Check the given tect_type with its model's tect type
+    trt = model.DEFINED_FOR_TECTONIC_REGION_TYPE
+    if trt == const.TRT.SUBDUCTION_INTERFACE:
+        assert (
+            tect_type == TectType.SUBDUCTION_INTERFACE
+        ), "Tect Type must be SUBDUCTION_INTERFACE"
+    elif trt == const.TRT.SUBDUCTION_INTRASLAB:
+        assert (
+            tect_type == TectType.SUBDUCTION_SLAB
+        ), "Tect Type must be SUBDUCTION_SLAB"
+    elif trt == const.TRT.ACTIVE_SHALLOW_CRUST:
+        assert tect_type == TectType.ACTIVE_SHALLOW, "Tect Type must be ACTIVE_SHALLOW"
+    else:
+        raise ValueError("unknown tectonic region: " + trt)
+
+    # Make a copy in case the original rupture_df used with other functions
+    rupture_df = rupture_df.copy()
+
+    def _handle_missing_property(
+        model_type_name: str,
+        col_missing: str,
+        value: any = None,
+        col_to_rename: str = None,
+    ):
+        """
+        If the specific model requires any additional columns that are not in the rupture_df
+        we can manually assign a value, work out from the existing columns or raise an error
+
+        Parameters
+        ----------
+        model_type_name: str
+            model type name
+        col_missing : str
+            column name that is missing in the rupture_df
+        value: any
+            value to assign to the missing column
+        col_to_rename: str
+            column name to rename to col_missing
+
+        """
+        if model_type.name == model_type_name:
+            if col_missing not in rupture_df:
+                if col_to_rename is not None:
+                    rupture_df.rename(
+                        {col_to_rename: col_missing}, axis="columns", inplace=True
+                    )
+                else:
+                    rupture_df[col_missing] = value
+
+    # The following are the exceptions that we know how to handle
+    # You may wish to add more exceptions here
+
+    _handle_missing_property("ASK_14", "vs30measured", value=False)
+
+    _handle_missing_property(
+        "ASK_14",
+        "width",
+        value=estimations.estimate_width_ASK14(rupture_df["dip"], rupture_df["mag"]),
+    )
+    _handle_missing_property("ASK_14", "ry0", col_to_rename="ry")
+
+    _handle_missing_property("BCH_16", "xvf", value=0)
+
+    # abrahamson_2015 uses dists = rrup for SUBDUCTION_INTERFACE
+    # or dists = rhypo for SUBDUCTION_SLAB. Hence, I believe we can use rrup
+    # Also, internal bc_hydro_2016 script uses rrup
+    _handle_missing_property("BCH_16", "rhypo", col_to_rename="rrup")
+
+    _handle_missing_property("Br_10", "vs30measured", value=False)
+
+    # Model specified estimation that cannot be done within OQ as paper does not specify
+    # CB_14's width will always be estimated. Hence, by passing np.nan first then,
+    # we know the updated width values are from the estimation
+    _handle_missing_property("CB_14", "width", value=np.nan)
+
+    _handle_missing_property("CY_14", "vs30measured", value=False)
+
+    _handle_missing_property(
+        "GA_11",
+        "width",
+        value=estimations.estimate_width_ASK14(rupture_df["dip"], rupture_df["mag"]),
+    )
+
+    _handle_missing_property("GA_11", "ry0", col_to_rename="ry")
+
+    # Rename to OQ's term
+    if im in ("Ds575", "Ds595"):
+        im = im.replace("Ds", "RSD")
+
+    # Check if df contains what model requires
+    rupture_ctx_properties = set(rupture_df.columns.values)
+
+    def _confirm_all_properties_exist(
+        type: str, params_required: set, params_present: set
+    ):
+        """
+        Check if all required columns are present. If not, raise an error.
+
+        Parameters
+        ----------
+        type: str
+            site, rupture or distance
+        params_required: set
+            set of required columns
+        params_present: set
+            set of columns present in the dataframe
+        """
+        extra_params = set(params_required - params_present)
+        if len(extra_params) > 0:
+            raise ValueError(
+                f"Unknown {type} property: {extra_params} required by {model_type.name} {im}"
+                f"\nPlease review {__file__} to handle missing properties."
+            )
+
+    _confirm_all_properties_exist(
+        "site", model.REQUIRES_SITES_PARAMETERS, rupture_ctx_properties
+    )
+    _confirm_all_properties_exist(
+        "rupture", model.REQUIRES_RUPTURE_PARAMETERS, rupture_ctx_properties
+    )
+    _confirm_all_properties_exist(
+        "distance", model.REQUIRES_DISTANCES, rupture_ctx_properties
+    )
+
+    return model, rupture_df, im
+
+
 def oq_run(
     model_type: GMM,
     tect_type: TectType,
@@ -258,83 +422,17 @@ def oq_run(
 
         # Compute the weighted average
         return np.sum(meta_results * pd.Series(meta_config.values()))
-    model = OQ_MODELS[model_type][tect_type](**kwargs)
 
-    # Check the given tect_type with its model's tect type
-    trt = model.DEFINED_FOR_TECTONIC_REGION_TYPE
-    if trt == const.TRT.SUBDUCTION_INTERFACE:
-        assert (
-            tect_type == TectType.SUBDUCTION_INTERFACE
-        ), "Tect Type must be SUBDUCTION_INTERFACE"
-    elif trt == const.TRT.SUBDUCTION_INTRASLAB:
-        assert (
-            tect_type == TectType.SUBDUCTION_SLAB
-        ), "Tect Type must be SUBDUCTION_SLAB"
-    elif trt == const.TRT.ACTIVE_SHALLOW_CRUST:
-        assert tect_type == TectType.ACTIVE_SHALLOW, "Tect Type must be ACTIVE_SHALLOW"
-    else:
-        raise ValueError("unknown tectonic region: " + trt)
+    model, rupture_df, im = oq_prerun_exception_handle(
+        model_type, tect_type, rupture_df, im, **kwargs
+    )
 
     stddev_types = [
         std for std in SPT_STD_DEVS if std in model.DEFINED_FOR_STANDARD_DEVIATION_TYPES
     ]
 
-    # Make a copy in case the original rupture_df used with other functions
-    rupture_df = rupture_df.copy()
-
-    # Model specified estimation that cannot be done within OQ as paper does not specify
-    # CB_14's width will always be estimated. Hence, by passing np.nan first then,
-    # we know the updated width values are from the estimation
-    if model_type.name == "CB_14" and "width" not in rupture_df:
-        rupture_df["width"] = np.nan
-
-    elif model_type.name == "ASK_14" or model_type.name == "GA_11":
-        if "width" not in rupture_df:
-            rupture_df["width"] = estimations.estimate_width_ASK14(
-                rupture_df["dip"], rupture_df["mag"]
-            )
-        if "ry0" not in rupture_df:
-            rupture_df.rename({"ry": "ry0"}, axis="columns", inplace=True)
-
-    elif model_type.name == "BCH_16":
-        # Equivalent to classdef.Site's backarc and the default value we set is False
-        # Within OQ, they use either 0 or 1
-        if "xvf" not in rupture_df:
-            rupture_df["xvf"] = 0
-        # abrahamson_2015 uses dists = rrup for SUBDUCTION_INTERFACE
-        # or dists = rhypo for SUBDUCTION_SLAB. Hence, I believe we can use rrup
-        # Also, internal bc_hydro_2016 script uses rrup
-        if "rhypo" not in rupture_df:
-            rupture_df["rhypo"] = rupture_df["rrup"]
-
-    # Rename to OQ's term
-    if im in ("Ds575", "Ds595"):
-        im = im.replace("Ds", "RSD")
-
-    # Check if df contains what model requires
-    rupture_ctx_properties = set(rupture_df.columns.values)
-    extra_site_parameters = set(model.REQUIRES_SITES_PARAMETERS).difference(
-        rupture_ctx_properties
-    )
-    if len(extra_site_parameters) > 0:
-        raise ValueError("unknown site property: " + extra_site_parameters)
-
-    extra_rup_properties = set(model.REQUIRES_RUPTURE_PARAMETERS).difference(
-        rupture_ctx_properties
-    )
-    if len(extra_rup_properties) > 0:
-        raise ValueError("unknown rupture property: " + " ".join(extra_rup_properties))
-
-    extra_dist_properties = set(model.REQUIRES_DISTANCES).difference(
-        rupture_ctx_properties
-    )
-    if len(extra_dist_properties) > 0:
-        raise ValueError(
-            "unknown distance property: " + " ".join(extra_dist_properties)
-        )
-
     # Convert z1pt0 from km to m
-    rupture_df["z1pt0"] *= 1000
+    rupture_df["z1pt0"] *= 1000  # this is ok as we are not editing the original df
     # OQ's single new-style context which contains all site, distance and rupture's information
     rupture_ctx = contexts.RuptureContext(
         tuple(
@@ -394,7 +492,10 @@ def oq_run(
                     # Period is smaller than model's supported min_period E.g., ZA_06
                     # Interpolate between PGA(0.0) and model's min_period
                     low_result = oq_mean_stddevs(
-                        model, rupture_ctx, imt.PGA(), stddev_types
+                        model,
+                        rupture_ctx,
+                        imt.PGA(),
+                        stddev_types,
                     )
                     high_period = avail_periods[period <= avail_periods][0]
                     high_result = oq_mean_stddevs(
