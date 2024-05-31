@@ -2,6 +2,8 @@ from pathlib import Path
 from typing import List, Dict
 import argparse
 import json
+import os
+import matplotlib.pyplot as plt
 
 import pandas as pd
 import numpy as np
@@ -12,8 +14,17 @@ from empirical.util.classdef import TectType, GMM
 from empirical.util import openquake_wrapper_vectorized
 from mera.mera_pymer4 import run_mera
 
+#change plotting settings
+plt.style.use('classic')
+plt.rcParams["font.family"] = "Times New Roman"
+
 #define an ID for the prediction and residual calc
-analID = 'v1_wCPLB_wAdj_SiteAndModelSpecific'
+# analID = 'v1_wCPLB'
+# analID = 'v1_wCPLB_updatedVs30'
+analID = 'v1_wCPLB_updatedVs30_numGMfilt'
+# analID = 'test'
+# analID = 'v1_wCPLB_POTS_760mps'
+# analID = 'v1_replicateRobins'
 
 # define a flag for using site specific z1 and z2.5 (flag =1) or using Vs30 correlations (flag = 0)
 useSiteSpecific_Zvals = 0
@@ -29,6 +40,35 @@ sites2runID = 'All'
 # sites2runID = 'Wellington_All'
 # sites2runID = 'Wellington_Basin'
 
+# choose any IMs to exclude
+# ims_exclude = ['pSA_10.0']
+ims_exclude = [None]
+
+'''
+Choose the details of the adjustment factor input file provided (args.period_specific_ffp)
+Option 1: Each site and GMM get a different adjustment factor (deltaS2S_s^m for that GMM and site)
+Option 2: Each site get the average adjustment across all GMMs (\overline{deltaS2S_s})
+Option 3: Each site within a region gets the same adjustment for all GMMs (\overline{deltaS2S_Reg})
+Option 4: Each site within a region get the normalised period adjustment factor scaled to Tsite of each site
+'''
+adjFact_Option = None
+# adjFact_Option = 1
+# adjFact_Option = 2
+# adjFact_Option = 3
+# adjFact_Option = 4
+
+# create an ID for adj factor option to add to the runID
+if adjFact_Option == 1:
+    adjID = 'wAdj_SiteAndModelSpecific'
+elif adjFact_Option == 2:
+    adjID = 'wAdj_SiteSpecific'
+elif adjFact_Option == 3:
+    adjID = 'wAdj_RegionSpecific'
+elif adjFact_Option == 4:
+    adjID = 'wAdj_RegionSpecific_TsiteScaled'
+else:
+    adjID = ''
+
 #load a dataframe with geomorphology categories for Wellington (used to filter sites)
 geomorphFilePath = r'C:\Users\cde84\Dropbox (Personal)\PostDocWork\NSHM_WellingtonBasin\residualAnalysis\geomorphology\WellingtonGeomorphology_fromAyushi_Final_ForResidualsPaper_v2.csv'
 df_geom = pd.read_csv(geomorphFilePath)
@@ -36,18 +76,30 @@ df_geom = pd.read_csv(geomorphFilePath)
 if sites2runID == 'Wellington_All':
     site2runList = df_geom['stat_id'].values
 
-    # create a run ID from analID and zID and sites2runID
-    runID = '%s_%s_%s' % (analID, zID, sites2runID)
+    if not adjFact_Option is None:
+        # create a run ID from analID and zID and sites2runID
+        runID = '%s_%s_%s_%s' % (analID, adjID, zID, sites2runID)
+    else:
+        # create a run ID from analID and zID and sites2runID
+        runID = '%s_%s_%s' % (analID, zID, sites2runID)
+
 
 elif sites2runID == 'Wellington_Basin':
     site2runList = df_geom['stat_id'][df_geom['Updated Geomorphology'].isin(['Basin', 'Basin-edge', 'Valley'])].values
 
-    # create a run ID from analID and zID and sites2runID
-    runID = '%s_%s_%s' % (analID, zID, sites2runID)
+    if not adjFact_Option is None:
+        # create a run ID from analID and zID and sites2runID
+        runID = '%s_%s_%s_%s' % (analID, adjID, zID, sites2runID)
+    else:
+        # create a run ID from analID and zID and sites2runID
+        runID = '%s_%s_%s' % (analID, zID, sites2runID)
 
 else:
-    #create a run ID from analID and zID
-    runID = '%s_%s' %(analID, zID)
+    if not adjFact_Option is None:
+        #create a run ID from analID and zID
+        runID = '%s_%s_%s' %(analID, adjID, zID)
+    else:
+        runID = '%s_%s' % (analID, zID)
 
 # create a list of default IMs to calculate
 DEFAULT_IMS = ["PGA", "pSA"]
@@ -66,6 +118,10 @@ DEFAULT_MODELS = [
     "P_21",
     "K_20",
 ]
+
+# DEFAULT_MODELS = [
+#     "AG_20",
+# ]
 
 
 TECT_CLASS_MAP = {
@@ -251,7 +307,61 @@ def generate_period_mask(gm_df: pd.DataFrame):
 
     # Compare the expanded t_max values to the period values to get the final mask
     mask = period_values > t_max_expanded
-    return mask
+    return mask, psa_str_cols
+
+
+def period_mask_for_min_records(df: pd.DataFrame, column_name: str, threshold=3):
+    """
+    Set the 'psa' values in the DataFrame based on the number of False values in each group.
+
+    Parameters:
+        df (pd.DataFrame): The DataFrame mask to update
+        column_name (str): The column to group by
+        threshold (int): The threshold for the number of False values to set the column to True
+    """
+
+    # Create a dataframe with the period values for each column that's pSA in gm_df
+    # psa_str_cols = [col for col in df.columns if "pSA" in col]
+    IM_str_cols = [col for col in df.columns if "pSA" in col or "PGA" in col]
+
+    if column_name == 'sta':
+
+        # first group by tectonic type:
+        tecType_grouped = df.groupby('tect_class')
+        for tec_name, tec_group in tecType_grouped:
+
+            # Group the DataFrame by the station (column_name == 'sta')
+            grouped = tec_group.groupby(column_name)
+
+            # Iterate over each group
+            for sta_name, group in grouped:
+                # print(sta_name)
+                # Iterate over each 'psa' column
+                for IM_column in IM_str_cols:
+                    # Count the number of False values in the column
+                    false_count = group[IM_column].value_counts().get(False, 0)
+
+                    # If there are less than the threshold False values, set the column to True
+                    if false_count < threshold:
+                        df.loc[np.logical_and(df[column_name] == sta_name, df["tect_class"] == tec_name), IM_column] = True
+
+    else:
+        # Group the DataFrame by the column
+        grouped = df.groupby(column_name)
+
+        # Iterate over each group
+        for name, group in grouped:
+            # Iterate over each 'psa' column
+            for IM_column in IM_str_cols:
+                # Count the number of False values in the column
+                false_count = group[IM_column].value_counts().get(False, 0)
+
+                # If there are less than the threshold False values, set the column to True
+                if false_count < threshold:
+                    df.loc[df[column_name] == name, IM_column] = True
+
+    return df
+
 
 '''
 #define a function for f0 (corner frequency: fmin in linear units) from Mw (Equation in Table 3 Boore 2003)
@@ -395,27 +505,82 @@ def calc_empirical(
 
     #change z1 and z2.5 values to the Vs30 correlations if not using site specific basin terms
     if not useSiteSpecific_Zvals:
-        rupture_df["z1pt0"] = z1_california(rupture_df["vs30"].values[0])
-        rupture_df["z2pt5"] = z2pt5_california(rupture_df["vs30"].values[0])
+        rupture_df["z1pt0"] = z1_california(rupture_df["vs30"].values.astype(float))
+        rupture_df["z2pt5"] = z2pt5_california(rupture_df["vs30"].values.astype(float))
     else:
         # divide the database values of z1 and z2.5 by 1000 to get into kms
-        rupture_df["z1pt0"] = rupture_df["z1pt0"].values[0] / 1000.0
-        #rupture_df["z2pt5"] = rupture_df["z2pt5"].values[0] / 1000.0
+        rupture_df["z1pt0"] = rupture_df["z1pt0"].values / 1000.0
+        #rupture_df["z2pt5"] = rupture_df["z2pt5"].values / 1000.0
 
     # Calculate the fmin mask
-    period_mask = generate_period_mask(gm_df)
+    period_mask, psa_str_cols = generate_period_mask(gm_df)
+
+    # Filter min sites and events per period
+    # Add the site and event columns to the mask
+    period_mask['sta'] = gm_df['sta']
+    period_mask['evid'] = gm_df['evid']
+    period_mask['tect_class'] = gm_df['tect_class']
+    period_mask["PGA"] = False
+    # Run the function to update the 'psa' columns based on the site column
+    iterating = True
+    counter = 0
+    while iterating:
+        period_mask = period_mask_for_min_records(period_mask, 'sta')
+        period_mask_event = period_mask_for_min_records(period_mask.copy(), 'evid')
+        if np.all(period_mask == period_mask_event):
+            iterating = False
+        counter += 1
+        print(f"Iteration Loops: {counter}")
+        period_mask = period_mask_event.copy()
+    period_mask = period_mask.drop(columns=['sta', 'evid', 'tect_class'])
+
+    # period_mask.to_csv()
 
     # Filter the gm_df by the period mask
     gm_df[period_mask.columns] = gm_df[period_mask.columns].mask(period_mask)
 
+    # save file with gmids retained after filtering
+    save_dir = os.path.join(output_dir, runID)
+    os.makedirs(save_dir, exist_ok=True)
+
+    with open(os.path.join(save_dir, 'gmid_PGA_afterFilt.txt'), 'w') as tfile:
+        tfile.write('\n'.join(gm_df['gmid'][period_mask['PGA'] == False].values.tolist()))
+
+    # plot the number of gms
+    fig, ax = plt.subplots(nrows=1, ncols=1)
+    for column in period_mask.columns:
+        if 'pSA' in column:
+            num_gm = period_mask[column].value_counts().get(False, 0)
+            period = float(column[4:].replace("p", "."))
+
+            ax.semilogx(period, num_gm, marker='o', color='k')
+            ax.set_ylabel('Number of ground motions', fontsize=14)
+            ax.set_xlabel('Vibration Period (s)', fontsize=14)
+            ax.set_xlim(0.01, 10)
+            ax.set_ylim(0, 18000)
+
+
+    fig.savefig(os.path.join(save_dir, 'Fig_numGM_afterFiltering_vs_period.pdf'))
+
+
+
     # Grab the period specific data for non-ergodic adjustment factor
     if period_specific_ffp is not None:
         period_specific_df = pd.read_csv(period_specific_ffp, delimiter=" ")
-        period_specific_df["TectonicType"] = [
-            TECT_CLASS_MAP[t] for t in period_specific_df["TectonicType"]
-        ]
-        # only retain adj fact for basin, basin-edge and valley sites
-        period_specific_df = period_specific_df[period_specific_df['GeoMorph'].isin(['Basin', 'Basin-edge', 'Valley'])]
+        if adjFact_Option == 1:
+            period_specific_df["TectonicType"] = [
+                TECT_CLASS_MAP[t] for t in period_specific_df["TectonicType"]
+            ]
+        if adjFact_Option != 3:
+            # only retain adj fact for basin, basin-edge and valley sites (Options 1, 2, and 4)
+            period_specific_df = period_specific_df[period_specific_df['GeoMorph'].isin(['Basin', 'Basin-edge', 'Valley'])]
+
+        else:
+            # only retain adj fact for basin and valley regions
+            period_specific_df = period_specific_df[
+                period_specific_df['Region'].isin(['TeAro', 'Thorndon', 'LowerHutt', 'UpperHutt', 'MiramarandKarori', 'Wainuiomata', 'Porirua'])]
+
+
     else:
         period_specific_df = None
 
@@ -437,22 +602,37 @@ def calc_empirical(
             for im in ims:
                 ps_tect_df = None
                 if im == "pSA" and period_specific_df is not None:
-                    # Filter down by model and tect type
-                    ps_model_df = period_specific_df.loc[
-                        period_specific_df["gmmID"] == str_model
-                    ]
-                    ps_tect_df = ps_model_df.loc[
-                        ps_model_df["TectonicType"] == tect_type
-                    ]
 
-                    # Renaming
-                    ps_tect_df = ps_tect_df.rename({"stat_id": "sta"}, axis="columns")
+                    #create the adj factor df based on Options 1, 2, or 3
+                    if adjFact_Option == 1:
+                        # Filter down by model and tect type
+                        ps_model_df = period_specific_df.loc[
+                            period_specific_df["gmmID"] == str_model
+                        ]
+                        ps_tect_df = ps_model_df.loc[
+                            ps_model_df["TectonicType"] == tect_type
+                        ]
+                    elif adjFact_Option == 2 or adjFact_Option == 3 or adjFact_Option == 4:
+                        ps_tect_df = period_specific_df.loc[
+                            period_specific_df["TectonicType"] == 'All'
+                            ]
+
+                    # Renaming columns
+                    if adjFact_Option != 3:
+                        ps_tect_df = ps_tect_df.rename({"stat_id": "sta"}, axis="columns")
+
                     new_column_names = {
                         col: f"adj_{col.replace('.', 'p')}"
                         for col in ps_tect_df.columns
                         if "pSA" in col
                     }
+
                     ps_tect_df = ps_tect_df.rename(columns=new_column_names)
+
+                    if adjFact_Option == 3:
+                        df_geom["Region"] = df_geom["Region"].str.replace(" ", "")
+                        df_geom_ps = df_geom.merge(ps_tect_df[["Region", *new_column_names.values()]], on="Region", how="left")
+                        ps_tect_df = df_geom_ps.rename({"stat_id": "sta"}, axis="columns")
 
                     # Fill in missing stations with zeros for adjustment factors
                     ps_tect_df = (
@@ -464,6 +644,7 @@ def calc_empirical(
                         )
                         .fillna(0)
                     )
+
 
                 im_df = openquake_wrapper_vectorized.oq_run(
                     model,
@@ -537,6 +718,9 @@ def calc_residuals(
             for cur_im in np.intersect1d(model_df.columns, gm_df.columns)
             if any(im in cur_im for im in ims)
         ]
+
+        # exclude desired ims
+        im_columns = [im for im in im_columns if im not in ims_exclude]
 
         # Compute the residual
         res_df = np.log(gm_df.loc[model_df.index, im_columns] / model_df[im_columns])
