@@ -2,15 +2,15 @@
 
 import logging
 from functools import partial
-from typing import Sequence, Union, Dict
+from typing import Dict, Sequence, Union
 
 import numpy as np
 import pandas as pd
-from openquake.hazardlib import const, imt, gsim, contexts
+from openquake.hazardlib import const, contexts, gsim, imt
 from scipy import interpolate
 
 from empirical.util import estimations
-from empirical.util.classdef import TectType, GMM
+from empirical.util.classdef import GMM, TectType
 
 
 def OQ_model(model, **kwargs):
@@ -311,11 +311,14 @@ def oq_prerun_exception_handle(
 
     _handle_missing_property("ASK_14", "vs30measured", value=False)
 
-    _handle_missing_property(
-        "ASK_14",
-        "width",
-        value=estimations.estimate_width_ASK14(rupture_df["dip"], rupture_df["mag"]),
-    )
+    if "dip" in rupture_df and "mag" in rupture_df:
+        _handle_missing_property(
+            "ASK_14",
+            "width",
+            value=estimations.estimate_width_ASK14(
+                rupture_df["dip"], rupture_df["mag"]
+            ),
+        )
     _handle_missing_property("ASK_14", "ry0", col_to_rename="ry")
 
     _handle_missing_property("BCH_16", "xvf", value=0)
@@ -333,12 +336,14 @@ def oq_prerun_exception_handle(
     _handle_missing_property("CB_14", "width", value=np.nan)
 
     _handle_missing_property("CY_14", "vs30measured", value=False)
-
-    _handle_missing_property(
-        "GA_11",
-        "width",
-        value=estimations.estimate_width_ASK14(rupture_df["dip"], rupture_df["mag"]),
-    )
+    if "dip" in rupture_df and "mag" in rupture_df:
+        _handle_missing_property(
+            "GA_11",
+            "width",
+            value=estimations.estimate_width_ASK14(
+                rupture_df["dip"], rupture_df["mag"]
+            ),
+        )
 
     _handle_missing_property("GA_11", "ry0", col_to_rename="ry")
 
