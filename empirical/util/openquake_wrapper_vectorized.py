@@ -303,7 +303,7 @@ def oq_prerun_exception_handle(
                 rupture_df.rename(
                     {col_to_rename: col_missing}, axis="columns", inplace=True
                 )
-            else:
+            elif col_missing not in rupture_df:
                 rupture_df[col_missing] = value_factory()
 
     # The following are the exceptions that we know how to handle
