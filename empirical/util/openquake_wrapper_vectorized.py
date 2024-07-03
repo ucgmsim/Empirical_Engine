@@ -2,7 +2,7 @@
 
 import logging
 from functools import partial
-from typing import Dict, Sequence, Union
+from typing import Callable, Dict, Sequence, Union
 
 import numpy as np
 import pandas as pd
@@ -278,7 +278,7 @@ def oq_prerun_exception_handle(
     def _handle_missing_property(
         model_type_name: str,
         col_missing: str,
-        value: any = None,
+        value_factory: Callable = lambda: None,
         col_to_rename: str = None,
     ):
         """
@@ -291,59 +291,57 @@ def oq_prerun_exception_handle(
             model type name
         col_missing : str
             column name that is missing in the rupture_df
-        value: any
-            value to assign to the missing column
+        value_factory: Callable
+            default value generator if the column is missing but no
+            column is specified to rename from.
         col_to_rename: str
             column name to rename to col_missing
 
         """
         if model_type.name == model_type_name:
-            if col_missing not in rupture_df:
-                if col_to_rename is not None:
-                    rupture_df.rename(
-                        {col_to_rename: col_missing}, axis="columns", inplace=True
-                    )
-                else:
-                    rupture_df[col_missing] = value
+            if col_missing not in rupture_df and col_to_rename is not None:
+                rupture_df.rename(
+                    {col_to_rename: col_missing}, axis="columns", inplace=True
+                )
+            else:
+                rupture_df[col_missing] = value_factory()
 
     # The following are the exceptions that we know how to handle
     # You may wish to add more exceptions here
 
-    _handle_missing_property("ASK_14", "vs30measured", value=False)
+    _handle_missing_property("ASK_14", "vs30measured", value_factory=lambda: False)
 
-    if "dip" in rupture_df and "mag" in rupture_df:
-        _handle_missing_property(
-            "ASK_14",
-            "width",
-            value=estimations.estimate_width_ASK14(
-                rupture_df["dip"], rupture_df["mag"]
-            ),
-        )
+    _handle_missing_property(
+        "ASK_14",
+        "width",
+        value_factory=lambda: estimations.estimate_width_ASK14(
+            rupture_df["dip"], rupture_df["mag"]
+        ),
+    )
     _handle_missing_property("ASK_14", "ry0", col_to_rename="ry")
 
-    _handle_missing_property("BCH_16", "xvf", value=0)
+    _handle_missing_property("BCH_16", "xvf", value_factory=lambda: 0)
 
     # abrahamson_2015 uses dists = rrup for SUBDUCTION_INTERFACE
     # or dists = rhypo for SUBDUCTION_SLAB. Hence, I believe we can use rrup
     # Also, internal bc_hydro_2016 script uses rrup
     _handle_missing_property("BCH_16", "rhypo", col_to_rename="rrup")
 
-    _handle_missing_property("Br_10", "vs30measured", value=False)
+    _handle_missing_property("Br_10", "vs30measured", value_factory=lambda: False)
 
     # Model specified estimation that cannot be done within OQ as paper does not specify
     # CB_14's width will always be estimated. Hence, by passing np.nan first then,
     # we know the updated width values are from the estimation
-    _handle_missing_property("CB_14", "width", value=np.nan)
+    _handle_missing_property("CB_14", "width", value_factory=lambda: np.nan)
 
-    _handle_missing_property("CY_14", "vs30measured", value=False)
-    if "dip" in rupture_df and "mag" in rupture_df:
-        _handle_missing_property(
-            "GA_11",
-            "width",
-            value=estimations.estimate_width_ASK14(
-                rupture_df["dip"], rupture_df["mag"]
-            ),
-        )
+    _handle_missing_property("CY_14", "vs30measured", value_factory=lambda: False)
+    _handle_missing_property(
+        "GA_11",
+        "width",
+        value_factory=lambda: estimations.estimate_width_ASK14(
+            rupture_df["dip"], rupture_df["mag"]
+        ),
+    )
 
     _handle_missing_property("GA_11", "ry0", col_to_rename="ry")
 
@@ -446,7 +444,7 @@ def oq_run(
                 ("occurrence_rate", None),
                 # sids is the number of sites provided (OQ term)
                 # This term needs to be repeated for the number of rows in the df
-                ("sids", [1] * rupture_df.shape[0]),
+                ("sids", [1] * _df.shape[0]),
                 *(
                     (
                         column,
