@@ -444,7 +444,7 @@ def oq_run(
                 ("occurrence_rate", None),
                 # sids is the number of sites provided (OQ term)
                 # This term needs to be repeated for the number of rows in the df
-                ("sids", [1] * _df.shape[0]),
+                ("sids", [1] * rupture_df.shape[0]),
                 *(
                     (
                         column,
