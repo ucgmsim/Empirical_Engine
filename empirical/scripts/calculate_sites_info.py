@@ -20,7 +20,7 @@ def calculate_source_to_site_distance(
     rjb_max: float = RJB_MAX,
 ):
     """
-    Calculate source-site distances for stations in ll_ffp.
+    Calculate source-site distances for stations in ll_ffp and put them alongside vs30 and z values into a single CSV file.
     Can work either with SRF or NHM for a valid fault
 
     Parameters
@@ -52,12 +52,12 @@ def calculate_source_to_site_distance(
     del stations_df, vs30_df, z_df
 
     if srf_ffp is None:
-        # Even if srf_ffp is not supplied, if it is a valid fault, we can use NHM to get the fault data and proceed
+        # If srf_ffp is not supplied, but it is a valid fault, we can use NHM to get the fault data and proceed
         if nhm_ffp is not None:
             nhm_data = nhm.load_nhm(str(nhm_ffp))
             # Get fault data
             try:
-                # We are reconstructing missing srf_ffp from nhm.
+                # We are reconstructing the missing srf_ffp from nhm.
                 srf_ffp = nhm_data[event_name]
             except KeyError:
                 raise ValueError(f"Unknown fault {event_name}")
