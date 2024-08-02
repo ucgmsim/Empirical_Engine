@@ -45,7 +45,7 @@ def run_emp(
     event_name  : str
         Name of the event (or fault)
     sites_info_ffp  : Path
-        Path to the site csv file obtained from running calculate_sites_info.py
+        Path to the site csv file obtained from running collect_sites_info.py
     srfdata_ffp : Path
         srfdata file path for the fault data. Can be either realisation .csv or .info file
     nz_gmdb_source_ffp  : Path
@@ -114,7 +114,7 @@ def run_emp(
 
     tect_type = empirical.TECT_CLASS_MAPPING[fault_df.tect_class]
 
-    # Load sites_info CSV file produced by calculate_sites_info.py
+    # Load sites_info CSV file produced by collect_sites_info.py
     site_df = pd.read_csv(sites_info_ffp, index_col=0)
 
     # Each model (determined by model_config, tect_type, im, component) has different set of required columns
@@ -150,7 +150,7 @@ def load_args():
     parser = argparse.ArgumentParser(
         description="Script to calculate IMs for empirical models."
         "Produces one .csv for all specified sites."
-        "Run calculate_sites_info.py first to generate the CSV file for the 'sites_info_ffp' argument"
+        "Run collect_sites_info.py first to generate the CSV file for the 'sites_info_ffp' argument"
     )
 
     parser.add_argument(
@@ -217,7 +217,7 @@ def load_args():
     parser.add_argument("output", type=Path, help="output directory")
     parser.add_argument(
         "sites_info_ffp",
-        help="Path to the site csv file obtained from running calculate_sites_info.py. Contains [station, lon, lat, rrup, rjb,rx,ry, vs30, z1p0, z2p5].",
+        help="Path to the site csv file obtained from running collect_sites_info.py. Contains [station, lon, lat, rrup, rjb,rx,ry, vs30, z1p0, z2p5].",
         type=Path,
     )
 
