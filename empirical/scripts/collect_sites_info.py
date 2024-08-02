@@ -4,19 +4,19 @@ within a specified maximum distance.
 This script is a pre-requisite for calculate_empirical.py as the .csv file produced is a required input.
 """
 
-import argparse
 from pathlib import Path
 
 import pandas as pd
 import typer
+from typing_extensions import Annotated
 
 from empirical.util import empirical
 from qcore import nhm, formats
-from typing_extensions import Annotated
 
 RJB_MAX = 200
 
 app = typer.Typer()
+
 
 @app.command()
 def collect_sites_info_(
@@ -98,7 +98,7 @@ def collect_sites_info_(
             raise ValueError(f"Unknown fault {nhm_fault_name}")
         else:
             print(f"INFO: Found {nhm_fault_name} in NHM.")
-            event_name = nhm_fault_name # use this fault name as the event_name
+            event_name = nhm_fault_name  # use this fault name as the event_name
 
     out_dir.mkdir(exist_ok=True)
 
