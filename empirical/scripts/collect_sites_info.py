@@ -61,7 +61,7 @@ def collect_sites_info_(
     nhm_fault_name: Annotated[
         str,
         typer.Option(
-            help="NHM fault name to look up. Required if source-ffp is an NHM file"
+            help="Fault name to look up from NHM. Required if source-ffp is an NHM file"
         ),
     ] = "",
     rjb_max: Annotated[
@@ -76,10 +76,14 @@ def collect_sites_info_(
     """
     print(source_ffp.suffix)
     if source_ffp.suffix == ".srf":
-        event_name = source_ffp.stem  # can use srf name as the source_name
+        event_name = source_ffp.stem  # use srf name as the event_name
     else:
         # srf_ffp is not an SRF. May be an NHM file?
         print(f"INFO: {source_ffp} is not an SRF file")
+
+        assert (
+            len(nhm_fault_name) > 0
+        ), f"--nhm-fault-name must be specified if source-ffp is not SRF."
 
         try:
             nhm_data = nhm.load_nhm(str(source_ffp))
@@ -87,19 +91,14 @@ def collect_sites_info_(
             print(f"ERROR: {source_ffp} is not a valid NHM file.")
             return
 
-        assert (
-            len(nhm_fault_name) > 0
-        ), f"--nhm-fault-name must be specified if source-ffp is not SRF."
-        # Get fault data
-
         try:
-            # We are reconstructing the missing srf_ffp from nhm.
+            # See if nhm_data has info for this fault
             source_ffp = nhm_data[nhm_fault_name]
         except KeyError:
             raise ValueError(f"Unknown fault {nhm_fault_name}")
         else:
             print(f"INFO: Found {nhm_fault_name} in NHM.")
-            event_name = nhm_fault_name
+            event_name = nhm_fault_name # use this fault name as the event_name
 
     out_dir.mkdir(exist_ok=True)
 
