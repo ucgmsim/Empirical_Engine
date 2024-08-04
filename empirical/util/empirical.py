@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import List, Union
 
-import qcore.source_site_dist.src_site_dist as ssd
+import qcore.src_site_dist as ssd
 import h5py
 import numpy as np
 import pandas as pd
