@@ -48,8 +48,9 @@ def run_emp(
         Path to the site csv file obtained from running collect_sites_info.py
     srfdata_ffp : Path
         srfdata file path for the fault data. Can be either realisation .csv or .info file
+        If this is None, we could still proceed if nz_gmdb_source_ffp is provided and it is a known historical event
     nz_gmdb_source_ffp  : Path
-        nz_gmdb_source file path for the source data
+        nz_gmdb_source file path for the source data. Must be provided for historical events when srfdata_ffp is missing
     model_config_ffp    : Path
         model_config file path for the empirical model. prescribes the model to be used for tectonic class,
         IM and component
@@ -115,12 +116,11 @@ def run_emp(
     tect_type = empirical.TECT_CLASS_MAPPING[fault_df.tect_class]
 
     # Load sites_info CSV file produced by collect_sites_info.py
-    site_df = pd.read_csv(sites_info_ffp, index_col=0)
+    oq_rupture_df = pd.read_csv(sites_info_ffp, index_col=0)
 
     # Each model (determined by model_config, tect_type, im, component) has different set of required columns
     # Let's make oq_rupture_df from site_df, and fault_df, and hopefully(!) it has all required columns
 
-    oq_rupture_df = site_df
     oq_rupture_df.loc[
         :,
         empirical.OQ_RUPTURE_COLUMNS,  # rename columns to follow OQ_RUPTURE_COLUMNS

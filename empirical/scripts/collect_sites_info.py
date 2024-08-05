@@ -3,7 +3,6 @@ Script to produce a CSV file containing site info (vs30, z1.0, z2.5) and rupture
 within a specified maximum distance.
 This script is a pre-requisite for calculate_empirical.py as the .csv file produced is a required input.
 """
-
 from pathlib import Path
 
 import pandas as pd
@@ -24,29 +23,29 @@ def collect_sites_info_(
         Path,
         typer.Argument(
             help="Path to the SRF or NHM file. NHM file can be obtained from https://github.com/ucgmsim/Empirical_Engine/files/15256612/NZ_FLTmodel_2010_v18p6.txt",
-            file_okay=True,
             exists=True,
+            dir_okay=False,
             readable=True,
         ),
     ],
     ll_ffp: Annotated[
         Path,
-        typer.Argument(help="Path to the .ll file", file_okay=True, exists=True),
+        typer.Argument(help="Path to the .ll file", dir_okay=False, exists=True),
     ],
     vs30_ffp: Annotated[
         Path,
         typer.Argument(
             help="Path to the .vs30 file. The file should have columns: station, vs30, (sigma)",
-            file_okay=True,
             exists=True,
+            dir_okay=False,
         ),
     ],
     z_ffp: Annotated[
         Path,
         typer.Argument(
             help="Path to the .z file that contains Z1.0 and Z2.5. The file should have columns: station, z1p0, z2p5",
-            file_okay=True,
             exists=True,
+            dir_okay=False,
             readable=True,
         ),
     ],
@@ -55,6 +54,7 @@ def collect_sites_info_(
         typer.Option(
             help="output directory",
             dir_okay=True,
+            file_okay=False,
             writable=True,
         ),
     ] = Path().cwd(),
@@ -74,11 +74,10 @@ def collect_sites_info_(
     Can work either with SRF or NHM for a valid fault
 
     """
-    print(source_ffp.suffix)
     if source_ffp.suffix == ".srf":
         event_name = source_ffp.stem  # use srf name as the event_name
     else:
-        # srf_ffp is not an SRF. May be an NHM file?
+        # srf_ffp is not an SRF. Maybe an NHM file?
         print(f"INFO: {source_ffp} is not an SRF file")
 
         assert (
@@ -102,11 +101,32 @@ def collect_sites_info_(
 
     out_dir.mkdir(exist_ok=True)
 
+    # Load the dataframes
     stations_df = formats.load_station_file(ll_ffp)
     vs30_df = formats.load_vs30_file(vs30_ffp)
     z_df = formats.load_z_file(z_ffp)
     z_df = z_df.rename(columns={"z1p0": "z1pt0", "z2p5": "z2pt5"})
 
+    # Check for consistency in indices
+    consistent_indices = stations_df.index.intersection(vs30_df.index).intersection(
+        z_df.index
+    )
+    inconsistent_indices = (
+        stations_df.index.union(vs30_df.index)
+        .union(z_df.index)
+        .difference(consistent_indices)
+    )
+
+    if not inconsistent_indices.empty:
+        warning_message = f"WARNING: Inconsistent stations to be ignored : {inconsistent_indices.tolist()}"
+        print(warning_message)
+
+    # Filter dataframes to only include consistent stations
+    stations_df = stations_df.loc[consistent_indices]
+    vs30_df = vs30_df.loc[consistent_indices]
+    z_df = z_df.loc[consistent_indices]
+
+    # Continue with the consistent stations
     site_df = pd.concat([stations_df, vs30_df, z_df], axis=1)
     del stations_df, vs30_df, z_df
 
