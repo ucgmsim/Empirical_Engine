@@ -53,7 +53,6 @@ def collect_sites_info_(
         Path,
         typer.Option(
             help="output directory",
-            dir_okay=True,
             file_okay=False,
             writable=True,
         ),

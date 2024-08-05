@@ -1,6 +1,6 @@
 import argparse
 from pathlib import Path
-
+from typing import Optional
 import pandas as pd
 import yaml
 
@@ -26,45 +26,43 @@ def run_emp(
     output_dir: Path,
     event_name: str,
     sites_info_ffp: Path,
-    srfdata_ffp: Path = None,
-    nz_gmdb_source_ffp: Path = None,
+    srfdata_ffp: Optional[Path] = None,
+    nz_gmdb_source_ffp: Optional[Path] = None,
     model_config_ffp: Path = DEFAULT_MODEL_CONFIG_FFP,
     meta_config_ffp: Path = DEFAULT_META_CONFIG_FFP,
     im_list: list[str] = IM_LIST,
     component: str = DEFAULT_COMP,
-    periods=constants.DEFAULT_PSA_PERIODS,
-    extended_period=False,
+    periods: list[float] = constants.DEFAULT_PSA_PERIODS,
+    extended_period: bool = False,
 ):
     """
     Run empirical calculations for a given historical event or a future event from a specified fault.
 
     Parameters
     ----------
-    output_dir  : Path
-        Path to the output directory
-    event_name  : str
-        Name of the event (or fault)
-    sites_info_ffp  : Path
-        Path to the site csv file obtained from running collect_sites_info.py
-    srfdata_ffp : Path
-        srfdata file path for the fault data. Can be either realisation .csv or .info file
-        If this is None, we could still proceed if nz_gmdb_source_ffp is provided and it is a known historical event
-    nz_gmdb_source_ffp  : Path
-        nz_gmdb_source file path for the source data. Must be provided for historical events when srfdata_ffp is missing
-    model_config_ffp    : Path
-        model_config file path for the empirical model. prescribes the model to be used for tectonic class,
-        IM and component
-    meta_config_ffp : Path
-        meta_config file path for the empirical model. prescribes the weight of the model for IM and Tectonic class
-
-    im_list : list
-        List of intensity measures. Currently supported: PGA, PGV, pSA, CAV, Ds575, Ds595
-    component   :str
-        Component of the IM (eg. geom, rotd50) to calculate empirical for
-    periods : list
-        List of periods for pSA. Default is qcore.constants.DEFAULT_PSA_PERIODS
-    extended_period : bool
-        Indicate the use of extended(100) pSA periods
+    output_dir : Path
+        Path to the output directory.
+    event_name : str
+        Name of the event (or fault).
+    sites_info_ffp : Path
+        Path to the site CSV file obtained from running collect_sites_info.py.
+    srfdata_ffp : Optional[Path], optional
+        SRF data file path for the fault data. Can be either realisation .csv or .info file.
+        If this is None, we could still proceed if nz_gmdb_source_ffp is provided and it is a known historical event.
+    nz_gmdb_source_ffp : Optional[Path], optional
+        NZ GMDB source file path for the source data. Must be provided for historical events when srfdata_ffp is missing.
+    model_config_ffp : Path, optional
+        Model config file path for the empirical model. Prescribes the model to be used for tectonic class, IM, and component.
+    meta_config_ffp : Path, optional
+        Meta config file path for the empirical model. Prescribes the weight of the model for IM and tectonic class.
+    im_list : list[str], optional
+        List of intensity measures. Currently supported: PGA, PGV, pSA, CAV, Ds575, Ds595.
+    component : str, optional
+        Component of the IM (e.g., geom, rotd50) to calculate empirical for.
+    periods : list[float], optional
+        List of periods for pSA. Default is qcore.constants.DEFAULT_PSA_PERIODS.
+    extended_period : bool, optional
+        Indicate the use of extended (100) pSA periods.
 
     """
 
