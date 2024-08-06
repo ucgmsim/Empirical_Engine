@@ -119,7 +119,7 @@ def run_emp(
     oq_rupture_df = pd.read_csv(sites_info_ffp, index_col=0)
 
     # Each model (determined by model_config, tect_type, im, component) has different set of required columns
-    # Let's make oq_rupture_df from site_df, and fault_df, and hopefully(!) it has all required columns
+    # Let's merge fault_df into oq_rupture_df, and hopefully(!) it has all required columns
 
     oq_rupture_df.loc[
         :,
