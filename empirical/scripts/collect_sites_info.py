@@ -3,6 +3,7 @@ Script to produce a CSV file containing site info (vs30, z1.0, z2.5) and rupture
 within a specified maximum distance.
 This script is a pre-requisite for calculate_empirical.py as the .csv file produced is a required input.
 """
+
 from pathlib import Path
 
 import pandas as pd
