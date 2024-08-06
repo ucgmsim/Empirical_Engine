@@ -53,16 +53,18 @@ def run_emp(
         NZ GMDB source file path for the source data. Must be provided for historical events when srfdata_ffp is missing.
     model_config_ffp : Path, optional
         Model config file path for the empirical model. Prescribes the model to be used for tectonic class, IM, and component.
+        Default is util/model_config.yaml.
     meta_config_ffp : Path, optional
         Meta config file path for the empirical model. Prescribes the weight of the model for IM and tectonic class.
+        Default is util/meta_config.yaml.
     im_list : list[str], optional
-        List of intensity measures. Currently supported: PGA, PGV, pSA, CAV, Ds575, Ds595.
+        List of intensity measures. Default is [ PGA, PGV, pSA, CAV, Ds575, Ds595 ]
     component : str, optional
-        Component of the IM (e.g., geom, rotd50) to calculate empirical for.
+        Component of the IM (e.g., geom, rotd50) to calculate empirical for. Default is rotd50.
     periods : list[float], optional
         List of periods for pSA. Default is qcore.constants.DEFAULT_PSA_PERIODS.
     extended_period : bool, optional
-        Indicate the use of extended (100) pSA periods.
+        Indicate the use of extended (100) pSA periods. Default is False.
 
     """
 
