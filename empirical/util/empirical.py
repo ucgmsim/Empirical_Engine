@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import List, Union
 
-import IM_calculation.source_site_dist.src_site_dist as ssd
+import qcore.src_site_dist as ssd
 import h5py
 import numpy as np
 import pandas as pd
@@ -373,49 +373,3 @@ def nhm_flt_to_df(nhm_flt: nhm.NHMFault):
             "recurrance_rate",
         ],
     ).reset_index()
-
-
-def get_oq_rupture_df(
-    site_df: pd.DataFrame,
-    rrup_df: pd.DataFrame,
-    fault_df: pd.Series,
-    rjb_max: float = None,
-):
-    """
-    Get the rupture dataframe for OpenQuake calculations. Assumes site_df and rrup_df are in alignment (ie. same length, same order)
-
-    Parameters
-    ----------
-    site_df: pd.DataFrame
-        Dataframe containing site data (columns: (lon, lat, vs30, z1pt0, z2pt5))
-    rrup_df: pd.DataFrame
-        Dataframe containing site-source distances (columns: (rrup, rjb, rx, ry))
-    fault_df: pd.Series
-        Series containing fault data (columns: NZ_GMDB_SOURCE_COLUMNS)
-    rjb_max: float
-        Maximum Rjb distance to consider
-
-    Returns
-    -------
-    oq_rupture_df: pd.DataFrame
-
-    """
-    oq_rupture_df = site_df.copy()
-    oq_rupture_df["site"] = oq_rupture_df.index.values
-
-    # Merge site_df and rrup_df
-    oq_rupture_df = pd.concat([site_df, rrup_df.set_index(site_df.index)], axis=1)
-
-    # Filter site_df to only include sites with rjb <= rjb_max
-    if rjb_max is not None:
-        oq_rupture_df = oq_rupture_df.loc[oq_rupture_df.rjb <= rjb_max]
-
-    # Add event/fault data
-    oq_rupture_df.loc[
-        :,
-        OQ_RUPTURE_COLUMNS,  # rename columns to follow OQ_RUPTURE_COLUMNS
-    ] = fault_df[
-        NZ_GMDB_SOURCE_COLUMNS
-    ].values  # fault_df has NZ_GMDB_SOURCE_COLUMNS
-
-    return oq_rupture_df

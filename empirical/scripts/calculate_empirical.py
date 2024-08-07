@@ -1,13 +1,12 @@
 import argparse
 from pathlib import Path
-
+from typing import Optional
 import pandas as pd
 import yaml
 
 from empirical.util import empirical
-from qcore import constants, nhm, formats, utils
+from qcore import constants, utils
 
-RJB_MAX = 200
 IM_LIST = [
     "PGA",
     "PGV",
@@ -25,57 +24,47 @@ DEFAULT_META_CONFIG_FFP = Path(__file__).parents[1] / "util" / "meta_config.yaml
 
 def run_emp(
     output_dir: Path,
-    ll_ffp: Path,
-    vs30_ffp: Path,
-    z_ffp: Path,
-    srf_ffp: Path,
-    nhm_ffp: Path = None,
-    srfdata_ffp: Path = None,
-    nz_gmdb_source_ffp: Path = None,
+    event_name: str,
+    sites_info_ffp: Path,
+    srfdata_ffp: Optional[Path] = None,
+    nz_gmdb_source_ffp: Optional[Path] = None,
     model_config_ffp: Path = DEFAULT_MODEL_CONFIG_FFP,
     meta_config_ffp: Path = DEFAULT_META_CONFIG_FFP,
-    rjb_max: float = RJB_MAX,
     im_list: list[str] = IM_LIST,
     component: str = DEFAULT_COMP,
-    periods=constants.DEFAULT_PSA_PERIODS,
-    extended_period=False,
+    periods: list[float] = constants.DEFAULT_PSA_PERIODS,
+    extended_period: bool = False,
 ):
     """
     Run empirical calculations for a given historical event or a future event from a specified fault.
 
     Parameters
     ----------
-    output_dir  : Path
-        Path to the output directory
-    ll_ffp  : Path
-        lat lon file path for the stations
-    vs30_ffp    : Path
-        vs30 file path for vs30 values at the stations
-    z_ffp   : Path
-        z file path for z1.0 and z2.5 values at the stations
-    srf_ffp : Path
-        srf file path for the fault data.
-    nhm_ffp : Path
-        nhm file path for the collection of faults data (eg: NZ_FLTmodel_2010_v18p6.txt)
-    srfdata_ffp : Path
-        srfdata file path for the fault data. Can be either realisation .csv or .info file
-    nz_gmdb_source_ffp  : Path
-        nz_gmdb_source file path for the source data
-    model_config_ffp    : Path
-        model_config file path for the empirical model. prescribes the model to be used for tectonic class,
-        IM and component
-    meta_config_ffp : Path
-        meta_config file path for the empirical model. prescribes the weight of the model for IM and Tectonic class
-    rjb_max : float
-        Maximum rupture distance
-    im_list : list
-        List of intensity measures. Currently supported: PGA, PGV, pSA, CAV, Ds575, Ds595
-    component   :str
-        Component of the IM (eg. geom, rotd50) to calculate empirical for
-    periods : list
-        List of periods for pSA. Default is qcore.constants.DEFAULT_PSA_PERIODS
-    extended_period : bool
-        Indicate the use of extended(100) pSA periods
+    output_dir : Path
+        Path to the output directory.
+    event_name : str
+        Name of the event (or fault).
+    sites_info_ffp : Path
+        Path to the site CSV file obtained from running collect_sites_info.py.
+    srfdata_ffp : Optional[Path], optional
+        SRF data file path for the fault data. Can be either realisation .csv or .info file.
+        If this is None, we could still proceed if nz_gmdb_source_ffp is provided and it is a known historical event.
+    nz_gmdb_source_ffp : Optional[Path], optional
+        NZ GMDB source file path for the source data. Must be provided for historical events when srfdata_ffp is missing.
+    model_config_ffp : Path, optional
+        Model config file path for the empirical model. Prescribes the model to be used for tectonic class, IM, and component.
+        Default is util/model_config.yaml.
+    meta_config_ffp : Path, optional
+        Meta config file path for the empirical model. Prescribes the weight of the model for IM and tectonic class.
+        Default is util/meta_config.yaml.
+    im_list : list[str], optional
+        List of intensity measures. Default is [ PGA, PGV, pSA, CAV, Ds575, Ds595 ]
+    component : str, optional
+        Component of the IM (e.g., geom, rotd50) to calculate empirical for. Default is rotd50.
+    periods : list[float], optional
+        List of periods for pSA. Default is qcore.constants.DEFAULT_PSA_PERIODS.
+    extended_period : bool, optional
+        Indicate the use of extended (100) pSA periods. Default is False.
 
     """
 
@@ -94,78 +83,50 @@ def run_emp(
         with open(meta_config_ffp, "r") as f:
             meta_config = yaml.load(f, Loader=yaml.FullLoader)
 
-    stations_df = formats.load_station_file(ll_ffp)
-    vs30_df = formats.load_vs30_file(vs30_ffp)
-
-    z_df = formats.load_z_file(z_ffp)
-    z_df = z_df.rename(columns={"z1p0": "z1pt0", "z2p5": "z2pt5"})
-
-    site_df = pd.concat([stations_df, vs30_df, z_df], axis=1)
-    del stations_df, vs30_df, z_df
-
-    if srfdata_ffp is None:
-        # If srfdata_ffp is not supplied, but if srf_ffp is supplied and this is a historical event,we can still proceed
-        print(f"INFO: srfdata_ffp not provided.")
-        if srf_ffp is None:
-            raise RuntimeError(f"Either srfdata_ffp or srf_ffp should be specified.")
-
-        else:  # srf_ffp is provided. check if this is a valid historical event
-            event = srf_ffp.stem
-            event_name = event.split("_")[0]
-            # Load source info. Only useful when this is a historical event
-            if nz_gmdb_source_ffp is not None:
-                nz_gmdb_source_df = pd.read_csv(
-                    nz_gmdb_source_ffp, index_col=0
-                )  # Not useful if this is not a historical event, but we load it anyway
-                try:
-                    fault_df = nz_gmdb_source_df.loc[
-                        event_name, empirical.NZ_GMDB_SOURCE_COLUMNS
-                    ]
-                except KeyError:
-                    raise ValueError(f"Unknown event {event_name}")
-                else:
-                    print(f"INFO: Found {event_name} in NZGMDB.")
-            else:
-                raise RuntimeError(
-                    f"nz_gmdb_source_ffp is required for historical events. Use earthquake_source_table.csv from GMDB.zip"
-                )
-    else:
-        # srfdata_ffp is supplied. This can be either .csv or .info
+    if srfdata_ffp is not None:
         event = srfdata_ffp.stem
-        fault_name = event.split("_")[0]
+        event_name = event.split("_")[0]
         if srfdata_ffp.suffix == ".info":
-            fault_df = empirical.load_srf_info(srfdata_ffp, fault_name)
+            fault_df = empirical.load_srf_info(srfdata_ffp, event_name)
         else:  # .csv
-            fault_df = empirical.load_rel_csv(srfdata_ffp, fault_name)
+            fault_df = empirical.load_rel_csv(srfdata_ffp, event_name)
         # Either .csv or .info, fault_df has consistent columns defined in NZ_GMDB_SOURCE_COLUMNS
+    else:
+        # If srfdata_ffp is not supplied, but if it is a known historical event,we can still proceed
+        print(f"INFO: srfdata_ffp not provided.")
 
-        if srf_ffp is None:
-            # Even if srf_ffp is not supplied, if it is a valid fault, we can use NHM to get the fault data and proceed
-            if nhm_ffp is not None:
-                nhm_data = nhm.load_nhm(str(nhm_ffp))
-                # Get fault data
-                try:
-                    # We are reconstructing missing srf_ffp from nhm.
-                    srf_ffp = nhm_data[fault_name]
-                except KeyError:
-                    raise ValueError(f"Unknown fault {fault_name}")
-                else:
-                    print(f"INFO: Found {fault_name} in NHM.")
+        # Load source info and check if it is a valid event
+        if nz_gmdb_source_ffp is not None:
+            nz_gmdb_source_df = pd.read_csv(nz_gmdb_source_ffp, index_col=0)
+            try:
+                fault_df = nz_gmdb_source_df.loc[
+                    event_name, empirical.NZ_GMDB_SOURCE_COLUMNS
+                ]
+            except KeyError:
+                raise ValueError(f"Unknown event {event_name}")
             else:
-                raise RuntimeError(f"nhm_ffp is required if srf_ffp is not provided.")
+                print(f"INFO: Found {event_name} in NZGMDB.")
+        else:
+            raise RuntimeError(
+                f"nz_gmdb_source_ffp is required for historical events. Use earthquake_source_table.csv from GMDB.zip"
+            )
 
-    # at this point, we have valid fault_df, and srf_ffp (can be either Path or NHMFault)
+    # at this point, we have valid fault_df
 
     tect_type = empirical.TECT_CLASS_MAPPING[fault_df.tect_class]
 
-    # Get site source data. srf_ffp is either Path or NHM.
-    rrup_df = empirical.get_site_source_data(srf_ffp, site_df[["lon", "lat"]].values)
+    # Load sites_info CSV file produced by collect_sites_info.py
+    oq_rupture_df = pd.read_csv(sites_info_ffp, index_col=0)
 
     # Each model (determined by model_config, tect_type, im, component) has different set of required columns
-    # Let's make oq_rupture_df from site_df, rrup_df and fault_df, and hopefully(!) it has all required columns
-    oq_rupture_df = empirical.get_oq_rupture_df(
-        site_df, rrup_df, fault_df, rjb_max=rjb_max
-    )
+    # Let's merge fault_df into oq_rupture_df, and hopefully(!) it has all required columns
+
+    oq_rupture_df.loc[
+        :,
+        empirical.OQ_RUPTURE_COLUMNS,  # rename columns to follow OQ_RUPTURE_COLUMNS
+    ] = fault_df[
+        empirical.NZ_GMDB_SOURCE_COLUMNS
+    ].values  # fault_df has NZ_GMDB_SOURCE_COLUMNS
 
     # In reality,some model specific columns may be still missing.
     # Such exception handling is done by openquake_wrapper_vectorized.oq_prerun_exception_handle()
@@ -188,40 +149,8 @@ def run_emp(
 def load_args():
     parser = argparse.ArgumentParser(
         description="Script to calculate IMs for empirical models."
-        "Produces one .csv for each fault (event) containing "
-        "all specified sites."
-    )
-
-    parser.add_argument(
-        "--ll_ffp",
-        required=True,
-        type=Path,
-        help="Path to the .ll file",
-    )
-    parser.add_argument(
-        "--vs30_ffp",
-        required=True,
-        type=Path,
-        help="Path to the .vs30 file",
-    )
-    parser.add_argument(
-        "--z_ffp",
-        required=True,
-        type=Path,
-        help="Path to the .z file that contains Z1.0 and Z2.5. If not available, estimate from vs30 utilizing relations in z_model_calculations.py. (eg. chiou_young_08_calc_z1p0). The file should have columns: station, z1p0, z2p5, sigma",
-    )
-
-    parser.add_argument(
-        "--srf_ffp",
-        help="Path to the SRF file",
-        type=Path,
-    )
-
-    parser.add_argument(
-        "--nhm_ffp",
-        help="Path to the NHM file. If srf_ffp is not provided, this is used to get the fault data. "
-        "Get one from https://github.com/ucgmsim/Empirical_Engine/files/15256612/NZ_FLTmodel_2010_v18p6.txt",
-        type=Path,
+        "Produces one .csv for all specified sites."
+        "Run collect_sites_info.py first to generate the CSV file for the 'sites_info_ffp' argument"
     )
 
     parser.add_argument(
@@ -231,11 +160,9 @@ def load_args():
     )
 
     parser.add_argument(
-        "-rm",
-        "--max_rupture_distance",
-        type=float,
-        default=RJB_MAX,
-        help="Only calculate empiricals for stations that are within X distance to rupture",
+        "--event_name",
+        help="Event name. Required if srfdata_ffp is not provided.",
+        type=Path,
     )
 
     parser.add_argument(
@@ -279,7 +206,6 @@ def load_args():
         default=IM_LIST,
         help='Intensity measure(s) separated by a " " space(if more than one). eg: PGV PGA CAV.',
     )
-    #    # TODO: Put common argparse arguments between IM_calc and empirical in shared file
     parser.add_argument(
         "-comp",
         "--component",
@@ -289,7 +215,27 @@ def load_args():
     )
 
     parser.add_argument("output", type=Path, help="output directory")
+    parser.add_argument(
+        "sites_info_ffp",
+        help="Path to the site csv file obtained from running collect_sites_info.py. Contains [station, lon, lat, rrup, rjb,rx,ry, vs30, z1p0, z2p5].",
+        type=Path,
+    )
+
     args = parser.parse_args()
+
+    if args.srfdata_ffp is None and args.nz_gmdb_source_ffp is None:
+        parser.error("Either srfdata_ffp or nz_gmdb_source_ffp is required.")
+
+    if args.event_name is None:
+        if args.srfdata_ffp is not None:
+            args.event_name = args.srfdata_ffp.stem
+        else:
+            parser.error("event_name is required if srfdata_ffp is not provided.")
+    else:
+        if args.nz_gmdb_source_ffp is None:
+            parser.error(
+                "nz_gmdb_source_ffp is required to be able to find event info from GMDB."
+            )
 
     return args
 
@@ -299,16 +245,12 @@ def main():
     utils.setup_dir(args.output)
     run_emp(
         args.output,
-        args.ll_ffp,
-        args.vs30_ffp,
-        args.z_ffp,
-        args.srf_ffp,
-        args.nhm_ffp,
+        args.event_name,
+        args.sites_info_ffp,
         args.srfdata_ffp,
         args.nz_gmdb_source_ffp,
         args.model_config_ffp,
         args.meta_config_ffp,
-        args.max_rupture_distance,
         args.im,
         args.component,
         args.periods,
