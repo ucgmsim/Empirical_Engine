@@ -99,7 +99,7 @@ def collect_sites_info_(
             print(f"INFO: Found {nhm_fault_name} in NHM.")
             event_name = nhm_fault_name  # use this fault name as the event_name
 
-    out_dir.mkdir(exist_ok=True)
+    out_dir.mkdir(exist_ok=True, parents=True)
 
     # Load the dataframes
     stations_df = formats.load_station_file(ll_ffp)
