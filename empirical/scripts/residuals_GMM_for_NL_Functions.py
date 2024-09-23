@@ -1,0 +1,784 @@
+from pathlib import Path
+from typing import List, Dict
+import argparse
+import json
+import os
+import matplotlib.pyplot as plt
+
+import pandas as pd
+import numpy as np
+import geojson
+from turfpy.measurement import points_within_polygon
+
+from empirical.util.classdef import TectType, GMM
+from empirical.util import openquake_wrapper_vectorized
+from mera.mera_pymer4 import run_mera
+
+#change plotting settings
+plt.style.use('classic')
+plt.rcParams["font.family"] = "Times New Roman"
+
+# create a flag to calculate GMM predictions with Vs30 = 760 mps
+use_760_mps = 1
+
+#define an ID for the prediction and residual calc
+
+analID = 'v1_wCPLB'
+
+
+# define a flag for using site specific z1 and z2.5 (flag =1) or using Vs30 correlations (flag = 0)
+useSiteSpecific_Zvals = 1
+
+if useSiteSpecific_Zvals:
+    zID = 'siteSpecificZVals'
+else:
+    zID = 'genericZvals'
+
+# choose if you want to run predictions and residual analysis for a subset of sites
+# current options are "All", "Wellington_All" and "Wellington_Basin"
+sites2runID = 'All'
+# sites2runID = 'Wellington_All'
+# sites2runID = 'Wellington_Basin'
+
+# choose any IMs to exclude
+# ims_exclude = ['pSA_10.0']
+ims_exclude = [None]
+
+'''
+Choose the details of the adjustment factor input file provided (args.period_specific_ffp)
+Option 1: Each site and GMM get a different adjustment factor (deltaS2S_s^m for that GMM and site)
+Option 2: Each site get the average adjustment across all GMMs (\overline{deltaS2S_s})
+Option 3: Each site within a region gets the same adjustment for all GMMs (\overline{deltaS2S_Reg})
+Option 4: Each site within a region get the normalised period adjustment factor scaled to Tsite of each site
+'''
+adjFact_Option = None
+# adjFact_Option = 1
+# adjFact_Option = 2
+# adjFact_Option = 3
+# adjFact_Option = 4
+
+# create an ID for adj factor option to add to the runID
+if adjFact_Option == 1:
+    adjID = 'wAdj_SiteAndModelSpecific'
+elif adjFact_Option == 2:
+    adjID = 'wAdj_SiteSpecific'
+elif adjFact_Option == 3:
+    adjID = 'wAdj_RegionSpecific'
+elif adjFact_Option == 4:
+    adjID = 'wAdj_RegionSpecific_TsiteScaled'
+else:
+    adjID = ''
+
+#load a dataframe with geomorphology categories for Wellington (used to filter sites)
+geomorphFilePath = r'C:\Users\cde84\Dropbox (Personal)\PostDocWork\NSHM_WellingtonBasin\residualAnalysis\geomorphology\WellingtonGeomorphology_fromAyushi_Final_ForResidualsPaper_v2.csv'
+df_geom = pd.read_csv(geomorphFilePath)
+
+if sites2runID == 'Wellington_All':
+    site2runList = df_geom['stat_id'].values
+
+    if not adjFact_Option is None:
+        # create a run ID from analID and zID and sites2runID
+        runID = '%s_%s_%s_%s' % (analID, adjID, zID, sites2runID)
+    else:
+        # create a run ID from analID and zID and sites2runID
+        runID = '%s_%s_%s' % (analID, zID, sites2runID)
+
+
+elif sites2runID == 'Wellington_Basin':
+    site2runList = df_geom['stat_id'][df_geom['Updated Geomorphology'].isin(['Basin', 'Basin-edge', 'Valley'])].values
+
+    if not adjFact_Option is None:
+        # create a run ID from analID and zID and sites2runID
+        runID = '%s_%s_%s_%s' % (analID, adjID, zID, sites2runID)
+    else:
+        # create a run ID from analID and zID and sites2runID
+        runID = '%s_%s_%s' % (analID, zID, sites2runID)
+
+else:
+    if not adjFact_Option is None:
+        #create a run ID from analID and zID
+        runID = '%s_%s_%s' %(analID, adjID, zID)
+    else:
+        runID = '%s_%s' % (analID, zID)
+
+if use_760_mps:
+    runID += '_for_Vs30_760mps'
+
+# create a list of default IMs to calculate
+DEFAULT_IMS = ["PGA", "pSA"]
+# DEFAULT_IMS = ["pSA"]
+
+# create a list of GMM to loop through for predictions
+# DEFAULT_MODELS = [
+#     "S_22",
+#     "A_22",
+#     "ASK_14",
+#     "CY_14",
+#     "BSSA_14",
+#     "CB_14",
+#     "Br_13",
+#     "AG_20",
+#     "P_21",
+#     "K_20",
+# ]
+
+# DEFAULT_MODELS = [
+#     "BSSA_14_no_NL",
+# ]
+
+DEFAULT_MODELS = [
+    "BSSA_14",
+]
+
+
+
+TECT_CLASS_MAP = {
+    "Crustal": TectType.ACTIVE_SHALLOW,
+    "Interface": TectType.SUBDUCTION_INTERFACE,
+    "Slab": TectType.SUBDUCTION_SLAB,
+    "Outer-rise": None,
+    "Undetermined": None,
+}
+TECT_CLASS_MAP_REV = {v: k for k, v in TECT_CLASS_MAP.items()}
+
+# create a function that calculates z1 (in km) from Vs30 (CY2014 California model)
+def z1_california(Vs30):
+    ln_z1 = (-7.14 / 4.) * np.log((Vs30 ** 4. + 570.94 ** 4.) / (1360 ** 4. + 570.94 ** 4.))
+    z1 = np.exp(ln_z1) / 1000.
+    return z1
+
+#create a function that calculates z2p5 (in km) from Vs30 (CB14 California model)
+def z2pt5_california(Vs30):
+    ln_z2p5 = 7.089 - 1.144 * np.log(Vs30)
+    z2p5 = np.exp(ln_z2p5)
+    return z2p5
+
+
+#create a function that interpolates to find the r_rup cutoff value for a given mw value
+def find_rrup_cutoff(mag, mag_vec, rrup_vec):
+    return np.interp(mag, mag_vec, rrup_vec)
+
+def sort_period_columns(df: pd.DataFrame):
+    """
+    Sort the columns of the given dataframe by period
+    Manages the IM's if they are labelled using the . or the p notation
+    :param df: The dataframe to sort
+    """
+    sort_order = sorted(
+        df.columns,
+        key=lambda col: float(col[4:].replace("p", ".")) if "pSA" in col else 0,
+    )
+    df = df.reindex(sort_order, axis=1)
+    return df
+
+
+def get_backarc_mask(backarc_json_ffp: Path, locs: np.ndarray):
+    """
+    Computes a mask identifying each location
+    that requires the backarc flag based on
+    if it is inside the backarc polygon or not
+
+    locs: array of floats
+        [lon, lat]
+
+    """
+
+    # Determine if backarc needs to be enabled for each loc
+    points = geojson.FeatureCollection(
+        [
+            geojson.Feature(geometry=geojson.Point(tuple(cur_loc[::-1]), id=ix))
+            for ix, cur_loc in enumerate(locs)
+        ]
+    )
+    with backarc_json_ffp.open("r") as f:
+        poly_coords = np.flip(json.load(f)["geometry"]["coordinates"][0], axis=1)
+
+    polygon = geojson.Polygon([poly_coords.tolist()])
+    backarc_ind = (
+        [
+            cur_point["geometry"]["id"]
+            for cur_point in points_within_polygon(points, polygon)["features"]
+        ],
+    )
+    backarc_mask = np.zeros(shape=locs.shape[0], dtype=bool)
+    backarc_mask[backarc_ind] = True
+
+    return backarc_mask
+
+
+def filter_gm_csv(gm_csv: Path):
+    """
+    Filter the given gm csv to only include the rows that have valid data
+    :param gm_csv: The path to the gm csv
+    :return: Ground Motion DataFrame containing only the valid rows
+    """
+    gm_df = pd.read_csv(gm_csv, dtype={"gmid": str, "evid": str})
+    # Remove rows with NaNs in the station lon lat values and the magnitude value
+    gm_df = gm_df.loc[gm_df.loc[:, ["sta_lon", "mag"]].notnull().all(axis=1)]
+    # Only include Accelerometer channels
+    gm_df = gm_df.loc[gm_df["chan"].isin(["HN", "BN"])]
+    # Only include rows with accepted rrup values per tectonic class
+    gm_df = gm_df.loc[
+        (
+            (
+                (gm_df["tect_class"] == "Crustal")
+                & (gm_df["r_rup"] <= 300)
+                & (gm_df["mag"] >= 3.5)
+            )
+            | gm_df["tect_class"]
+            != "Crustal"
+        )
+    ]
+    gm_df = gm_df.loc[
+        (
+            (
+                (gm_df["tect_class"].isin(["Interface", "Slab"]))
+                & (gm_df["r_rup"] <= 500)
+                & (gm_df["mag"] >= 4.5)
+            )
+            | ~gm_df["tect_class"].isin(["Interface", "Slab"])
+        )
+    ]
+
+    gm_df = gm_df.loc[ (gm_df["f_type"].isin(["cmt_unc", "cmt", "ff", "geonet_rm", 'srf']))]
+
+    return gm_df
+
+# create a function that applies filter based on Mw-Rrup
+def filter_gm_df_for_rrup(mw_rrup_filePath, gm_df):
+    #create a list to append rrup cutoff values for each mw value
+    rrup_cutoffs = []
+    mag_vec, rrup_vec = np.loadtxt(mw_rrup_filePath, unpack=True)
+
+    for i, x in gm_df.iterrows():
+        rrup = find_rrup_cutoff(x['mag'], mag_vec, rrup_vec)
+        rrup_cutoffs.append(rrup)
+
+    rrup_cutoffs = np.array(rrup_cutoffs)
+    gm_df = gm_df[np.array(gm_df['r_rup'].values) < rrup_cutoffs]
+
+    return gm_df
+
+def filter_gm_df_for_sites(gm_df, siteList):
+
+    gm_df = gm_df[gm_df['sta'].isin(siteList)]
+
+    return gm_df
+
+
+def corner_freq(Mw):
+    # define "constants" shear wave vel and stress drop
+    #beta = 3.6 # km/s
+    beta = 2  # km/s
+    stress_drop = 10 # bars
+
+    #calculate seismic moment in dyne-cm
+    Mo = 10 ** (3 / 2 *(Mw + 10.7))
+
+    # log_f = 1.341 + np.log10(beta * (stress_drop ** (1/3) ) ) - 0.5 * Mw
+    #log_f = 1.341 + np.log(beta * (stress_drop ** (1 / 3))) - 0.5 * Mw
+
+    #f0 = 10 ** log_f
+    #f0 = np.exp(log_f)
+
+    f0 = 4.9 * (10 ** 6) * beta * (stress_drop / Mo) ** (1 / 3)
+
+    return f0
+
+def generate_period_mask(gm_df: pd.DataFrame):
+    """
+    Get a mask for the gm_df filtering for T < Tmax, where Tmax is 1/fmin
+    fmin is defined as np.sqrt(event_site["f_min_X"] * event_site["f_min_Y"])
+    :param gm_df: The dataframe to filter
+    :return: A mask for the gm_df where values are True if they are outside the filter
+    """
+    # Create a dataframe with the period values for each column that's pSA in gm_df
+    psa_str_cols = [col for col in gm_df.columns if "pSA" in col]
+    psa_cols = sorted([float(col[4:].replace("p", ".")) for col in psa_str_cols])
+    period_values = pd.DataFrame(
+        {col: col for col in psa_cols}, index=gm_df.index, columns=psa_cols
+    )
+    period_values.columns = psa_str_cols
+
+    # Calculate f_min and t_max
+    #f_min = np.sqrt(gm_df["fmin_mean_X"] * gm_df["fmin_mean_Y"])
+    f_min = np.sqrt(gm_df["f_min_X"] * gm_df["f_min_Y"])
+    f_min[f_min < 0.12] = 0.099
+
+    f_min.loc[gm_df['sta'] == 'CPLB'] = corner_freq(gm_df.loc[gm_df['sta'] == 'CPLB', 'mag'])
+
+    t_max = 1 / f_min
+
+    # Extend t_max by duplicating each row of the t_max values for each col in psa_cols
+    t_max_expanded = pd.concat([t_max] * len(psa_cols), axis=1)
+    t_max_expanded.columns = psa_str_cols
+
+    # Compare the expanded t_max values to the period values to get the final mask
+    mask = period_values > t_max_expanded
+    return mask, psa_str_cols
+
+
+def period_mask_for_min_records(df: pd.DataFrame, column_name: str, threshold=3):
+    """
+    Set the 'psa' values in the DataFrame based on the number of False values in each group.
+
+    Parameters:
+        df (pd.DataFrame): The DataFrame mask to update
+        column_name (str): The column to group by
+        threshold (int): The threshold for the number of False values to set the column to True
+    """
+
+    # Create a dataframe with the period values for each column that's pSA in gm_df
+    # psa_str_cols = [col for col in df.columns if "pSA" in col]
+    IM_str_cols = [col for col in df.columns if "pSA" in col or "PGA" in col]
+
+    if column_name == 'sta':
+
+        # first group by tectonic type:
+        tecType_grouped = df.groupby('tect_class')
+        for tec_name, tec_group in tecType_grouped:
+
+            # Group the DataFrame by the station (column_name == 'sta')
+            grouped = tec_group.groupby(column_name)
+
+            # Iterate over each group
+            for sta_name, group in grouped:
+                # print(sta_name)
+                # Iterate over each 'psa' column
+                for IM_column in IM_str_cols:
+                    # Count the number of False values in the column
+                    false_count = group[IM_column].value_counts().get(False, 0)
+
+                    # If there are less than the threshold False values, set the column to True
+                    if false_count < threshold:
+                        df.loc[np.logical_and(df[column_name] == sta_name, df["tect_class"] == tec_name), IM_column] = True
+
+    else:
+        # Group the DataFrame by the column
+        grouped = df.groupby(column_name)
+
+        # Iterate over each group
+        for name, group in grouped:
+            # Iterate over each 'psa' column
+            for IM_column in IM_str_cols:
+                # Count the number of False values in the column
+                false_count = group[IM_column].value_counts().get(False, 0)
+
+                # If there are less than the threshold False values, set the column to True
+                if false_count < threshold:
+                    df.loc[df[column_name] == name, IM_column] = True
+
+    return df
+
+
+def calc_empirical(
+    gm_csv: Path,
+    site_csv: Path,
+    backarc_json_ffp: Path,
+    output_dir: Path,
+    models: List[str] = None,
+    ims: List[str] = None,
+    periods: List[float] = None,
+    period_specific_ffp: Path = None,
+):
+    """
+    Calculate the empirical IMs for the given gm csv and output the results to the given output directory.
+    :param gm_csv: The path to the csv containing the ground motion data
+    :param site_csv: The path to the csv containing the site data
+    :param backarc_json_ffp: The path to the backarc json file
+    :param output_dir: The path to the output directory
+    :param models: The list of models to use
+    :param ims: The list of IMs to calculate
+    :param periods: The list of periods to calculate
+    :param period_specific_ffp: The path to the period specific file
+    :return: Dict of IM DataFrames per model and filtered gm csv as a dataframe
+    """
+    # Read gm csv, filter and get periods if needed
+    gm_df = filter_gm_csv(gm_csv)
+
+    # define path to Mw-rrup filter file and apply filter
+    Mw_rrupFilePath = r'C:\Users\cde84\Dropbox (Personal)\PostDocWork\NSHM_WellingtonBasin\JournalPaper_WelliSiteResp\residualAnalysis\figs\histograms_GMdatabase\Mw_rrup.txt'
+    gm_df = filter_gm_df_for_rrup(Mw_rrupFilePath, gm_df)
+    if periods is None:
+        periods = sorted([float(col[4:]) for col in gm_df.columns if "pSA" in col])
+
+    #create a dataframe for site data base file so that a different version of site and gm database can be used
+    #gmdb_siteTables_Path = r'C:\Users\cde84\Dropbox (Personal)\PostDocWork\NSHM_WellingtonBasin\gmDatabases\GMDB_3.2\Tables\site_table.csv'
+    site_df = pd.read_csv(site_csv)
+
+    # Get models and IM's if needed
+    if models is None:
+        models = DEFAULT_MODELS
+    if ims is None:
+        ims = DEFAULT_IMS
+
+    # Calculate the backarc mask
+    # Get unique locations
+    locs = gm_df[["sta", "sta_lon", "sta_lat"]].drop_duplicates()
+    locs["backarc"] = get_backarc_mask(
+        backarc_json_ffp, locs[["sta_lon", "sta_lat"]].values
+    )
+
+    # Merge backarc mask into gm_df on each unique location
+    gm_df = gm_df.merge(locs[["sta", "backarc"]], on="sta", how="left")
+
+    # filter gm_df for sites of interested
+    if sites2runID in ['Wellington_All', 'Wellington_Basin']:
+        gm_df = filter_gm_df_for_sites(gm_df, site2runList)
+
+    # Create the rupture dataframe for open quake
+    rupture_df = pd.DataFrame(
+        {
+            "gmid": gm_df["gmid"],
+            "evid": gm_df["evid"],
+            "sta": gm_df["sta"],
+            "mag": gm_df["mag"],
+            "dip": gm_df["dip"],
+            "rake": gm_df["rake"],
+            "dbot": gm_df["z_bor"],
+            "zbot": gm_df["z_bor"],
+            "ztor": gm_df["z_tor"],
+            "tect_type": [TECT_CLASS_MAP[t] for t in gm_df["tect_class"]],
+            "rjb": gm_df["r_jb"],
+            "rrup": gm_df["r_rup"],
+            "rx": gm_df["r_x"],
+            "ry": gm_df["r_y"],
+            "rtvz": gm_df["r_tvz"],
+            "lon": gm_df["sta_lon"],
+            "lat": gm_df["sta_lat"],
+            #"vs30": gm_df["Vs30"],
+            #"z1pt0": gm_df["Z1.0"],
+            #"z2pt5": gm_df["Z2.5"],
+            #"vs30": pd.DataFrame([site_df["Vs30"].loc[site_df['sta'] == station].values[0] for station in gm_df['sta']], columns = ['Vs30']),
+            #"z1pt0": pd.DataFrame([site_df["Z1.0"].loc[site_df['sta'] == station].values[0] for station in gm_df['sta']], columns = ['Z1.0']),
+            #"z2pt5": pd.DataFrame([site_df["Z2.5"].loc[site_df['sta'] == station].values[0] for station in gm_df['sta']], columns = ['Z2.5']),
+            "vs30": [site_df["Vs30"].loc[site_df['sta'] == station].values[0] for station in gm_df['sta']],
+            "z1pt0": [site_df["Z1.0"].loc[site_df['sta'] == station].values[0] for station in gm_df['sta']],
+            "z2pt5": [site_df["Z2.5"].loc[site_df['sta'] == station].values[0] for station in gm_df['sta']],
+            "vs30measured": False,
+            "hypo_depth": gm_df["ev_depth"],
+            "backarc": gm_df["backarc"],
+        }
+    )
+
+    #change z1 and z2.5 values to the Vs30 correlations if not using site specific basin terms
+    if not useSiteSpecific_Zvals:
+        rupture_df["z1pt0"] = z1_california(rupture_df["vs30"].values.astype(float))
+        rupture_df["z2pt5"] = z2pt5_california(rupture_df["vs30"].values.astype(float))
+    else:
+        # divide the database values of z1 and z2.5 by 1000 to get into kms
+        rupture_df["z1pt0"] = rupture_df["z1pt0"].values / 1000.0
+        #rupture_df["z2pt5"] = rupture_df["z2pt5"].values / 1000.0
+
+    if use_760_mps:
+        rupture_df["vs30"] = 760 * np.ones(len(gm_df['sta'].values))
+
+    # Calculate the fmin mask
+    period_mask, psa_str_cols = generate_period_mask(gm_df)
+
+    # Filter min sites and events per period
+    # Add the site and event columns to the mask
+    period_mask['sta'] = gm_df['sta']
+    period_mask['evid'] = gm_df['evid']
+    period_mask['tect_class'] = gm_df['tect_class']
+    period_mask["PGA"] = False
+    # Run the function to update the 'psa' columns based on the site column
+    iterating = True
+    counter = 0
+    while iterating:
+        period_mask = period_mask_for_min_records(period_mask, 'sta')
+        period_mask_event = period_mask_for_min_records(period_mask.copy(), 'evid')
+        if np.all(period_mask == period_mask_event):
+            iterating = False
+        counter += 1
+        print(f"Iteration Loops: {counter}")
+        period_mask = period_mask_event.copy()
+    period_mask = period_mask.drop(columns=['sta', 'evid', 'tect_class'])
+
+    # period_mask.to_csv()
+
+    # Filter the gm_df by the period mask
+    gm_df[period_mask.columns] = gm_df[period_mask.columns].mask(period_mask)
+
+    # save file with gmids retained after filtering
+    save_dir = os.path.join(output_dir, runID)
+    os.makedirs(save_dir, exist_ok=True)
+
+    with open(os.path.join(save_dir, 'gmid_PGA_afterFilt.txt'), 'w') as tfile:
+        tfile.write('\n'.join(gm_df['gmid'][period_mask['PGA'] == False].values.tolist()))
+
+    # plot the number of gms
+    fig, ax = plt.subplots(nrows=1, ncols=1)
+    for column in period_mask.columns:
+        if 'pSA' in column:
+            num_gm = period_mask[column].value_counts().get(False, 0)
+            period = float(column[4:].replace("p", "."))
+
+            ax.semilogx(period, num_gm, marker='o', color='k')
+            ax.set_ylabel('Number of ground motions', fontsize=14)
+            ax.set_xlabel('Vibration Period (s)', fontsize=14)
+            ax.set_xlim(0.01, 10)
+            ax.set_ylim(0, 18000)
+
+
+    fig.savefig(os.path.join(save_dir, 'Fig_numGM_afterFiltering_vs_period.pdf'))
+
+
+
+    # Grab the period specific data for non-ergodic adjustment factor
+    if period_specific_ffp is not None:
+        period_specific_df = pd.read_csv(period_specific_ffp, delimiter=" ")
+        if adjFact_Option == 1:
+            period_specific_df["TectonicType"] = [
+                TECT_CLASS_MAP[t] for t in period_specific_df["TectonicType"]
+            ]
+        if adjFact_Option != 3:
+            # only retain adj fact for basin, basin-edge and valley sites (Options 1, 2, and 4)
+            period_specific_df = period_specific_df[period_specific_df['GeoMorph'].isin(['Basin', 'Basin-edge', 'Valley'])]
+
+        else:
+            # only retain adj fact for basin and valley regions
+            period_specific_df = period_specific_df[
+                period_specific_df['Region'].isin(['TeAro', 'Thorndon', 'LowerHutt', 'UpperHutt', 'MiramarandKarori', 'Wainuiomata', 'Porirua'])]
+
+
+    else:
+        period_specific_df = None
+
+    # Make the model output directory
+    model_dir = output_dir / runID / "models"
+    model_dir.mkdir(exist_ok=True, parents=True)
+
+    # Calculate im csvs for each of the GMMs / TectTypes using the data in the gm_df
+    model_outputs = dict()
+    for str_model in models:
+        model = GMM[str_model]
+        # Get the tect types for the model
+        tect_types = openquake_wrapper_vectorized.OQ_MODELS[model].keys()
+        for tect_type in tect_types:
+            # Extract the rupture data information that has the same tect type
+            tect_rup_df = rupture_df.loc[rupture_df["tect_type"] == tect_type]
+            im_df_list = []
+            print(f"Calculating for {model.name} {tect_type}")
+            for im in ims:
+                ps_tect_df = None
+                if im == "pSA" and period_specific_df is not None:
+
+                    #create the adj factor df based on Options 1, 2, or 3
+                    if adjFact_Option == 1:
+                        # Filter down by model and tect type
+                        ps_model_df = period_specific_df.loc[
+                            period_specific_df["gmmID"] == str_model
+                        ]
+                        ps_tect_df = ps_model_df.loc[
+                            ps_model_df["TectonicType"] == tect_type
+                        ]
+                    elif adjFact_Option == 2 or adjFact_Option == 3 or adjFact_Option == 4:
+                        ps_tect_df = period_specific_df.loc[
+                            period_specific_df["TectonicType"] == 'All'
+                            ]
+
+                    # Renaming columns
+                    if adjFact_Option != 3:
+                        ps_tect_df = ps_tect_df.rename({"stat_id": "sta"}, axis="columns")
+
+                    new_column_names = {
+                        col: f"adj_{col.replace('.', 'p')}"
+                        for col in ps_tect_df.columns
+                        if "pSA" in col
+                    }
+
+                    ps_tect_df = ps_tect_df.rename(columns=new_column_names)
+
+                    if adjFact_Option == 3:
+                        df_geom["Region"] = df_geom["Region"].str.replace(" ", "")
+                        df_geom_ps = df_geom.merge(ps_tect_df[["Region", *new_column_names.values()]], on="Region", how="left")
+                        ps_tect_df = df_geom_ps.rename({"stat_id": "sta"}, axis="columns")
+
+                    # Fill in missing stations with zeros for adjustment factors
+                    ps_tect_df = (
+                        tect_rup_df.loc[:, ["sta"]]
+                        .merge(
+                            ps_tect_df[["sta", *new_column_names.values()]],
+                            on="sta",
+                            how="left",
+                        )
+                        .fillna(0)
+                    )
+
+
+                im_df = openquake_wrapper_vectorized.oq_run(
+                    model,
+                    tect_type,
+                    tect_rup_df,
+                    im,
+                    periods if im == "pSA" else None,
+                    kwargs={"period_specific_df": ps_tect_df},
+                )
+                im_df = np.exp(im_df.loc[:, im_df.columns.str.contains("mean")])
+                im_df = im_df.rename(
+                    {
+                        col_name: col_name.rstrip("_mean")
+                        for col_name in im_df.columns.values
+                    },
+                    axis="columns",
+                )
+                im_df_list.append(im_df)
+
+            # Combine all the different IM DataFrames into one
+            tect_result_df = pd.concat(im_df_list, axis=1)
+            # Insert back the gmid, evid and station to the dataframe
+            tect_result_df.index = tect_rup_df.index
+            tect_result_df.insert(0, "sta", tect_rup_df["sta"])
+            tect_result_df.insert(0, "evid", tect_rup_df["evid"])
+            tect_result_df.insert(0, "gmid", tect_rup_df["gmid"])
+            # Get the tect type string
+            tect_type_str = TECT_CLASS_MAP_REV[tect_type]
+
+            # Filter the tect_result_df by the period mask
+            tect_result_df[period_mask.columns] = tect_result_df[
+                period_mask.columns
+            ].mask(period_mask)
+
+            # Save the tect type results to a csv
+            print(
+                f"Writing {model.name} {tect_type_str} to {model_dir / f'{model.name}_{tect_type_str}.csv'}"
+            )
+            tect_result_df.to_csv(
+                model_dir / f"{model.name}_{tect_type_str}.csv")
+            model_outputs[f"{model.name}_{tect_type_str}"] = tect_result_df
+    return model_outputs, gm_df
+
+
+def calc_residuals(
+    gm_df: pd.DataFrame,
+    model_outputs: Dict[str, pd.DataFrame],
+    output_dir: Path,
+    ims: List[str] = None,
+):
+    """
+    Calculate the residuals between the observed IMs and the model IMs
+    :param gm_df: The filtered ground motion dataframe
+    :param model_outputs: The model outputs with the given model and tect_type pairing as the dictionary key
+    :param output_dir: The path to the output directory
+    :param ims: The IMs to calculate the residuals for
+    """
+    # Make the residual output directory
+    residual_dir = output_dir /runID / "residuals"
+    residual_dir.mkdir(exist_ok=True, parents=True)
+
+    # Get default IM's if needed
+    if ims is None:
+        ims = DEFAULT_IMS
+
+    # Loop over each model output and calculate the residuals
+    for model, model_df in model_outputs.items():
+        # Extract the same IMs from the observed data
+        im_columns = [
+            cur_im
+            for cur_im in np.intersect1d(model_df.columns, gm_df.columns)
+            if any(im in cur_im for im in ims)
+        ]
+
+        # exclude desired ims
+        im_columns = [im for im in im_columns if im not in ims_exclude]
+
+        # Compute the residual
+        res_df = np.log(gm_df.loc[model_df.index, im_columns] / model_df[im_columns])
+
+        # Add event id and station id columns
+        res_df.insert(0, "sta", model_df["sta"])
+        res_df.insert(0, "evid", model_df["evid"])
+        res_df.insert(0, "gmid", model_df["gmid"])
+
+        # Get the non nan mask
+        non_nan_mask = res_df.notna()
+
+        # Run MER
+        print(f"Running MER for {model}")
+        event_res_df, site_res_df, rem_res_df, bias_std_df = run_mera(
+            res_df, list(im_columns), "evid", "sta", mask=non_nan_mask
+        )
+
+        # Sort and save each of the residual dataframes to a csv
+        print(f"Writing residual results for {model} in {residual_dir}")
+        sort_period_columns(event_res_df).to_csv(
+            residual_dir / f"{model}_event.csv")
+        sort_period_columns(site_res_df).to_csv(
+            residual_dir / f"{model}_site.csv")
+        sort_period_columns(rem_res_df).to_csv(
+            residual_dir / f"{model}_rem.csv")
+        sort_period_columns(bias_std_df.T).T.to_csv(residual_dir / f"{model}_bias_std.csv")
+
+
+def load_args():
+    parser = argparse.ArgumentParser(
+        description="Calculate the empirical IMs for the given gm csv"
+        "and output the results to the given output directory."
+    )
+    parser.add_argument(
+        "gm_csv",
+        type=Path,
+        help="The path to the csv containing the ground motion data",
+    )
+
+    parser.add_argument(
+        "site_csv",
+        type=Path,
+        help="The path to the csv containing the site data",
+    )
+
+    parser.add_argument(
+        "backarc_json_ffp",
+        type=Path,
+        help="The path to the json file containing the backarc polygon information",
+    )
+    parser.add_argument(
+        "output_dir", type=Path, help="The path to the output directory"
+    )
+    parser.add_argument(
+        "--models",
+        type=List[str],
+        default=DEFAULT_MODELS,
+        help="List of models to use. Defaults to all models used in thr NZSHM",
+    )
+    parser.add_argument(
+        "--ims",
+        type=List[str],
+        default=DEFAULT_IMS,
+        help="List of IMs to calculate. Defaults to PGA and pSA",
+    )
+    parser.add_argument(
+        "--periods",
+        type=List[float],
+        default=None,
+        help="List of periods to calculate. Defaults to all periods in the gm csv",
+    )
+    parser.add_argument(
+        "--period_specific_ffp",
+        type=Path,
+        default=None,
+        help="The path to the period specific txt file",
+    )
+
+    args = parser.parse_args()
+    return args
+
+
+def main():
+    args = load_args()
+    model_outputs, gm_df = calc_empirical(
+        args.gm_csv,
+        args.site_csv,
+        args.backarc_json_ffp,
+        args.output_dir,
+        args.models,
+        args.ims,
+        args.periods,
+        args.period_specific_ffp,
+    )
+    calc_residuals(gm_df, model_outputs, args.output_dir)
+
+
+if __name__ == "__main__":
+    main()

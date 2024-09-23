@@ -78,10 +78,15 @@ OQ_MODELS = {
         )
     },
     GMM.BSSA_14: {TectType.ACTIVE_SHALLOW: gsim.boore_2014.BooreEtAl2014},
+    GMM.BSSA_14_no_NL: {TectType.ACTIVE_SHALLOW: gsim.boore_2014_no_NL_model.BooreEtAl2014},
     GMM.Br_13: {TectType.ACTIVE_SHALLOW: gsim.bradley_2013.Bradley2013},
     GMM.AG_20: {
         TectType.SUBDUCTION_SLAB: gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SSlab,
         TectType.SUBDUCTION_INTERFACE: gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SInter,
+    },
+    GMM.AG_20_new_NL: {
+        TectType.SUBDUCTION_SLAB: gsim.abrahamson_gulerce_2020_new_NL_function.AbrahamsonGulerce2020SSlab,
+        TectType.SUBDUCTION_INTERFACE: gsim.abrahamson_gulerce_2020_new_NL_function.AbrahamsonGulerce2020SInter,
     },
     GMM.P_20: {
         TectType.SUBDUCTION_SLAB: gsim.parker_2020.ParkerEtAl2020SSlab,
@@ -94,6 +99,10 @@ OQ_MODELS = {
     GMM.K_20: {
         TectType.SUBDUCTION_SLAB: gsim.kuehn_2020.KuehnEtAl2020SSlab,
         TectType.SUBDUCTION_INTERFACE: gsim.kuehn_2020.KuehnEtAl2020SInter,
+    },
+    GMM.K_20_new_NL: {
+        TectType.SUBDUCTION_SLAB: gsim.kuehn_2020_new_NL_function.KuehnEtAl2020SSlab,
+        TectType.SUBDUCTION_INTERFACE: gsim.kuehn_2020_new_NL_function.KuehnEtAl2020SInter,
     },
     GMM.P_21: {
         TectType.SUBDUCTION_SLAB: gsim.parker_2021.ParkerEtAl2021SSlab,
