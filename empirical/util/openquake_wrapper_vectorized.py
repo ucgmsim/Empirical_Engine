@@ -325,7 +325,8 @@ def oq_prerun_exception_handle(
     # abrahamson_2015 uses dists = rrup for SUBDUCTION_INTERFACE
     # or dists = rhypo for SUBDUCTION_SLAB. Hence, I believe we can use rrup
     # Also, internal bc_hydro_2016 script uses rrup
-    _handle_missing_property("BCH_16", "rhypo", col_to_rename="rrup")
+    if tect_type == TectType.SUBDUCTION_SLAB:
+        _handle_missing_property("BCH_16", "rhypo", col_to_rename="rrup")
 
     _handle_missing_property("Br_10", "vs30measured", value_factory=lambda: False)
 
