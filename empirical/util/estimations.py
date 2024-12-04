@@ -13,7 +13,9 @@ def estimate_width_ASK14(dip: pd.Series, mag: pd.Series):
     return np.minimum(18 / np.sin(np.radians(dip)), 10 ** (-1.75 + 0.45 * mag))
 
 
-def calculate_avg_strike_dip_rake(planes: list[Plane], plane_avg_rake: list[float], plane_total_slip: list[float]):
+def calculate_avg_strike_dip_rake(
+    planes: list[Plane], plane_avg_rake: list[float], plane_total_slip: list[float]
+):
     """
     Calculates the average strike, dip and rake of the fault planes
     based on the weighted average of the Total Slip on each plane.
@@ -42,14 +44,8 @@ def calculate_avg_strike_dip_rake(planes: list[Plane], plane_avg_rake: list[floa
     slip_weights = np.asarray(plane_total_slip) / sum(plane_total_slip)
 
     # Compute the weighted average of the strike, dip and rake
-    avg_strike = np.average(
-        [plane.strike for plane in planes], weights=slip_weights
-    )
-    avg_dip = np.average(
-        [plane.dip for plane in planes], weights=slip_weights
-    )
-    avg_rake = np.average(
-        plane_avg_rake, weights=slip_weights
-    )
+    avg_strike = np.average([plane.strike for plane in planes], weights=slip_weights)
+    avg_dip = np.average([plane.dip for plane in planes], weights=slip_weights)
+    avg_rake = np.average(plane_avg_rake, weights=slip_weights)
 
     return avg_strike, avg_dip, avg_rake
