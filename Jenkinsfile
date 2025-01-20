@@ -23,12 +23,6 @@ pipeline {
                     echo "[ Install dependencies ]"
 # This can cause storage going overflow. OpenQuake needs lots of temp storage
                     pip install -r requirements.txt
-                    echo "[ Install qcore ]"
-                    cd $TEMP_DIR
-                    rm -rf qcore
-                    git clone https://github.com/ucgmsim/qcore.git
-                    cd qcore
-                    pip install -e .
                 """
             }
         }
@@ -43,7 +37,7 @@ pipeline {
                     cd ${env.WORKSPACE}
 # Install may cause the storage going overflow
                     echo "[ Installing ${env.JOB_NAME} ]"
-                    python setup.py install
+                    pip install -e .
                     echo "[ Run test now ]"
                     cd ${env.WORKSPACE}/empirical
                     pytest --black --ignore=test --ignore=GMM_models
