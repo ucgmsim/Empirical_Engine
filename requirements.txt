@@ -6,5 +6,5 @@ fiona
 bottleneck>=1.3.4
 pandas
 scipy>=1.7.2
-git+https://github.com/gem/oq-engine.git#egg=openquake-engine
+openquake-engine @ git+https://github.com/gem/oq-engine.git
 source-modelling @ git+https://github.com/ucgmsim/source_modelling.git
