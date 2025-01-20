@@ -37,7 +37,7 @@ pipeline {
                     cd ${env.WORKSPACE}
 # Install may cause the storage going overflow
                     echo "[ Installing ${env.JOB_NAME} ]"
-                    python setup.py install
+                    pip install -e .
                     echo "[ Run test now ]"
                     cd ${env.WORKSPACE}/empirical
                     pytest --black --ignore=test --ignore=GMM_models
