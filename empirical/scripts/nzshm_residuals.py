@@ -1,17 +1,16 @@
-from pathlib import Path
-from typing import List, Dict
 import argparse
 import json
+from pathlib import Path
+from typing import Dict, List
 
-import pandas as pd
-import numpy as np
 import geojson
+import numpy as np
+import pandas as pd
 from turfpy.measurement import points_within_polygon
 
-from empirical.util.classdef import TectType, GMM
 from empirical.util import openquake_wrapper_vectorized
+from empirical.util.classdef import GMM, TectType
 from mera.mera_pymer4 import run_mera
-
 
 DEFAULT_IMS = ["PGA", "pSA"]
 DEFAULT_MODELS = [

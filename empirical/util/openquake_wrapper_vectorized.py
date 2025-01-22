@@ -1,8 +1,9 @@
 """Wrapper for openquake vectorized models."""
 
 import logging
+from collections.abc import Callable, Sequence
 from functools import partial
-from typing import Callable, Dict, Sequence, Union
+from typing import Dict, Union
 
 import numpy as np
 import pandas as pd

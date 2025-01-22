@@ -1,12 +1,13 @@
 from pathlib import Path
 from typing import List, Union
 
-import qcore.src_site_dist as ssd
 import h5py
 import numpy as np
 import pandas as pd
 
-from empirical.util import classdef, openquake_wrapper_vectorized as oq_wrapper
+import qcore.src_site_dist as ssd
+from empirical.util import classdef
+from empirical.util import openquake_wrapper_vectorized as oq_wrapper
 from qcore import nhm, srf
 
 TECT_CLASS_MAPPING = {

@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from empirical.util.classdef import TectType, GMM
+from empirical.util.classdef import GMM, TectType
 from empirical.util.openquake_wrapper_vectorized import oq_run
 
 ### Load the data

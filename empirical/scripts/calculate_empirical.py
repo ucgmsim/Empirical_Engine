@@ -1,6 +1,7 @@
 import argparse
 from pathlib import Path
 from typing import Optional
+
 import pandas as pd
 import yaml
 
@@ -93,7 +94,7 @@ def run_emp(
         # Either .csv or .info, fault_df has consistent columns defined in NZ_GMDB_SOURCE_COLUMNS
     else:
         # If srfdata_ffp is not supplied, but if it is a known historical event,we can still proceed
-        print(f"INFO: srfdata_ffp not provided.")
+        print("INFO: srfdata_ffp not provided.")
 
         # Load source info and check if it is a valid event
         if nz_gmdb_source_ffp is not None:
@@ -108,7 +109,7 @@ def run_emp(
                 print(f"INFO: Found {event_name} in NZGMDB.")
         else:
             raise RuntimeError(
-                f"nz_gmdb_source_ffp is required for historical events. Use earthquake_source_table.csv from GMDB.zip"
+                "nz_gmdb_source_ffp is required for historical events. Use earthquake_source_table.csv from GMDB.zip"
             )
 
     # at this point, we have valid fault_df

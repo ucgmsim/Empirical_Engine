@@ -1,11 +1,10 @@
 import numpy as np
 import pandas as pd
 
-from .openquake_wrapper_vectorized import oq_run
-from .classdef import GMM, TectType
-
 from qcore.constants import EXT_PERIOD
 
+from .classdef import GMM, TectType
+from .openquake_wrapper_vectorized import oq_run
 
 # GA_11 Specific coefficients for V/H Ratio
 BETWEEN_EVENT_COEFFICIENTS = [

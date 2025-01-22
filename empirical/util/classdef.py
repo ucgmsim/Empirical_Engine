@@ -1,6 +1,5 @@
 from qcore.constants import ExtendedEnum, ExtendedStrEnum
 
-
 VS30_DEFAULT = 250
 
 
