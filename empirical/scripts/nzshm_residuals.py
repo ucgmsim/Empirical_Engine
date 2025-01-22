@@ -1,7 +1,6 @@
 import argparse
 import json
 from pathlib import Path
-from typing import Dict, List
 
 import geojson
 import numpy as np
@@ -151,9 +150,9 @@ def calc_empirical(
     gm_csv: Path,
     backarc_json_ffp: Path,
     output_dir: Path,
-    models: List[str] = None,
-    ims: List[str] = None,
-    periods: List[float] = None,
+    models: list[str] = None,
+    ims: list[str] = None,
+    periods: list[float] = None,
     period_specific_ffp: Path = None,
 ):
     """
@@ -324,9 +323,9 @@ def calc_empirical(
 
 def calc_residuals(
     gm_df: pd.DataFrame,
-    model_outputs: Dict[str, pd.DataFrame],
+    model_outputs: dict[str, pd.DataFrame],
     output_dir: Path,
-    ims: List[str] = None,
+    ims: list[str] = None,
 ):
     """
     Calculate the residuals between the observed IMs and the model IMs
@@ -386,6 +385,13 @@ def calc_residuals(
 
 
 def load_args():
+    """Load command line arguments for nzshm_residuals.
+
+    Returns
+    -------
+    ArgumentParser
+        An argument parser for nzshm_residuals script.
+    """
     parser = argparse.ArgumentParser(
         description="Calculate the empirical IMs for the given gm csv"
         "and output the results to the given output directory."
@@ -405,19 +411,19 @@ def load_args():
     )
     parser.add_argument(
         "--models",
-        type=List[str],
+        type=list[str],
         default=DEFAULT_MODELS,
         help="List of models to use. Defaults to all models used in thr NZSHM",
     )
     parser.add_argument(
         "--ims",
-        type=List[str],
+        type=list[str],
         default=DEFAULT_IMS,
         help="List of IMs to calculate. Defaults to PGA and pSA",
     )
     parser.add_argument(
         "--periods",
-        type=List[float],
+        type=list[float],
         default=None,
         help="List of periods to calculate. Defaults to all periods in the gm csv",
     )
@@ -433,6 +439,7 @@ def load_args():
 
 
 def main():
+    """Main script for nzshm_residuals."""
     args = load_args()
     model_outputs, gm_df = calc_empirical(
         args.gm_csv,

@@ -86,7 +86,8 @@ def collect_sites_info_(
 
         try:
             nhm_data = nhm.load_nhm(str(source_ffp))
-        except:  # can be a random file causing random exception
+        except: # noqa: E722
+            # can be a random file causing random exception
             print(f"ERROR: {source_ffp} is not a valid NHM file.")
             return
 

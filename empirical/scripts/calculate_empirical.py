@@ -147,7 +147,14 @@ def run_emp(
     )
 
 
-def load_args():
+def load_args() -> argparse.ArgumentParser:
+    """Load command line arguments for calculate_empirical.
+
+    Returns
+    -------
+    ArgumentParser
+        An argument parser for calculate_empirical script.
+    """
     parser = argparse.ArgumentParser(
         description="Script to calculate IMs for empirical models."
         "Produces one .csv for all specified sites."
@@ -242,6 +249,7 @@ def load_args():
 
 
 def main():
+    """Run calculate_empirical script."""
     args = load_args()
     utils.setup_dir(args.output)
     run_emp(

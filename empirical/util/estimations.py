@@ -4,7 +4,7 @@ import pandas as pd
 from source_modelling.sources import Plane
 
 
-def estimate_width_ASK14(dip: pd.Series, mag: pd.Series):
+def estimate_width_ASK14(dip: pd.Series, mag: pd.Series): # noqa: N802
     """Estimate a width for ASK_14 model
     The equation is from NGA-West 2 spreadsheet
     dip: pd.Series

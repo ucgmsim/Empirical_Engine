@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List, Union
+from typing import Union
 
 import h5py
 import numpy as np
@@ -117,7 +117,7 @@ def get_model(
         pass
 
 
-def load_srf_info(srf_info, event_name):
+def load_srf_info(srf_info: Path, event_name: str):
     """Load srf_info file in HDF5 format and return a pandas Series with the fault parameters
 
     Parameters
@@ -238,8 +238,8 @@ def load_rel_csv(source_csv: Path, event_name: str):
 
 
 def create_emp_rel_csv(
-    rel_name,
-    periods: List[str],
+    rel_name: str,
+    periods: list[str],
     rupture_df: pd.DataFrame,
     ims: list,
     component: str,
