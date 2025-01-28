@@ -54,11 +54,11 @@ pga_result = oq_run(
 )
 pga_result.index = rupture_df.index
 
-pSA_results = oq_run( # noqa: N816
+psa_results = oq_run(
     GMM.Br_10,
     TectType.ACTIVE_SHALLOW,
     rupture_df,
     "pSA",
     [0.01, 0.05, 0.1, 0.5, 1.0, 5.0, 10.0],
 )
-pSA_results.index = rupture_df.index
+psa_results.index = rupture_df.index
