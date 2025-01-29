@@ -1,8 +1,9 @@
 """Wrapper for openquake vectorized models."""
 
 import logging
+from collections.abc import Callable, Sequence
 from functools import partial
-from typing import Callable, Dict, Sequence, Union
+from typing import Union
 
 import numpy as np
 import pandas as pd
@@ -13,7 +14,7 @@ from empirical.util import estimations
 from empirical.util.classdef import GMM, TectType
 
 
-def OQ_model(model, **kwargs):
+def openquake_model(model: gsim.base.GMPE, **kwargs):
     """Partial function to simplify model instanstiation
     model: gsim.base.GMPE
     kwargs: pass extra (model specific) parameters to models
@@ -46,20 +47,20 @@ OQ_MODELS = {
     },
     GMM.K_20_NZ: {
         TectType.SUBDUCTION_SLAB: partial(
-            OQ_model, model=gsim.kuehn_2020.KuehnEtAl2020SSlab, region="NZL"
+            openquake_model, model=gsim.kuehn_2020.KuehnEtAl2020SSlab, region="NZL"
         ),
         TectType.SUBDUCTION_INTERFACE: partial(
-            OQ_model, model=gsim.kuehn_2020.KuehnEtAl2020SInter, region="NZL"
+            openquake_model, model=gsim.kuehn_2020.KuehnEtAl2020SInter, region="NZL"
         ),
     },
     GMM.AG_20_NZ: {
         TectType.SUBDUCTION_SLAB: partial(
-            OQ_model,
+            openquake_model,
             model=gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SSlab,
             region="NZL",
         ),
         TectType.SUBDUCTION_INTERFACE: partial(
-            OQ_model,
+            openquake_model,
             model=gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SInter,
             region="NZL",
         ),
@@ -74,7 +75,7 @@ OQ_MODELS = {
     GMM.CY_14: {TectType.ACTIVE_SHALLOW: gsim.chiou_youngs_2014.ChiouYoungs2014},
     GMM.CB_14: {
         TectType.ACTIVE_SHALLOW: partial(
-            OQ_model,
+            openquake_model,
             model=gsim.campbell_bozorgnia_2014.CampbellBozorgnia2014,
             estimate_width=True,
         )
@@ -394,7 +395,7 @@ def oq_run(
     rupture_df: pd.DataFrame,
     im: str,
     periods: Sequence[Union[int, float]] = None,
-    meta_config: Dict = None,
+    meta_config: dict = None,
     **kwargs,
 ):
     """Run an openquake model with dataframe
@@ -411,7 +412,7 @@ def oq_run(
     periods: Sequence[Union[int, float]]
         for spectral acceleration, openquake tables automatically
         interpolate values between specified values, fails if outside range
-    meta_config: Dict
+    meta_config: dict
         A dictionary contains models and its weight
     kwargs: pass extra (model specific) parameters to models
     """

@@ -5,13 +5,13 @@ This script is a pre-requisite for calculate_empirical.py as the .csv file produ
 """
 
 from pathlib import Path
+from typing import Annotated
 
 import pandas as pd
 import typer
-from typing_extensions import Annotated
 
 from empirical.util import empirical
-from qcore import nhm, formats
+from qcore import formats, nhm
 
 RJB_MAX = 200
 
@@ -82,11 +82,12 @@ def collect_sites_info_(
 
         assert (
             len(nhm_fault_name) > 0
-        ), f"--nhm-fault-name must be specified if source-ffp is not SRF."
+        ), "--nhm-fault-name must be specified if source-ffp is not SRF."
 
         try:
             nhm_data = nhm.load_nhm(str(source_ffp))
-        except:  # can be a random file causing random exception
+        except: # noqa: E722
+            # can be a random file causing random exception
             print(f"ERROR: {source_ffp} is not a valid NHM file.")
             return
 
