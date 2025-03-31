@@ -4,12 +4,32 @@ import pandas as pd
 from source_modelling.sources import Plane
 
 
-def estimate_width_ASK14(dip: pd.Series, mag: pd.Series): # noqa: N802
-    """Estimate a width for ASK_14 model
-    The equation is from NGA-West 2 spreadsheet
-    dip: pd.Series
-    mag: pd.Series
+def estimate_width_ASK14(dip: pd.Series, mag: pd.Series) -> pd.Series: 
     """
+    Estimate fault width for ASK_14 model.
+    
+    The equation is from NGA-West 2 spreadsheet.
+    
+    Parameters
+    ----------
+    dip : pd.Series
+        Series of fault dip angles in degrees
+    mag : pd.Series
+        Series of earthquake magnitudes
+        
+    Returns
+    -------
+    pd.Series
+        Estimated fault width values
+        
+    Raises
+    ------
+    ValueError
+        If input series do not have the same length
+    """
+    if len(dip) != len(mag):
+        raise ValueError("Input series 'dip' and 'mag' must have the same length")
+        
     return np.minimum(18 / np.sin(np.radians(dip)), 10 ** (-1.75 + 0.45 * mag))
 
 
