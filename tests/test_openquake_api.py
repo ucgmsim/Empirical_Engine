@@ -4,6 +4,14 @@
 These tests check that OpenQuake's API hasn't changed in ways that would break our wrapper.
 If these tests fail, it means that the OpenQuake library has changed its API and
 our wrapper code needs to be updated accordingly.
+
+Examples
+--------
+Run all tests:
+    pytest tests/test_openquake_api.py
+
+Run with coverage:
+    pytest tests/test_openquake_api.py --cov=empirical.util.openquake_wrapper_vectorized
 """
 
 from typing import List, Dict, Any, Type, cast
@@ -238,3 +246,56 @@ def test_im_configurations(
     
     # Use utility function to check the result structure
     assert_result_columns(result, im_check)
+
+
+@pytest.mark.parametrize('error_case', [
+    pytest.param(
+        {
+            'model_type': GMM.Br_13, 
+            'tect_type': TectType.ACTIVE_SHALLOW,
+            'rupture_df': pd.DataFrame({'vs30': [760.0]}),  # Missing required parameters
+            'im': "PGA",
+            'expected_error': "Unknown site property:",
+        },
+        id="missing-site-params"
+    ),
+    pytest.param(
+        {
+            'model_type': GMM.Br_13, 
+            'tect_type': TectType.ACTIVE_SHALLOW,
+            'rupture_df': None,  # No rupture dataframe
+            'im': "PGA",
+            'expected_error': "'NoneType' object has no attribute 'copy'",
+        },
+        id="null-rupture-df"
+    ),
+])
+def test_oq_run_raises_expected_errors(error_case: Dict[str, Any]) -> None:
+    """Test that oq_run raises appropriate errors for invalid inputs.
+    
+    This test verifies that our wrapper correctly handles and reports
+    various error conditions with appropriate error messages.
+    
+    Parameters
+    ----------
+    error_case : Dict[str, Any]
+        Test case with invalid inputs and expected error message
+    """
+    model_type = error_case['model_type']
+    tect_type = error_case['tect_type']
+    rupture_df = error_case['rupture_df']
+    im = error_case['im']
+    expected_error = error_case['expected_error']
+    
+    # Test that the expected error is raised
+    with pytest.raises(Exception) as excinfo:
+        oq_wrapper.oq_run(
+            model_type=model_type,
+            tect_type=tect_type,
+            rupture_df=rupture_df,
+            im=im
+        )
+    
+    # Check that the error message contains the expected text
+    assert expected_error in str(excinfo.value), \
+        f"Expected error message containing '{expected_error}', got: {str(excinfo.value)}"

@@ -5,6 +5,7 @@ import inspect
 import pytest
 import numpy as np
 import pandas as pd
+from functools import wraps
 
 from openquake.hazardlib import const, contexts, gsim, imt
 
@@ -269,3 +270,49 @@ def create_test_im_config() -> List[Dict[str, Any]]:
         },
         # Add other common IMs as needed
     ]
+
+
+def openquake_test_wrapper(func):
+    """Decorator for OpenQuake test functions that validates inputs and handles common errors.
+    
+    This decorator adds consistent error handling and validation to OpenQuake tests.
+    It automatically checks for common issues in test results and provides better
+    error messages.
+    
+    Parameters
+    ----------
+    func : Callable
+        Test function to wrap
+        
+    Returns
+    -------
+    Callable
+        Wrapped test function
+        
+    Example
+    -------
+    @openquake_test_wrapper
+    def test_my_gmm(mock_openquake_api, test_rupture_data):
+        # The wrapper will automatically validate the result
+        return oq_wrapper.oq_run(...)
+    """
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            # Call the wrapped function
+            result = func(*args, **kwargs)
+            
+            # Basic validation of the result if it's a DataFrame
+            if isinstance(result, pd.DataFrame):
+                # Check for any infinite values
+                assert not np.isinf(result.values).any(), "Result contains infinite values"
+                
+                # Basic check that we have at least some results
+                assert not result.empty, "Result DataFrame is empty"
+                
+            return result
+        except Exception as e:
+            print(f"\nError in {func.__name__}: {str(e)}")
+            raise
+            
+    return wrapper
