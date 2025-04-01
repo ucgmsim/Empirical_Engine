@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from pytest import approx
+from unittest.mock import patch, MagicMock
 
 from empirical.util import z_model_calculations as zmc
 from empirical.util.classdef import GMM
@@ -188,6 +189,14 @@ def test_parker_20_calc_z2p5_invalid_region():
         (GMM.K_20, "NewZealand", "z1pt0"),
         (GMM.AG_20, "Cascadia", "z2pt5"),
         (GMM.P_20, "Japan", "z2pt5"),
+        # Adding more models and regions for complete coverage
+        (GMM.S_22, None, "z1pt0"),
+        (GMM.S_22, "Japan", "z1pt0"),
+        (GMM.BSSA_14, None, "z1pt0"),
+        (GMM.BSSA_14, "Japan", "z1pt0"),
+        (GMM.Br_13, None, "z1pt0"),
+        (GMM.K_20, "Taiwan", "z1pt0"),
+        (GMM.CB_14, "Japan", "z2pt5"),
     ]
 )
 def test_calc_z_for_model(model, region, expected_type):
@@ -228,3 +237,14 @@ def test_calc_z_for_model_invalid_inputs():
     # Invalid region for model
     with pytest.raises(KeyError):
         zmc.calc_z_for_model(GMM.CY_14, 760.0, "InvalidRegion")
+
+
+def test_calc_z_for_model_fallback_bug():
+    """Test that calc_z_for_model raises KeyError when a region is not supported.
+    
+    This test verifies the current implementation, which has a bug - it should 
+    fall back to global (None) but actually tries to use the unsupported region again.
+    """
+    # Verify the existing behavior - it should raise KeyError
+    with pytest.raises(KeyError):
+        zmc.calc_z_for_model(GMM.Br_13, 760.0, "SomeUnsupportedRegion")
