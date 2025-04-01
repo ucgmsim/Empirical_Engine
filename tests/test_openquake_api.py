@@ -84,8 +84,7 @@ def test_get_mean_stds_signature() -> None:
 
     # Check function signature
     sig = inspect.signature(contexts.get_mean_stds)
-    # The function currently takes four parameters in the latest version
-    # This could be due to API changes in OpenQuake
+    # The function takes four parameters in the latest version, and 3 in an earlier version
     assert len(sig.parameters) in [
         3,
         4,
