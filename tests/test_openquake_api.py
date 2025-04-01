@@ -358,3 +358,54 @@ def test_oq_run_raises_expected_errors(error_case: Dict[str, Any]) -> None:
     assert expected_error in str(
         excinfo.value
     ), f"Expected error message containing '{expected_error}', got: {str(excinfo.value)}"
+
+
+@pytest.mark.parametrize(
+    "model_type, tect_type, rupture_df, im, expected_error",
+    [
+        (
+            GMM.ASK_14,
+            TectType.ACTIVE_SHALLOW,
+            pd.DataFrame({
+                "dip": [30],
+                "mag": [5.0],
+                "vs30": [760.0],
+                "z1pt0": [0.001],
+                "rake": [0.0],
+                "ztor": [0.0],
+                "width": [10.0],
+                "rx": [5.0],
+                "rrup": [10.0],
+                "rjb": [8.0],
+                "ry0": [3.0],
+            }),
+            "PGA",
+            None,
+        ),
+        (
+            GMM.BCH_16,
+            TectType.SUBDUCTION_SLAB,
+            pd.DataFrame({
+                "rrup": [10.0],
+                "vs30": [760.0],
+                "xvf": [0],
+                "hypo_depth": [15.0],
+                "mag": [6.5],
+            }),
+            "PGA",
+            None,
+        ),
+    ],
+)
+def test_oq_prerun_exception_handle(model_type, tect_type, rupture_df, im, expected_error):
+    """Test oq_prerun_exception_handle for various edge cases."""
+    if expected_error:
+        with pytest.raises(AssertionError, match=expected_error):
+            oq_wrapper.oq_prerun_exception_handle(model_type, tect_type, rupture_df, im)
+    else:
+        model, updated_df, updated_im = oq_wrapper.oq_prerun_exception_handle(
+            model_type, tect_type, rupture_df, im
+        )
+        assert isinstance(model, gsim.base.GMPE)
+        assert isinstance(updated_df, pd.DataFrame)
+        assert isinstance(updated_im, str)
