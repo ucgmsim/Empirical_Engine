@@ -9,21 +9,15 @@ from typing import (
     List,
     Optional,
     Tuple,
-    TypeVar,
-    Union,
 )
 
 import numpy as np
 import pandas as pd
 import pytest
-from openquake.hazardlib import const, contexts, gsim, imt
+from openquake.hazardlib import contexts, gsim
 
 # Import these here to make them available to test functions
 from empirical.util.classdef import GMM, TectType
-
-# Define type variables for better type hints
-T = TypeVar("T")
-DataFrameType = TypeVar("DataFrameType", bound=pd.DataFrame)
 
 
 @pytest.fixture()  # Using default function scope to match monkeypatch
@@ -187,16 +181,16 @@ def assert_result_columns(
 
     # Check that all expected columns exist
     for expected_column in expected_columns:
-        assert (
-            expected_column in result.columns
-        ), f"Result should contain {expected_column} column"
+        assert expected_column in result.columns, (
+            f"Result should contain {expected_column} column"
+        )
 
     # If strict mode, also check that no unexpected columns exist
     if strict:
         for col in result.columns:
-            assert any(
-                col == exp_col for exp_col in expected_columns
-            ), f"Unexpected column {col} in result"
+            assert any(col == exp_col for exp_col in expected_columns), (
+                f"Unexpected column {col} in result"
+            )
 
     # Check that there are no NaN values in the result
     assert not result[expected_columns].isna().any().any(), "Result contains NaN values"
@@ -352,9 +346,9 @@ def openquake_test_wrapper(func):
             # Basic validation of the result if it's a DataFrame
             if isinstance(result, pd.DataFrame):
                 # Check for any infinite values
-                assert not np.isinf(
-                    result.values
-                ).any(), "Result contains infinite values"
+                assert not np.isinf(result.values).any(), (
+                    "Result contains infinite values"
+                )
 
                 # Basic check that we have at least some results
                 assert not result.empty, "Result DataFrame is empty"
