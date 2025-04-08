@@ -3,7 +3,7 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 import pytest
-from hypothesis import given
+from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
 from empirical.util import estimations
@@ -86,6 +86,9 @@ def rupture_data_strategy(draw: st.DrawFn) -> tuple:
     return planes, plane_avg_rake, plane_total_slip
 
 
+# This test takes about 10 seconds to run, so the Hypothesis package  
+# raises an error for taking too long unless the following setting is used. 
+@settings(suppress_health_check=[HealthCheck.too_slow])
 @given(rupture_data=rupture_data_strategy())
 def test_calculate_avg_strike_dip_rake(
     rupture_data: tuple[list[sources.Plane], list[float], list[float]],
