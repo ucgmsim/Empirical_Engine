@@ -79,10 +79,11 @@ logging.basicConfig(
 )
 
 logging.info("Starting benchmark generation script.")
-# Iterate over all combinations of GMM and TectType
+# Try to calculate "pSA", "PGA", and "PGV" for all combinations of GMM and TectType.
+# If a given model (GMM+TectType) does not support a given IM, or requires input
+# parameters that are not provided, we catch the Exception and continue.
 for gmm in list(GMM):
     for tect_type in list(TectType):
-
         for im in ["pSA", "PGA", "PGV"]:
             temp_periods = PERIODS if im == "pSA" else None
             try:
@@ -94,9 +95,15 @@ for gmm in list(GMM):
                     temp_periods,
                 )
 
-            except Exception as e:
+            except (
+                AttributeError,
+                ValueError,
+                KeyError,
+                AssertionError,
+                TypeError,
+            ) as e:
                 logging.error(
-                    f"Error generating {im} for {gmm.name} and {tect_type.name}: {e}"
+                    f"Error generating {im} for {gmm.name} and {tect_type.name}: {type(e).__name__}: {e}"
                 )
                 continue
 
