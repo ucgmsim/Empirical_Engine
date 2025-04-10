@@ -30,8 +30,8 @@ PERIODS = [
     0.8,
     0.9,
     1.0,
-    1.25,
     1.2,
+    1.25,
     1.5,
     2.0,
     2.5,
@@ -98,7 +98,6 @@ for gmm in list(GMM):
                 logging.error(
                     f"Error generating {im} for {gmm.name} and {tect_type.name}: {e}"
                 )
-                print(f"Error generating {im} for {gmm.name} and {tect_type.name}: {e}")
                 continue
 
             benchmark_data_output_dir = (
