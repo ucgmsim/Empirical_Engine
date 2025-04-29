@@ -1,6 +1,7 @@
 """Wrapper for openquake vectorized models."""
 
 import logging
+import warnings
 from collections.abc import Callable, Sequence
 from functools import partial
 from typing import Union
@@ -524,6 +525,10 @@ def oq_run(
 
             # extrapolate pSA value up based on maximum available period
             if period > max_period:
+                warnings.warn(
+                    f"Extrapolating pSA({period}) based on maximum available period {max_period} for model {model_type.name}.",
+                    UserWarning
+                )
                 result.loc[:, result.columns.str.endswith("mean")] += 2 * np.log(
                     max_period / period
                 )
