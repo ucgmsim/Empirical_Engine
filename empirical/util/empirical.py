@@ -26,7 +26,15 @@ NZ_GMDB_SOURCE_COLUMNS = [
     "rake",
     "dip",
     "depth",
-]  # following NZ_GMDB_SOURCE column names
+    "ev_depth",
+    "r_rup",
+    "r_jb",
+    "r_x",
+    "r_y",
+    "Vs30",
+    "Z1.0",
+    "Z2.5",
+] 
 
 OQ_RUPTURE_COLUMNS = [
     "mag",
@@ -36,6 +44,14 @@ OQ_RUPTURE_COLUMNS = [
     "rake",
     "dip",
     "hypo_depth",
+    "hypo_depth",
+    "rrup",
+    "rjb",
+    "rx",
+    "ry0",
+    "vs30",
+    "z1pt0",
+    "z2pt5",
 ]
 
 NZGMDB_OQ_COL_MAPPING = dict(zip(NZ_GMDB_SOURCE_COLUMNS, OQ_RUPTURE_COLUMNS))

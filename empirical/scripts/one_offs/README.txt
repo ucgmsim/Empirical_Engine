@@ -1,0 +1,2 @@
+Scripts that were developed by SW team for a one-off use, this is generally in the contet of helping a research.
+These scripts are not actively maintained by SW, and are therefore most likely out of date.
