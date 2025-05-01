@@ -50,7 +50,7 @@ def test_gmm_benchmarks(benchmark_ffp: Path):
         ]
     )
     result_df = oq_wrapper.run_gmm(gmm, tect_type, cur_rupture_df, im, periods=periods)
-    result_df.index = cur_rupture_df.index
+    # result_df.index = cur_rupture_df.index
 
     assert_frame_equal(result_df, bench_df)
 

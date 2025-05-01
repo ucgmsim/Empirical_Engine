@@ -211,7 +211,7 @@ def run_gmm(
         if periods is None:
             raise ValueError("Periods must be specified for pSA.")
 
-        return _oq_run_pSA(
+        result_df = _oq_run_pSA(
             model,
             oq_model,
             rupture_ctx,
@@ -226,7 +226,10 @@ def run_gmm(
             raise ValueError(
                 f"Model {model.name} does not support {im}. Supported types are {oq_model.DEFINED_FOR_INTENSITY_MEASURE_TYPES}"
             )
-        return _run_oq_model(oq_model, rupture_ctx, imc(), stddev_types)
+        result_df = _run_oq_model(oq_model, rupture_ctx, imc(), stddev_types)
+
+    result_df.index = rupture_df.index
+    return result_df
 
 
 def prepare_model_inputs(
