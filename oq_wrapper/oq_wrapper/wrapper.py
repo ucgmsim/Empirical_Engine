@@ -13,12 +13,22 @@ from . import constants, estimations
 
 
 def _oq_model(model: gsim.base.GMPE, **kwargs):
-    """Partial function to simplify model instanstiation
-    model: gsim.base.GMPE
-    kwargs: pass extra (model specific) parameters to models
-    E.g:
-        region=NZL for models end with _NZ
-        estimate_width=True for CB_14 to estimate width
+    """
+    Create a partial function to simplify model instantiation.
+
+    Parameters
+    ----------
+    model : gsim.base.GMPE
+        OpenQuake ground motion model class
+    **kwargs
+        Extra model-specific parameters, e.g.:
+        - region="NZL" for models ending with _NZ
+        - estimate_width=True for CB_14 to estimate fault width
+
+    Returns
+    -------
+    gsim.base.GMPE
+        Instantiated OpenQuake ground motion model
     """
     return model(**kwargs)
 
@@ -124,21 +134,42 @@ def run_gmm(
     periods: Sequence[Union[int, float]] = None,
     **kwargs,
 ):
-    """Run an openquake model with dataframe
-    model_type: GMM
-        OQ model
-    tect_type: TectType
-        One of the tectonic types from
-        ACTIVE_SHALLOW, SUBDUCTION_SLAB and SUBDUCTION_INTERFACE
-    rupture_df: Rupture DF
-        Columns for properties. E.g., vs30, z1pt0, rrup, rjb, mag, rake, dip....
-        Rows be the separate site-fault pairs
-    im: string
-        intensity measure
-    periods: Sequence[Union[int, float]]
-        for spectral acceleration, openquake tables automatically
-        interpolate values between specified values, fails if outside range
-    kwargs: pass extra (model specific) parameters to models
+    """
+    Run OpenQuake GMM for the given rupture dataframe and intensity measure.
+
+    Parameters
+    ----------
+    model : constants.GMM
+        Ground motion model identifier
+    tect_type : constants.TectType
+        Tectonic type (ACTIVE_SHALLOW, SUBDUCTION_SLAB or SUBDUCTION_INTERFACE)
+    rupture_df : pd.DataFrame
+        DataFrame containing rupture and site parameters.
+        Columns should include properties like vs30, z1pt0, rrup, rjb, mag, rake, dip, etc.
+        Note: z1pt0 needs to be in km.
+        Each row represents a separate site-fault pair.
+    im : str
+        Intensity measure (e.g., 'PGA', 'PGV', 'pSA', 'Ds575', 'Ds595')
+    periods : Sequence[Union[int, float]], optional
+        Periods to compute for pSA, required if im is 'pSA'.
+        Ignored for other IMs.
+    **kwargs
+        Extra parameters passed to the model constructor
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame containing IM mean and standard deviation for each entry in rupture_df.
+        Following columns per IM/pSA period:
+        - mean: {IM}_mean               - Mean lnIM value
+        - std_total: {IM}_std_total     - Total standard deviation
+        - std_intra: {IM}_std_intra     - Within-event standard deviation
+        - std_inter: {IM}_std_inter     - Between-event standard deviation
+
+    Raises
+    ------
+    ValueError
+        If required periods for pSA are not specified or if the IM is not supported
     """
     # Get the OQ model
     oq_model, stddev_types = get_oq_model(model, tect_type, **kwargs)
@@ -205,30 +236,34 @@ def prepare_model_inputs(
     im: str,
 ):
     """
-    Handle exceptions for the given model and rupture_df, and returns an updated set of
-    (model, rupture_df, im)
+    Prepares the rupture dataframe and IM for OpenQuake.
+    Handles missing model specific properties.
+
+    Checks that all required inputs for the specified model
+    are present in the rupture dataframe.
 
     Parameters
     ----------
-    model_type: GMM
-        OQ model
-    tect_type: TectType
-        One of the tectonic types from ACTIVE_SHALLOW, SUBDUCTION_SLAB and SUBDUCTION_INTERFACE
-    rupture_df: pd.DataFrame
-        Columns for properties. E.g., vs30, z1pt0, rrup, rjb, mag, rake, dip....
-    im: str
-        intensity measure
-    kwargs: pass extra (model specific) parameters to models
-
+    model : constants.GMM
+        Ground motion model identifier
+    oq_model : gsim.base.GMPE
+        Instantiated OpenQuake ground motion model
+    rupture_df : pd.DataFrame
+        DataFrame containing rupture parameters
+    im : str
+        Intensity measure
 
     Returns
     -------
-    model: gsim.base.GMPE
-        OQ_MODEL for a given model_type and tect_type
-    rupture_df: pd.DataFrame
-        updated rupture_df
-    im: str
-        intensity measure (updated if necessary)
+    pd.DataFrame
+        Updated rupture_df 
+    str
+        IM 
+
+    Notes
+    -----
+    This function handles special cases for different models,
+    such as adding missing parameters or renaming columns.
     """
     # Use a copy
     rupture_df = rupture_df.copy()
@@ -307,6 +342,30 @@ def get_oq_model(
     tect_type: constants.TectType,
     **kwargs,
 ):
+    """
+    Get the OpenQuake GMM model for specified GMM and tectonic type.
+
+    Parameters
+    ----------
+    model_type : constants.GMM
+        Ground motion model identifier
+    tect_type : constants.TectType
+        Tectonic type
+    **kwargs
+        Extra model-specific parameters passed to the model constructor
+
+    Returns
+    -------
+    gsim.base.GMPE
+        Instantiated OpenQuake ground motion model
+    list
+        Standard deviation types supported by the model
+
+    Raises
+    ------
+    AssertionError
+        If the model's defined tectonic type doesn't match the specified tectonic type
+    """
     model = OQ_MODEL_MAPPING[model_type][tect_type](**kwargs)
 
     # Sanity check
@@ -326,6 +385,19 @@ def get_oq_model(
 
 
 def _get_model_pSA_periods(model: gsim.base.GMPE):
+    """
+    Get the pSA periods supported by the specified model.
+
+    Parameters
+    ----------
+    model : gsim.base.GMPE
+        OpenQuake GMMM
+
+    Returns
+    -------
+    np.ndarray
+        Array of periods supported by the model
+    """
     return np.asarray(
         [
             im.period
@@ -352,6 +424,34 @@ def _oq_run_pSA(
     periods: Sequence[float],
     stddev_types: Sequence[oq_const.StdDev],
 ):
+    """
+    Run OpenQuake GMM for pSA.
+    Handles extrapolation for periods larger than the model's maximum period.
+    Handles interpolation for periods smaller than the model's minimum period using PGA.
+
+    Parameters
+    ----------
+    model_type : constants.GMM
+        Ground motion model identifier
+    model : gsim.base.GMPE
+        Instantiated OpenQuake ground motion model
+    rupture_ctx : contexts.RuptureContext
+        OpenQuake rupture context containing site, distance, and rupture information
+    periods : Sequence[float]
+        Periods to calculate spectral acceleration for
+    stddev_types : Sequence[oq_const.StdDev]
+        Standard deviation types to calculate
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame containing spectral acceleration results for all requested periods
+
+    Raises
+    ------
+    ValueError
+        If the model does not support spectral acceleration
+    """
     if imt.SA not in model.DEFINED_FOR_INTENSITY_MEASURE_TYPES:
         raise ValueError(
             f"Model {model_type.name} does not support pSA. Supported types are {model.DEFINED_FOR_INTENSITY_MEASURE_TYPES}"
@@ -428,18 +528,26 @@ def _run_oq_model(
     stddev_types: Sequence[oq_const.StdDev],
 ):
     """
-    Calculate mean and standard deviations using
-    the given model and rupture context.
+    Call OpenQuake to compute mean and standard deviations 
+    for the given GMM model and rupture context.
 
-    model: gsim.base.GMPE
-        OQ models we use are subclass of gsim.base.GMPE
-    ctx: contexts.RuptureContext
-        OQ RuptureContext that contains the following information
-        - Site
-        - Distance
-        - Rupture
-    im: imt.IMT
-    stddev_types: Sequence[const.StdDev]
+    Converts OpenQuake results to standard output format.
+
+    Parameters
+    ----------
+    oq_model : gsim.base.GMPE
+        OpenQuake ground motion model
+    ctx : contexts.RuptureContext
+        OpenQuake rupture context containing site, distance, and rupture information
+    im : imt.IMT
+        Intensity measure type
+    stddev_types : Sequence[oq_const.StdDev]
+        Standard deviation types to calculate
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame containing mean and standard deviation results
     """
     # Run model. Returns array with
     # mean, std_total, std_inter and std_intra.
@@ -464,20 +572,25 @@ def _confirm_all_properties_exist(
     params_present: set,
 ):
     """
-    Check if all required columns are present. If not, raise an error.
+    Check if all required columns are present in the rupture dataframe.
 
     Parameters
     ----------
-    model_type: constants.GMM
-        The model type being checked.
-    im: str
-        The intensity measure associated with the model.
-    type: str
-        site, rupture or distance
-    params_required: set
-        set of required columns
-    params_present: set
-        set of columns present in the dataframe
+    model : constants.GMM
+        Ground motion model being checked
+    im : str
+        Intensity measure associated with the model
+    type : str
+        Property type ('site', 'rupture', or 'distance')
+    params_required : set
+        Set of parameter names required by the model
+    params_present : set
+        Set of parameter names present in the rupture dataframe
+
+    Raises
+    ------
+    ValueError
+        If required parameters are missing
     """
     extra_params = set(params_required - params_present)
     if len(extra_params) > 0:
@@ -489,29 +602,33 @@ def _confirm_all_properties_exist(
 
 def _handle_missing_property(
     rupture_df: pd.DataFrame,
-    model_type: constants.GMM,
-    model_type_name: str,
+    model: constants.GMM,
+    model_name: str,
     col_missing: str,
     value_factory: Callable = lambda: None,
     col_to_rename: str = None,
 ):
     """
-    If the specific model requires any additional columns that are not in the rupture_df
-    we can manually assign a value, work out from the existing columns or raise an error
+    Handle missing properties in the rupture dataframe for 
+    the specified model type.
 
     Parameters
     ----------
-    model_type_name: str
-        model type name
+    rupture_df : pd.DataFrame
+        Rupture dataframe to modify
+    model : constants.GMM
+        Current model being used
+    model_name : str
+        Name of the model to check against
     col_missing : str
-        column name that is missing in the rupture_df
-    value_factory: Callable
-        default value generator if the column is missing but no
-        column is specified to rename from.
-    col_to_rename: str
-        column name to rename to col_missing
+        Column name that is missing in the rupture dataframe
+    value_factory : Callable, optional
+        Function that generates a default value when the column is missing,
+        by default lambda: None
+    col_to_rename : str, optional
+        Column name to rename to col_missing, by default None
     """
-    if model_type.name == model_type_name:
+    if model.name == model_name:
         if col_missing not in rupture_df and col_to_rename is not None:
             rupture_df.rename(
                 {col_to_rename: col_missing}, axis="columns", inplace=True
@@ -521,12 +638,25 @@ def _handle_missing_property(
 
 
 def _convert_im_label(im: imt.IMT):
-    """Convert OQ's IM term into the internal term.
-    E.g:
-        pSA_period (OQ uses SA(period))
-        Ds575 (OQ uses RSD575)
-        Ds595 (OQ uses RSD595)
-    im: imt.IMT
+    """
+    Convert OpenQuake's IM name.
+
+    Parameters
+    ----------
+    im : imt.IMT
+        OpenQuake IM object
+
+    Returns
+    -------
+    str
+        Converted IM label
+
+    Notes
+    -----
+    Examples of conversions:
+    - SA(period) → pSA_period
+    - RSD575 → Ds575
+    - RSD595 → Ds595
     """
     imt_tuple = imt.imt2tup(im.string)
     if len(imt_tuple) == 1:
