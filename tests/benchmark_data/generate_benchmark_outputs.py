@@ -3,8 +3,8 @@
 import logging
 from pathlib import Path
 
-import yaml
 import pandas as pd
+import yaml
 from tqdm import tqdm
 
 from empirical.util.classdef import GMM, TectType
