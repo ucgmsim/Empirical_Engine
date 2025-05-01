@@ -3,6 +3,7 @@
 import logging
 from pathlib import Path
 
+import yaml
 import pandas as pd
 from tqdm import tqdm
 
@@ -86,10 +87,22 @@ for gmm in tqdm(list(GMM)):
     if gmm is GMM.GA_11:
         continue
 
+    if gmm is GMM.META:
+        with open(Path(__file__).parent.parent.parent / "empirical/util" / "meta_config.yaml") as f:
+            meta_config = yaml.load(f, Loader=yaml.FullLoader)
+        tect_types = list(TECT_TYPE_MAPPING.keys())
+    else:
+        meta_config = None 
+        tect_types = OQ_MODELS[gmm].keys()
+
     # Iterate over all tectonic types supported by the GMM
-    for tect_type in OQ_MODELS[gmm].keys():
+    for tect_type in tect_types:
         for im in ["pSA", "PGA", "PGV"]:
-            temp_periods = PERIODS if im == "pSA" else None
+            cur_meta_config = None
+            if gmm is GMM.META:
+                cur_meta_config = [value for key, value in meta_config.items() if im in key][0]
+
+            cur_periods = PERIODS if im == "pSA" else None
 
             # Only use records matching the current tectonic type
             cur_rupture_df = rupture_df.loc[
@@ -108,7 +121,8 @@ for gmm in tqdm(list(GMM)):
                     tect_type,
                     cur_rupture_df,
                     im,
-                    temp_periods,
+                    periods=cur_periods,
+                    meta_config=cur_meta_config,
                 )
 
             except (

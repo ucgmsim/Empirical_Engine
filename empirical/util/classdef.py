@@ -13,6 +13,7 @@ class TectType(ExtendedEnum):
 
 class GMM(ExtendedStrEnum):
     """Ground motion models."""
+    META = 0, "Meta model"
     ZA_06 = 1, "Z06"
     Br_10 = 2, "B10"
     AS_16 = 3, "AS16"
