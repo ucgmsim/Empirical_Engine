@@ -1,12 +1,12 @@
 from pathlib import Path
 
-import pytest
 import pandas as pd
+import pytest
 from pandas.testing import assert_frame_equal
 
 from empirical.util.classdef import GMM, TectType
-from empirical.util.openquake_wrapper_vectorized import oq_run
 from empirical.util.empirical import NZGMDB_OQ_COL_MAPPING
+from empirical.util.openquake_wrapper_vectorized import oq_run
 
 benchmark_files = list(
     (Path(__file__).parent / "benchmark_data" / "data").rglob("*.parquet")
@@ -49,9 +49,3 @@ def test_gmm_benchmarks(benchmark_ffp: Path):
 
     assert_frame_equal(result_df, bench_df)
 
-
-# if __name__ == "__main__":
-#     # Run the test function
-#     for cur_ffp in benchmark_files:
-#         test_gmm_benchmarks(cur_ffp)
-#     # test_gmm_benchmarks(benchmark_files)
