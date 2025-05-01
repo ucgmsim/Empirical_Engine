@@ -3,8 +3,7 @@ import pandas as pd
 
 from qcore.constants import EXT_PERIOD
 
-from .classdef import GMM, TectType
-from .openquake_wrapper_vectorized import oq_run
+from . import constants, oq_wrapper
 
 # GA_11 Specific coefficients for V/H Ratio
 BETWEEN_EVENT_COEFFICIENTS = [
@@ -61,8 +60,8 @@ COEFFICIENT_PERIODS = [
 
 
 def get_model_results(
-    model: GMM,
-    tect_type: TectType,
+    model: constants.GMM,
+    tect_type: constants.TectType,
     rupture_df: pd.DataFrame,
     im: str,
     periods: np.ndarray,
@@ -100,7 +99,7 @@ def get_model_results(
     if kwargs is None:
         kwargs = {}
 
-    result = oq_run(model, tect_type, rupture_df, im, periods, **kwargs)
+    result = oq_wrapper.run_gmm(model, tect_type, rupture_df, im, periods, **kwargs)
 
     # Sort the output by getting the columns with the mean, std_Total, std_Inter, std_Intra
     mu_values = [x for x in result if "mean" in x]
@@ -152,7 +151,7 @@ def get_period_correlations(periods: np.ndarray):
 
 def calculate_vertical_spectra(
     rupture_df: pd.DataFrame,
-    model: GMM = GMM.ASK_14,
+    model: constants.GMM = constants.GMM.ASK_14,
     periods: np.ndarray = EXT_PERIOD,
 ):
     """
@@ -177,8 +176,8 @@ def calculate_vertical_spectra(
         Vertical sigma values, same length as rupture_df
     """
     # Function constant variables
-    ratio_model = GMM.GA_11
-    tect_type = TectType.ACTIVE_SHALLOW
+    ratio_model = constants.GMM.GA_11
+    tect_type = constants.TectType.ACTIVE_SHALLOW
     im = "pSA"
 
     # Get the horizontal and vertical ratio

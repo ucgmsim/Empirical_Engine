@@ -3,8 +3,58 @@ from typing import Union
 import numpy as np
 import pandas as pd
 from scipy.special import erf
+from scipy import interpolate
 
-from empirical.util.classdef import GMM
+from source_modelling.sources import Plane
+
+from . import constants
+
+
+def estimate_width_ASK14(dip: pd.Series, mag: pd.Series):  # noqa: N802
+    """Estimate a width for ASK_14 model
+    The equation is from NGA-West 2 spreadsheet
+    dip: pd.Series
+    mag: pd.Series
+    """
+    return np.minimum(18 / np.sin(np.radians(dip)), 10 ** (-1.75 + 0.45 * mag))
+
+
+def calculate_avg_strike_dip_rake(
+    planes: list[Plane], plane_avg_rake: list[float], plane_total_slip: list[float]
+):
+    """
+    Calculates the average strike, dip and rake of the fault planes
+    based on the weighted average of the Total Slip on each plane.
+    Useful when taking into account multiple fault planes and trying to calculate
+    a single strike, dip and rake for the fault/scenario.
+
+    Parameters
+    ----------
+    planes : list[Plane]
+        List of Plane objects
+    plane_avg_rake : list[float]
+        List of the average rake of the fault planes
+    plane_total_slip : list[float]
+        List of the total slip on each fault plane
+
+    Returns
+    -------
+    avg_strike : float
+        Average strike of the fault planes
+    avg_dip : float
+        Average dip of the fault planes
+    avg_rake : float
+        Average rake of the fault planes
+    """
+    # Calculate the weights based on the total slip on each plane
+    slip_weights = np.asarray(plane_total_slip) / sum(plane_total_slip)
+
+    # Compute the weighted average of the strike, dip and rake
+    avg_strike = np.average([plane.strike for plane in planes], weights=slip_weights)
+    avg_dip = np.average([plane.dip for plane in planes], weights=slip_weights)
+    avg_rake = np.average(plane_avg_rake, weights=slip_weights)
+
+    return avg_strike, avg_dip, avg_rake
 
 
 def kuehn_20_calc_z(vs30: Union[float, np.ndarray], region: str):
@@ -285,14 +335,14 @@ Z_CALC_MODEL_REGION_MAPPING = {
 
 
 def calc_z_for_model(
-    model: GMM, vs30: Union[float, np.ndarray], region: Union[str, None] = None
+    model: constants.GMM, vs30: Union[float, np.ndarray], region: Union[str, None] = None
 ):
     """
     Calculates the z value for a given model, region and Vs30 value / values
 
     Parameters
     ----------
-    model : GMM
+    model : constants.GMM
         The model to calculate the z value for
     vs30 : Union[float, np.ndarray]
         The Vs30 value or values, in meters per second
@@ -335,3 +385,68 @@ def calc_z_for_model(
     else:
         z_value = z_calc_function(vs30, region)
     return z_value, z_return
+
+
+def interpolate_with_pga(
+    period: Union[float, int],
+    high_period: float,
+    low_y: pd.DataFrame,
+    high_y: pd.DataFrame,
+):
+    """Use interpolation to find the value of new points at the given period
+    which is between 0.0(PGA) and the model's minimum period.
+
+    period: Union[float, int]
+        target period for interpolation
+    high_period: float
+        also known as a minimum period from the given model
+        which to be used in x coordinates range which looks like
+        [0.0 (PGA), high_period]
+    low_y: pd.DataFrame
+        DataFrame that contains GMM computational results at period = 0.0
+    high_y: pd.DataFrame
+        DataFrame that contains GMM computational results
+        at period = model's minimum period
+    """
+    x = [0.0, high_period]
+    # each subarray represents values at period=0.0 and period=high_period
+    # E.g., two site/rupture data would look something like
+    # mean_y = np.array([[a,b], [c,d]])
+    # where a,c are at period=0.0 and b,d are at period=high_period
+    mean_y = np.concatenate(
+        (
+            np.exp(low_y.loc[:, low_y.columns.str.endswith("mean")].to_numpy()),
+            np.exp(high_y.loc[:, high_y.columns.str.endswith("mean")].to_numpy()),
+        ),
+        axis=1,
+    )
+    sigma_total_y = np.concatenate(
+        (
+            low_y.loc[:, low_y.columns.str.endswith("std_Total")].to_numpy(),
+            high_y.loc[:, high_y.columns.str.endswith("std_Total")].to_numpy(),
+        ),
+        axis=1,
+    )
+    sigma_inter_y = np.concatenate(
+        (
+            low_y.loc[:, low_y.columns.str.endswith("std_Inter")].to_numpy(),
+            high_y.loc[:, high_y.columns.str.endswith("std_Inter")].to_numpy(),
+        ),
+        axis=1,
+    )
+    sigma_intra_y = np.concatenate(
+        (
+            low_y.loc[:, low_y.columns.str.endswith("std_Intra")].to_numpy(),
+            high_y.loc[:, high_y.columns.str.endswith("std_Intra")].to_numpy(),
+        ),
+        axis=1,
+    )
+
+    return pd.DataFrame(
+        {
+            f"pSA_{period}_mean": np.log(interpolate.interp1d(x, mean_y)(period)),
+            f"pSA_{period}_std_Total": interpolate.interp1d(x, sigma_total_y)(period),
+            f"pSA_{period}_std_Inter": interpolate.interp1d(x, sigma_inter_y)(period),
+            f"pSA_{period}_std_Intra": interpolate.interp1d(x, sigma_intra_y)(period),
+        }
+    )
