@@ -1,7 +1,7 @@
 geojson
 h5py
 mera @ git+https://github.com/ucgmsim/mera.git
-numpy
+numpy<2
 openquake.engine
 pandas
 pytest-black
