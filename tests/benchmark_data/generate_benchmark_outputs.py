@@ -100,7 +100,7 @@ for gmm in tqdm(list(GMM)):
         for im in ["pSA", "PGA", "PGV"]:
             cur_meta_config = None
             if gmm is GMM.META:
-                cur_meta_config = [value for key, value in meta_config.items() if im in key][0]
+                cur_meta_config = [value for key, value in meta_config.items() if im in key][0][tect_type.name]
 
             cur_periods = PERIODS if im == "pSA" else None
 

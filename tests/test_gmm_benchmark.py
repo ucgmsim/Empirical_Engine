@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import yaml
 import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
@@ -35,6 +36,12 @@ def test_gmm_benchmarks(benchmark_ffp: Path):
     gmm_name, tect_type_name = gmm_name.strip("_"), tect_type_name.strip("_")
     gmm, tect_type = GMM[gmm_name], TectType[tect_type_name]
 
+    meta_config = None
+    if gmm is GMM.META:
+        with open(Path(__file__).parent.parent / "empirical/util" / "meta_config.yaml") as f:
+            meta_config = yaml.load(f, Loader=yaml.FullLoader)
+        meta_config = [value for key, value in meta_config.items() if im in key][0][tect_type.name]
+
     periods = (
         None
         if im != "pSA"
@@ -44,7 +51,7 @@ def test_gmm_benchmarks(benchmark_ffp: Path):
             if col.endswith("mean")
         ]
     )
-    result_df = oq_run(gmm, tect_type, cur_rupture_df, im, periods=periods)
+    result_df = oq_run(gmm, tect_type, cur_rupture_df, im, periods=periods, meta_config=meta_config)
     result_df.index = cur_rupture_df.index
 
     assert_frame_equal(result_df, bench_df)
