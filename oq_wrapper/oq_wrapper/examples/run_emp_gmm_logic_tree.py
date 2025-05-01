@@ -9,11 +9,11 @@ a cosh call, this is fine and can be ignored.
 from pathlib import Path
 
 import pandas as pd
-import yaml
 
 import oq_wrapper as oqw
 
 ### Load the data
+logic_tree_config_ffp = Path(__file__).parent.parent / "gmm_lt_configs" / "nhm_2010_bb_gmm_lt_config.yaml"
 record_data_ffp = Path(__file__).parent.parent.parent / "tests" / "benchmark_data" / "nzgmdb_v4p3_rupture_df.parquet"
 record_df = pd.read_parquet(record_data_ffp)
 
@@ -51,44 +51,34 @@ nan_mask = rupture_df.isna().any(axis=1)
 rupture_df = rupture_df[~nan_mask]
 print(f"Dropped {nan_mask.sum()} records with nan-values")
 
-# Load logic tree config
-logic_tree_config_ffp = Path("/Users/claudy/dev/work/code/Empirical_Engine/oq_wrapper/oq_wrapper/gmm_logic_tree_configs/nhm_2010_bb_gmm_logic_tree.yaml")
-
-with logic_tree_config_ffp.open("r") as f:
-    logic_tree_config = yaml.safe_load(f)
-
-im = "PGA"
 tect_type = oqw.constants.TectType.ACTIVE_SHALLOW
-cur_logic_tree_config = logic_tree_config[im][tect_type.name]
 
-results = []
-for cur_model_name, cur_weight in cur_logic_tree_config.items():
-    cur_model = oqw.constants.GMM[cur_model_name]
-    cur_result_df = oqw.run_gmm(
-        cur_model,
-        tect_type,
-        rupture_df,
-        im,
-    )
-    results.append(cur_result_df * cur_weight)
+# Load the logic tree configuration for 
+# PGA and run the GMMs
+pga_gmm_lt_config = oqw.load_gmm_lt_config(
+    logic_tree_config_ffp,
+    tect_type,
+    "PGA",
+)
+pga_results = oqw.run_gmm_lt(
+    pga_gmm_lt_config,
+    tect_type,
+    rupture_df,
+    "PGA",
+)
 
-print("wtf")
+# Load the logic tree configuration for
+# pSA and run the GMMs
+pSA_gmm_lt_config = oqw.load_gmm_lt_config(
+    logic_tree_config_ffp,
+    tect_type,
+    "pSA",
+)
+pSA_results = oqw.run_gmm_lt(
+    pSA_gmm_lt_config,
+    tect_type,
+    rupture_df,
+    "pSA",
+    periods=[0.01, 0.05, 0.1, 0.5, 1.0, 5.0, 10.0],
+)
 
-
-
-# pga_result = oqw.run_gmm(
-#     oqw.constants.GMM.Br_10,
-#     oqw.constants.TectType.ACTIVE_SHALLOW,
-#     rupture_df,
-#     "PGA",
-# )
-# pga_result.index = rupture_df.index
-
-# psa_results = oqw.run_gmm(
-#     oqw.constants.GMM.Br_10,
-#     oqw.constants.TectType.ACTIVE_SHALLOW,
-#     rupture_df,
-#     "pSA",
-#     [0.01, 0.05, 0.1, 0.5, 1.0, 5.0, 10.0],
-# )
-# psa_results.index = rupture_df.index

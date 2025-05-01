@@ -4,6 +4,7 @@ from collections.abc import Callable, Sequence
 from functools import partial
 from typing import Union
 
+import yaml
 import numpy as np
 import pandas as pd
 from openquake.hazardlib import const as oq_const
@@ -231,6 +232,76 @@ def run_gmm(
     result_df.index = rupture_df.index
     return result_df
 
+def run_gmm_lt(
+    gmm_logic_tree_config: dict,
+    tect_type: constants.TectType,  
+    rupture_df: pd.DataFrame,
+    im: str,
+    periods: Sequence[Union[int, float]] = None,
+):
+    """
+    Run a logic tree of GMMs with the specified weights.
+    
+    Parameters
+    ----------
+    gmm_logic_tree_config : dict
+        Dictionary mapping model names to their weights in the logic tree
+    tect_type : constants.TectType
+        Tectonic type (ACTIVE_SHALLOW, SUBDUCTION_SLAB or SUBDUCTION_INTERFACE)
+    rupture_df : pd.DataFrame
+        DataFrame containing rupture and site parameters
+    im : str
+        Intensity measure (e.g., 'PGA', 'PGV', 'pSA', 'Ds575', 'Ds595')
+    periods : Sequence[Union[int, float]], optional
+        Periods to compute for pSA, required if im is 'pSA'
+        
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame containing weighted combination of IM results from all models
+    """
+    results = []
+    for cur_model_name, cur_weight in gmm_logic_tree_config.items():
+        cur_model = constants.GMM[cur_model_name]
+        cur_result_df = run_gmm(
+            cur_model,
+            tect_type,
+            rupture_df,
+            im,
+            periods=periods,
+        )
+        results.append(cur_result_df * cur_weight)
+
+    return sum(results)
+
+    
+
+def load_gmm_lt_config(
+    logic_tree_config_ffp: str,
+    tect_type: constants.TectType,
+    im: str,
+):
+    """
+    Load GMM logic tree configuration 
+    for the specified IM and tectonic type.
+    
+    Parameters
+    ----------
+    logic_tree_config_ffp : str
+        File path to the logic tree configuration YAML file
+    tect_type : constants.TectType
+        Tectonic type of interest
+    im : str
+        IM of interest
+        
+    Returns
+    -------
+    dict
+        Dictionary mapping model names to their weights for the given IM and tectonic type
+    """
+    with logic_tree_config_ffp.open("r") as f:
+        logic_tree_config = yaml.safe_load(f)
+    return logic_tree_config[im][tect_type.name]
 
 def prepare_model_inputs(
     model: constants.GMM,
