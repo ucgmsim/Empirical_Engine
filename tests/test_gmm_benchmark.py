@@ -1,8 +1,8 @@
 from pathlib import Path
 
-import yaml
 import pandas as pd
 import pytest
+import yaml
 from pandas.testing import assert_frame_equal
 
 from empirical.util.classdef import GMM, TectType
