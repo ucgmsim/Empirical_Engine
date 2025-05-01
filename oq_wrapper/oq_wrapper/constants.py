@@ -59,7 +59,7 @@ NZ_GMDB_SOURCE_COLUMNS = [
     "r_jb",
     "r_x",
     "r_y",
-    "r_hyp"
+    "r_hyp",
     "Vs30",
     "Z1.0",
     "Z2.5",

@@ -4,9 +4,9 @@ import pytest
 import pandas as pd
 from pandas.testing import assert_frame_equal
 
-from empirical.util.classdef import GMM, TectType
-from empirical.util.openquake_wrapper_vectorized import oq_run
-from empirical.util.empirical import NZGMDB_OQ_COL_MAPPING
+import oq_wrapper
+import oq_wrapper.constants
+
 
 benchmark_files = list(
     (Path(__file__).parent / "benchmark_data" / "data").rglob("*.parquet")
@@ -22,7 +22,9 @@ def test_gmm_benchmarks(benchmark_ffp: Path):
     bench_df = pd.read_parquet(benchmark_ffp)
 
     cur_rupture_df = rupture_df.loc[bench_df.index.values]
-    cur_rupture_df = cur_rupture_df.rename(columns=NZGMDB_OQ_COL_MAPPING)
+    cur_rupture_df = cur_rupture_df.rename(
+        columns=oq_wrapper.constants.NZGMDB_OQ_COL_MAPPING
+    )
 
     cur_rupture_df["vs30measured"] = True
     cur_rupture_df["backarc"] = False
@@ -33,7 +35,10 @@ def test_gmm_benchmarks(benchmark_ffp: Path):
     # Get the GMM and TectType
     gmm_name, tect_type_name = benchmark_ffp.stem.split("TectType")
     gmm_name, tect_type_name = gmm_name.strip("_"), tect_type_name.strip("_")
-    gmm, tect_type = GMM[gmm_name], TectType[tect_type_name]
+    gmm, tect_type = (
+        oq_wrapper.constants.GMM[gmm_name],
+        oq_wrapper.constants.TectType[tect_type_name],
+    )
 
     periods = (
         None
@@ -44,7 +49,7 @@ def test_gmm_benchmarks(benchmark_ffp: Path):
             if col.endswith("mean")
         ]
     )
-    result_df = oq_run(gmm, tect_type, cur_rupture_df, im, periods=periods)
+    result_df = oq_wrapper.run_gmm(gmm, tect_type, cur_rupture_df, im, periods=periods)
     result_df.index = cur_rupture_df.index
 
     assert_frame_equal(result_df, bench_df)
@@ -52,6 +57,6 @@ def test_gmm_benchmarks(benchmark_ffp: Path):
 
 # if __name__ == "__main__":
 #     # Run the test function
-#     for cur_ffp in benchmark_files:
-#         test_gmm_benchmarks(cur_ffp)
+# for cur_ffp in benchmark_files:
+# test_gmm_benchmarks(cur_ffp)
 #     # test_gmm_benchmarks(benchmark_files)

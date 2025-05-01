@@ -11,6 +11,7 @@ from openquake.hazardlib import contexts, gsim, imt
 
 from . import constants, estimations, utils
 
+
 def _oq_model(model: gsim.base.GMPE, **kwargs):
     """Partial function to simplify model instanstiation
     model: gsim.base.GMPE
@@ -47,10 +48,10 @@ OQ_MODEL_MAPPING = {
     },
     constants.GMM.K_20_NZ: {
         constants.TectType.SUBDUCTION_SLAB: partial(
-            utils.oq_model, model=gsim.kuehn_2020.KuehnEtAl2020SSlab, region="NZL"
+            _oq_model, model=gsim.kuehn_2020.KuehnEtAl2020SSlab, region="NZL"
         ),
         constants.TectType.SUBDUCTION_INTERFACE: partial(
-            utils.oq_model, model=gsim.kuehn_2020.KuehnEtAl2020SInter, region="NZL"
+            _oq_model, model=gsim.kuehn_2020.KuehnEtAl2020SInter, region="NZL"
         ),
     },
     constants.GMM.AG_20_NZ: {
@@ -138,13 +139,12 @@ def run_gmm(
     kwargs: pass extra (model specific) parameters to models
     """
     # Get the OQ model
-    oq_model, stddev_types = utils.get_oq_model(model, tect_type, **kwargs)
+    oq_model, stddev_types = get_oq_model(model, tect_type, **kwargs)
 
     # Prepare inputs
     rupture_df, im = prepare_model_inputs(
         model,
         oq_model,
-        tect_type,
         rupture_df,
         im,
     )
@@ -182,18 +182,20 @@ def run_gmm(
 
         return _oq_run_pSA(
             model,
-            model,
+            oq_model,
             rupture_ctx,
             periods,
             stddev_types,
         )
     else:
+        # Check that the IM is supported
+        # Supported IMs are specified as functions per model, hence the getattr
         imc = getattr(imt, im)
-        if imc not in model.DEFINED_FOR_INTENSITY_MEASURE_TYPES:
+        if imc not in oq_model.DEFINED_FOR_INTENSITY_MEASURE_TYPES:
             raise ValueError(
-                f"Model {model.name} does not support {im}. Supported types are {model.DEFINED_FOR_INTENSITY_MEASURE_TYPES}"
+                f"Model {model.name} does not support {im}. Supported types are {oq_model.DEFINED_FOR_INTENSITY_MEASURE_TYPES}"
             )
-        return _run_oq_model(model, rupture_ctx, imc(), stddev_types)
+        return _run_oq_model(oq_model, rupture_ctx, imc(), stddev_types)
 
 
 
@@ -234,9 +236,10 @@ def prepare_model_inputs(
 
     # ASK 14
     _handle_missing_property(
-        model, "ASK_14", "vs30measured", value_factory=lambda: False
+        rupture_df, model, "ASK_14", "vs30measured", value_factory=lambda: False
     )
     _handle_missing_property(
+        rupture_df,
         model,
         "ASK_14",
         "width",
@@ -244,25 +247,26 @@ def prepare_model_inputs(
             rupture_df["dip"], rupture_df["mag"]
         ),
     )
-    _handle_missing_property(model, "ASK_14", "ry0", col_to_rename="ry")
+    _handle_missing_property(rupture_df, model, "ASK_14", "ry0", col_to_rename="ry")
 
-    _handle_missing_property(model, "BCH_16", "xvf", value_factory=lambda: 0)
+    _handle_missing_property(rupture_df, model, "BCH_16", "xvf", value_factory=lambda: 0)
 
     _handle_missing_property(
-        model, "Br_10", "vs30measured", value_factory=lambda: False
+        rupture_df, model, "Br_10", "vs30measured", value_factory=lambda: False
     )
 
     # Model specified estimation that cannot be done within OQ as paper does not specify
     # CB_14's width will always be estimated. Hence, by passing np.nan first then,
     # we know the updated width values are from the estimation
-    _handle_missing_property(model, "CB_14", "width", value_factory=lambda: np.nan)
+    _handle_missing_property(rupture_df, model, "CB_14", "width", value_factory=lambda: np.nan)
 
     _handle_missing_property(
-        model, "CY_14", "vs30measured", value_factory=lambda: False
+        rupture_df, model, "CY_14", "vs30measured", value_factory=lambda: False
     )
 
     # GA_11
     _handle_missing_property(
+        rupture_df,
         model,
         "GA_11",
         "width",
@@ -270,7 +274,7 @@ def prepare_model_inputs(
             rupture_df["dip"], rupture_df["mag"]
         ),
     )
-    _handle_missing_property(model, "GA_11", "ry0", col_to_rename="ry")
+    _handle_missing_property(rupture_df, model, "GA_11", "ry0", col_to_rename="ry")
 
     # Rename IMs to OQ's term
     if im in ("Ds575", "Ds595"):
@@ -279,16 +283,36 @@ def prepare_model_inputs(
     # Check all model requirements are met
     rupture_ctx_properties = set(rupture_df.columns.values)
     _confirm_all_properties_exist(
-        "site", oq_model.REQUIRES_SITES_PARAMETERS, rupture_ctx_properties
+        model, im, "site", oq_model.REQUIRES_SITES_PARAMETERS, rupture_ctx_properties
     )
     _confirm_all_properties_exist(
-        "rupture", oq_model.REQUIRES_RUPTURE_PARAMETERS, rupture_ctx_properties
+        model, im, "rupture", oq_model.REQUIRES_RUPTURE_PARAMETERS, rupture_ctx_properties
     )
     _confirm_all_properties_exist(
-        "distance", oq_model.REQUIRES_DISTANCES, rupture_ctx_properties
+        model, im, "distance", oq_model.REQUIRES_DISTANCES, rupture_ctx_properties
     )
 
     return rupture_df, im
+
+def get_oq_model(
+    model_type: constants.GMM,
+    tect_type: constants.TectType,
+    **kwargs,
+):
+    model = OQ_MODEL_MAPPING[model_type][tect_type](**kwargs)
+
+    # Sanity check
+    assert (
+        constants.OQ_TECT_TYPE_MAPPING[model.DEFINED_FOR_TECTONIC_REGION_TYPE]
+        == tect_type
+    )
+
+    # Model standard deviation types
+    stddev_types = [
+        std for std in constants.SPT_STD_DEVS if std in model.DEFINED_FOR_STANDARD_DEVIATION_TYPES
+    ]
+
+    return model, stddev_types
 
 
 def _get_model_pSA_periods(model: gsim.base.GMPE):
@@ -312,8 +336,8 @@ def _get_model_pSA_periods(model: gsim.base.GMPE):
 
 
 def _oq_run_pSA(
-    model: gsim.base.GMPE,
     model_type: constants.GMM,
+    model: gsim.base.GMPE,
     rupture_ctx: contexts.RuptureContext,
     periods: Sequence[float],
     stddev_types: Sequence[oq_const.StdDev],
@@ -387,7 +411,7 @@ def _oq_run_pSA(
     return pd.concat(results, axis=1)
 
 def _run_oq_model(
-    model: gsim.base.GMPE,
+    oq_model: gsim.base.GMPE,
     ctx: contexts.RuptureContext,
     im: imt.IMT,
     stddev_types: Sequence[oq_const.StdDev],
@@ -409,7 +433,7 @@ def _run_oq_model(
     # Run model. Returns array with
     # mean, std_total, std_inter and std_intra.
     # Order of the standard deviation can vary.
-    results = contexts.get_mean_stds(model, ctx, [im])
+    results = contexts.get_mean_stds(oq_model, ctx, [im])
 
     mean_stddev_dict = {f"{utils.convert_im_label(im)}_mean": results[0][0]}
     for idx, std_dev in enumerate(stddev_types):
@@ -422,7 +446,7 @@ def _run_oq_model(
 
 
 def _confirm_all_properties_exist(
-    model_type: constants.GMM,
+    model: constants.GMM,
     im: str,
     type: str,
     params_required: set,
@@ -447,7 +471,7 @@ def _confirm_all_properties_exist(
     extra_params = set(params_required - params_present)
     if len(extra_params) > 0:
         raise ValueError(
-            f"Unknown {type} property: {extra_params} required by {model_type.name} {im}"
+            f"Unknown {type} property: {extra_params} required by {model.name} {im}"
             f"\nPlease review {__file__} to handle missing properties."
         )
 

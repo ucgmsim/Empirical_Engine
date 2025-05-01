@@ -11,25 +11,7 @@ from openquake.hazardlib import contexts, gsim, imt
 from . import constants
 
 
-def get_oq_model(
-    model_type: constants.GMM,
-    tect_type: constants.TectType,
-    **kwargs,
-):
-    model = constants.OQ_MODEL_MAPPING[model_type][tect_type](**kwargs)
 
-    # Sanity check
-    assert (
-        constants.OQ_TECT_TYPE_MAPPING[model.DEFINED_FOR_TECTONIC_REGION_TYPE]
-        == tect_type
-    )
-
-    # Model standard deviation types
-    stddev_types = [
-        std for std in constants.SPT_STD_DEVS if std in model.DEFINED_FOR_STANDARD_DEVIATION_TYPES
-    ]
-
-    return model, stddev_types
 
 
 def convert_im_label(im: imt.IMT):

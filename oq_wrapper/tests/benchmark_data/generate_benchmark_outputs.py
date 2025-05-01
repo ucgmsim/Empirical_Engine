@@ -6,15 +6,13 @@ from pathlib import Path
 import pandas as pd
 from tqdm import tqdm
 
-from empirical.util.classdef import GMM, TectType
-from empirical.util.empirical import NZGMDB_OQ_COL_MAPPING
-from empirical.util.openquake_wrapper_vectorized import OQ_MODELS, oq_run
+import oq_wrapper
 
 TECT_TYPE_MAPPING = {
-    TectType.ACTIVE_SHALLOW: "Crustal",
-    TectType.SUBDUCTION_SLAB: "Slab",
-    TectType.SUBDUCTION_INTERFACE: "Interface",
-    TectType.VOLCANIC: "Crustal",
+    oq_wrapper.constants.TectType.ACTIVE_SHALLOW: "Crustal",
+    oq_wrapper.constants.TectType.SUBDUCTION_SLAB: "Slab",
+    oq_wrapper.constants.TectType.SUBDUCTION_INTERFACE: "Interface",
+    oq_wrapper.constants.TectType.VOLCANIC: "Crustal",
 }
 N_RECORDS = 5000
 RANDOM_SEED = 42
@@ -57,7 +55,7 @@ PERIODS = [
 rupture_df = pd.read_parquet(Path(__file__).parent / "nzgmdb_v4p3_rupture_df.parquet")
 
 # Rename the columns to be in line what openquake expects
-rupture_df = rupture_df.rename(columns=NZGMDB_OQ_COL_MAPPING)
+rupture_df = rupture_df.rename(columns=oq_wrapper.constants.NZGMDB_OQ_COL_MAPPING)
 rupture_df["vs30measured"] = True
 rupture_df["backarc"] = False
 
@@ -80,14 +78,14 @@ logging.info("Starting benchmark generation script.")
 # Try to calculate "pSA", "PGA", and "PGV" for all combinations of GMM and TectType.
 # If a given model (GMM+TectType) does not support a given IM, or requires input
 # parameters that are not provided, we catch the Exception and continue.
-for gmm in tqdm(list(GMM)):
+for gmm in tqdm(list(oq_wrapper.constants.GMM)):
 
     # (V/H) ratio model, i.e. not relevant for benchmark
-    if gmm is GMM.GA_11:
+    if gmm is oq_wrapper.constants.GMM.GA_11:
         continue
 
     # Iterate over all tectonic types supported by the GMM
-    for tect_type in OQ_MODELS[gmm].keys():
+    for tect_type in oq_wrapper.wrapper.OQ_MODEL_MAPPING[gmm].keys():
         for im in ["pSA", "PGA", "PGV"]:
             temp_periods = PERIODS if im == "pSA" else None
 
@@ -103,7 +101,7 @@ for gmm in tqdm(list(GMM)):
                 )
 
             try:
-                im_results = oq_run(
+                im_results = oq_wrapper.run_gmm(
                     gmm,
                     tect_type,
                     cur_rupture_df,
@@ -112,7 +110,7 @@ for gmm in tqdm(list(GMM)):
                 )
 
             except (
-                AssertionError,
+                ValueError,
             ) as e:
                 logging.error(
                     f"Error generating {im} for {gmm.name} and {tect_type.name}: {type(e).__name__}: {e}"
