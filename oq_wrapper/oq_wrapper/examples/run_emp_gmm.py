@@ -10,8 +10,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from empirical.util.classdef import GMM, TectType
-from empirical.util.openquake_wrapper_vectorized import oq_run
+import oq_wrapper as oqw
 
 ### Load the data
 record_data_ffp = Path(__file__).parent / "resources" / "record_data.csv"
@@ -39,24 +38,24 @@ rupture_df = rupture_df.rename(
     }
 )
 rupture_df["vs30measured"] = True
+rupture_df["z1pt0"] = rupture_df["z1pt0"] / 1000  # Convert Z1.0 to km
 
 # Drop any records with nan-values
 nan_mask = rupture_df.isna().any(axis=1)
 rupture_df = rupture_df[~nan_mask]
 print(f"Dropped {nan_mask.sum()} records with nan-values")
 
-
-pga_result = oq_run(
-    GMM.Br_10,
-    TectType.ACTIVE_SHALLOW,
+pga_result = oqw.run_gmm(
+    oqw.constants.GMM.Br_10,
+    oqw.constants.TectType.ACTIVE_SHALLOW,
     rupture_df,
     "PGA",
 )
 pga_result.index = rupture_df.index
 
-psa_results = oq_run(
-    GMM.Br_10,
-    TectType.ACTIVE_SHALLOW,
+psa_results = oqw.run_gmm(
+    oqw.constants.GMM.Br_10,
+    oqw.constants.TectType.ACTIVE_SHALLOW,
     rupture_df,
     "pSA",
     [0.01, 0.05, 0.1, 0.5, 1.0, 5.0, 10.0],

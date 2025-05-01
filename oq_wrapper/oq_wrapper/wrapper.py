@@ -9,7 +9,7 @@ import pandas as pd
 from openquake.hazardlib import const as oq_const
 from openquake.hazardlib import contexts, gsim, imt
 
-from . import constants, estimations, utils
+from . import constants, estimations
 
 
 def _oq_model(model: gsim.base.GMPE, **kwargs):
@@ -21,6 +21,7 @@ def _oq_model(model: gsim.base.GMPE, **kwargs):
         estimate_width=True for CB_14 to estimate width
     """
     return model(**kwargs)
+
 
 OQ_MODEL_MAPPING = {
     constants.GMM.Br_10: {
@@ -114,6 +115,7 @@ OQ_MODEL_MAPPING = {
     },
 }
 
+
 def run_gmm(
     model: constants.GMM,
     tect_type: constants.TectType,
@@ -176,9 +178,7 @@ def run_gmm(
     # Special handling for pSA
     if im.startswith("pSA"):
         if periods is None:
-            raise ValueError(
-                "Periods must be specified for pSA."
-            )
+            raise ValueError("Periods must be specified for pSA.")
 
         return _oq_run_pSA(
             model,
@@ -196,7 +196,6 @@ def run_gmm(
                 f"Model {model.name} does not support {im}. Supported types are {oq_model.DEFINED_FOR_INTENSITY_MEASURE_TYPES}"
             )
         return _run_oq_model(oq_model, rupture_ctx, imc(), stddev_types)
-
 
 
 def prepare_model_inputs(
@@ -249,7 +248,9 @@ def prepare_model_inputs(
     )
     _handle_missing_property(rupture_df, model, "ASK_14", "ry0", col_to_rename="ry")
 
-    _handle_missing_property(rupture_df, model, "BCH_16", "xvf", value_factory=lambda: 0)
+    _handle_missing_property(
+        rupture_df, model, "BCH_16", "xvf", value_factory=lambda: 0
+    )
 
     _handle_missing_property(
         rupture_df, model, "Br_10", "vs30measured", value_factory=lambda: False
@@ -258,7 +259,9 @@ def prepare_model_inputs(
     # Model specified estimation that cannot be done within OQ as paper does not specify
     # CB_14's width will always be estimated. Hence, by passing np.nan first then,
     # we know the updated width values are from the estimation
-    _handle_missing_property(rupture_df, model, "CB_14", "width", value_factory=lambda: np.nan)
+    _handle_missing_property(
+        rupture_df, model, "CB_14", "width", value_factory=lambda: np.nan
+    )
 
     _handle_missing_property(
         rupture_df, model, "CY_14", "vs30measured", value_factory=lambda: False
@@ -286,13 +289,18 @@ def prepare_model_inputs(
         model, im, "site", oq_model.REQUIRES_SITES_PARAMETERS, rupture_ctx_properties
     )
     _confirm_all_properties_exist(
-        model, im, "rupture", oq_model.REQUIRES_RUPTURE_PARAMETERS, rupture_ctx_properties
+        model,
+        im,
+        "rupture",
+        oq_model.REQUIRES_RUPTURE_PARAMETERS,
+        rupture_ctx_properties,
     )
     _confirm_all_properties_exist(
         model, im, "distance", oq_model.REQUIRES_DISTANCES, rupture_ctx_properties
     )
 
     return rupture_df, im
+
 
 def get_oq_model(
     model_type: constants.GMM,
@@ -309,7 +317,9 @@ def get_oq_model(
 
     # Model standard deviation types
     stddev_types = [
-        std for std in constants.SPT_STD_DEVS if std in model.DEFINED_FOR_STANDARD_DEVIATION_TYPES
+        std
+        for std in constants.SPT_STD_DEVS
+        if std in model.DEFINED_FOR_STANDARD_DEVIATION_TYPES
     ]
 
     return model, stddev_types
@@ -410,6 +420,7 @@ def _oq_run_pSA(
 
     return pd.concat(results, axis=1)
 
+
 def _run_oq_model(
     oq_model: gsim.base.GMPE,
     ctx: contexts.RuptureContext,
@@ -417,7 +428,7 @@ def _run_oq_model(
     stddev_types: Sequence[oq_const.StdDev],
 ):
     """
-    Calculate mean and standard deviations using 
+    Calculate mean and standard deviations using
     the given model and rupture context.
 
     model: gsim.base.GMPE
@@ -435,12 +446,12 @@ def _run_oq_model(
     # Order of the standard deviation can vary.
     results = contexts.get_mean_stds(oq_model, ctx, [im])
 
-    mean_stddev_dict = {f"{utils.convert_im_label(im)}_mean": results[0][0]}
+    mean_stddev_dict = {f"{_convert_im_label(im)}_mean": results[0][0]}
     for idx, std_dev in enumerate(stddev_types):
-        # std_devs index are between 1 and 3 
-        mean_stddev_dict[f"{utils.convert_im_label(im)}_std_{std_dev.split()[0]}"] = (
-            results[idx + 1][0]
-        )
+        # std_devs index are between 1 and 3
+        mean_stddev_dict[f"{_convert_im_label(im)}_std_{std_dev.split()[0]}"] = results[
+            idx + 1
+        ][0]
 
     return pd.DataFrame(mean_stddev_dict)
 
@@ -508,3 +519,21 @@ def _handle_missing_property(
         elif col_missing not in rupture_df:
             rupture_df[col_missing] = value_factory()
 
+
+def _convert_im_label(im: imt.IMT):
+    """Convert OQ's IM term into the internal term.
+    E.g:
+        pSA_period (OQ uses SA(period))
+        Ds575 (OQ uses RSD575)
+        Ds595 (OQ uses RSD595)
+    im: imt.IMT
+    """
+    imt_tuple = imt.imt2tup(im.string)
+    if len(imt_tuple) == 1:
+        return (
+            imt_tuple[0].replace("RSD", "Ds")
+            if imt_tuple[0].startswith("RSD")
+            else imt_tuple[0]
+        )
+
+    return f"pSA_{imt_tuple[-1]}"

@@ -2,8 +2,8 @@ from typing import Union
 
 import numpy as np
 import pandas as pd
-from scipy.special import erf
 from scipy import interpolate
+from scipy.special import erf
 
 from source_modelling.sources import Plane
 
@@ -335,7 +335,9 @@ Z_CALC_MODEL_REGION_MAPPING = {
 
 
 def calc_z_for_model(
-    model: constants.GMM, vs30: Union[float, np.ndarray], region: Union[str, None] = None
+    model: constants.GMM,
+    vs30: Union[float, np.ndarray],
+    region: Union[str, None] = None,
 ):
     """
     Calculates the z value for a given model, region and Vs30 value / values
