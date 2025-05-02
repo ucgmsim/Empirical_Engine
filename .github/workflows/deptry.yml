@@ -18,4 +18,5 @@ jobs:
       # Remove pyproject.toml so that deptry doesn't get confused
       - run: rm pyproject.toml
       # Run deptry to check that all dependencies are present.
-      - run: deptry .
+      # Ignore pyarrow as its only used indirectly
+      - run: deptry . --per-rule-ignores "DEP002=pyarrow"

@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from qcore.constants import ExtendedEnum, ExtendedStrEnum
 from openquake.hazardlib import const as oq_const
 
@@ -44,6 +46,16 @@ class GMM(ExtendedStrEnum):
     Br_13 = 114, "B13"
     P_21 = 115, "P21"
     GA_11 = 116, "GA11"
+
+class GMMLogicTree(ExtendedStrEnum):
+    """Logic tree for GMMs."""
+    NHM2010_BB = 1, "NHM2010_BB"
+
+GMM_LT_CONFIG_DIR = Path(__file__).parent / "gmm_lt_configs"
+
+GMM_LT_CONFIG_MAPPING = {
+    GMMLogicTree.NHM2010_BB: GMM_LT_CONFIG_DIR / "nhm_2010_bb_gmm_lt_config.yaml",
+}
 
 
 NZ_GMDB_SOURCE_COLUMNS = [

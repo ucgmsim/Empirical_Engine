@@ -1,7 +1,7 @@
 geojson
 h5py
 mera @ git+https://github.com/ucgmsim/mera.git
-numpy
+numpy<2
 openquake.engine
 pandas
 pytest-black
@@ -12,3 +12,4 @@ scipy>=1.7.2
 source-modelling @ git+https://github.com/ucgmsim/source_modelling.git
 turfpy
 typer
+pyarrow

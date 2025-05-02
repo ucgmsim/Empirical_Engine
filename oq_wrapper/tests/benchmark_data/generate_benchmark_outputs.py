@@ -6,13 +6,13 @@ from pathlib import Path
 import pandas as pd
 from tqdm import tqdm
 
-import oq_wrapper
+import oq_wrapper as oqw
 
 TECT_TYPE_MAPPING = {
-    oq_wrapper.constants.TectType.ACTIVE_SHALLOW: "Crustal",
-    oq_wrapper.constants.TectType.SUBDUCTION_SLAB: "Slab",
-    oq_wrapper.constants.TectType.SUBDUCTION_INTERFACE: "Interface",
-    oq_wrapper.constants.TectType.VOLCANIC: "Crustal",
+    oqw.constants.TectType.ACTIVE_SHALLOW: "Crustal",
+    oqw.constants.TectType.SUBDUCTION_SLAB: "Slab",
+    oqw.constants.TectType.SUBDUCTION_INTERFACE: "Interface",
+    oqw.constants.TectType.VOLCANIC: "Crustal",
 }
 N_RECORDS = 5000
 RANDOM_SEED = 42
@@ -55,7 +55,7 @@ PERIODS = [
 rupture_df = pd.read_parquet(Path(__file__).parent / "nzgmdb_v4p3_rupture_df.parquet")
 
 # Rename the columns to be in line what openquake expects
-rupture_df = rupture_df.rename(columns=oq_wrapper.constants.NZGMDB_OQ_COL_MAPPING)
+rupture_df = rupture_df.rename(columns=oqw.constants.NZGMDB_OQ_COL_MAPPING)
 rupture_df["vs30measured"] = True
 rupture_df["backarc"] = False
 
@@ -75,19 +75,22 @@ logging.basicConfig(
 )
 
 logging.info("Starting benchmark generation script.")
+gmms = list(oqw.constants.GMM) + list(oqw.constants.GMMLogicTree)
 # Try to calculate "pSA", "PGA", and "PGV" for all combinations of GMM and TectType.
 # If a given model (GMM+TectType) does not support a given IM, or requires input
 # parameters that are not provided, we catch the Exception and continue.
-for gmm in tqdm(list(oq_wrapper.constants.GMM)):
+for gmm in tqdm(gmms):
 
     # (V/H) ratio model, i.e. not relevant for benchmark
-    if gmm is oq_wrapper.constants.GMM.GA_11:
+    if gmm is oqw.constants.GMM.GA_11:
         continue
 
+    tect_types = list(TECT_TYPE_MAPPING.keys()) if isinstance(gmm, oqw.constants.GMMLogicTree) else oqw.OQ_MODELS[gmm].keys()
+
     # Iterate over all tectonic types supported by the GMM
-    for tect_type in oq_wrapper.wrapper.OQ_MODEL_MAPPING[gmm].keys():
+    for tect_type in tect_types:
         for im in ["pSA", "PGA", "PGV"]:
-            temp_periods = PERIODS if im == "pSA" else None
+            cur_periods = PERIODS if im == "pSA" else None
 
             # Only use records matching the current tectonic type
             cur_rupture_df = rupture_df.loc[
@@ -101,14 +104,25 @@ for gmm in tqdm(list(oq_wrapper.constants.GMM)):
                 )
 
             try:
-                im_results = oq_wrapper.run_gmm(
-                    gmm,
-                    tect_type,
-                    cur_rupture_df,
-                    im,
-                    temp_periods,
-                )
-
+                if isinstance(gmm, oqw.constants.GMMLogicTree):
+                    gmm_lt_config = oqw.load_gmm_lt_config(
+                        gmm, tect_type, im
+                    )
+                    im_results = oqw.run_gmm_lt(
+                        gmm_lt_config,
+                        tect_type,
+                        cur_rupture_df,
+                        im,
+                        periods=cur_periods,
+                    )
+                else:
+                    im_results = oqw.run_gmm(
+                        gmm,
+                        tect_type,
+                        cur_rupture_df,
+                        im,
+                        periods=cur_periods,
+                    )
             except (
                 ValueError,
             ) as e:

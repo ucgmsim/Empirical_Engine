@@ -1,14 +1,13 @@
 from pathlib import Path
 
-import pytest
 import pandas as pd
+import pytest
+import yaml
 from pandas.testing import assert_frame_equal
 
-import oq_wrapper
-import oq_wrapper.constants
+import oq_wrapper as oqw
 
-
-benchmark_files = list(
+benchmark_ffps = list(
     (Path(__file__).parent / "benchmark_data" / "data").rglob("*.parquet")
 )
 rupture_df = pd.read_parquet(
@@ -16,14 +15,14 @@ rupture_df = pd.read_parquet(
 )
 
 
-@pytest.mark.parametrize("benchmark_ffp", benchmark_files)
+@pytest.mark.parametrize("benchmark_ffp", benchmark_ffps)
 def test_gmm_benchmarks(benchmark_ffp: Path):
     im = benchmark_ffp.parent.name
     bench_df = pd.read_parquet(benchmark_ffp)
 
     cur_rupture_df = rupture_df.loc[bench_df.index.values]
     cur_rupture_df = cur_rupture_df.rename(
-        columns=oq_wrapper.constants.NZGMDB_OQ_COL_MAPPING
+        columns=oqw.constants.NZGMDB_OQ_COL_MAPPING
     )
 
     cur_rupture_df["vs30measured"] = True
@@ -32,14 +31,7 @@ def test_gmm_benchmarks(benchmark_ffp: Path):
     # Convert Z1.0 to km
     cur_rupture_df["z1pt0"] = cur_rupture_df["z1pt0"] / 1000
 
-    # Get the GMM and TectType
-    gmm_name, tect_type_name = benchmark_ffp.stem.split("TectType")
-    gmm_name, tect_type_name = gmm_name.strip("_"), tect_type_name.strip("_")
-    gmm, tect_type = (
-        oq_wrapper.constants.GMM[gmm_name],
-        oq_wrapper.constants.TectType[tect_type_name],
-    )
-
+    # Get pSA periods
     periods = (
         None
         if im != "pSA"
@@ -49,14 +41,33 @@ def test_gmm_benchmarks(benchmark_ffp: Path):
             if col.endswith("mean")
         ]
     )
-    result_df = oq_wrapper.run_gmm(gmm, tect_type, cur_rupture_df, im, periods=periods)
-    # result_df.index = cur_rupture_df.index
+
+    # Get the GMM and TectType
+    gmm_name, tect_type_name = benchmark_ffp.stem.split("TectType")
+    gmm_name, tect_type_name = gmm_name.strip("_"), tect_type_name.strip("_")
+    tect_type = oqw.constants.TectType[tect_type_name]
+
+
+    # Single GMM model
+    if gmm_name in oqw.constants.GMM.get_names():
+        gmm = oqw.constants.GMM[gmm_name]
+        result_df = oqw.run_gmm(gmm, tect_type, cur_rupture_df, im, periods=periods)
+    # GMM Logic tree 
+    else:
+        gmm_lt = oqw.constants.GMMLogicTree[gmm_name]
+        gmm_lt_config = oqw.load_gmm_lt_config(gmm_lt, tect_type, im)
+
+        result_df = oqw.run_gmm_lt(
+            gmm_lt_config,
+            tect_type,
+            cur_rupture_df,
+            im,
+            periods=periods,
+        )
 
     assert_frame_equal(result_df, bench_df)
 
-
-# if __name__ == "__main__":
-#     # Run the test function
-# for cur_ffp in benchmark_files:
-# test_gmm_benchmarks(cur_ffp)
-#     # test_gmm_benchmarks(benchmark_files)
+if __name__ == "__main__":
+    # test_gmm_benchmarks(benchmark_ffps[0])
+    for cur_ffp in benchmark_ffps:
+        test_gmm_benchmarks(cur_ffp)

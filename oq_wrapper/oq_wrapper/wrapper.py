@@ -36,7 +36,8 @@ def _oq_model(model: gsim.base.GMPE, **kwargs):
 
 OQ_MODEL_MAPPING = {
     constants.GMM.Br_10: {
-        constants.TectType.ACTIVE_SHALLOW: gsim.bradley_2013.Bradley2013
+        constants.TectType.ACTIVE_SHALLOW: gsim.bradley_2013.Bradley2013,
+        constants.TectType.VOLCANIC: gsim.bradley_2013.Bradley2013Volc,
     },
     constants.GMM.AS_16: {
         constants.TectType.ACTIVE_SHALLOW: gsim.afshari_stewart_2016.AfshariStewart2016
@@ -261,6 +262,7 @@ def run_gmm_lt(
         DataFrame containing weighted combination of IM results from all models
     """
     results = []
+    orig_result = []
     for cur_model_name, cur_weight in gmm_logic_tree_config.items():
         cur_model = constants.GMM[cur_model_name]
         cur_result_df = run_gmm(
@@ -270,6 +272,7 @@ def run_gmm_lt(
             im,
             periods=periods,
         )
+        orig_result.append(cur_result_df)
         results.append(cur_result_df * cur_weight)
 
     return sum(results)
@@ -277,7 +280,7 @@ def run_gmm_lt(
     
 
 def load_gmm_lt_config(
-    logic_tree_config_ffp: str,
+    gmm_lt: constants.GMMLogicTree,
     tect_type: constants.TectType,
     im: str,
 ):
@@ -287,8 +290,8 @@ def load_gmm_lt_config(
     
     Parameters
     ----------
-    logic_tree_config_ffp : str
-        File path to the logic tree configuration YAML file
+    gmm_lt : constants.GMMLogicTree
+        Logic tree 
     tect_type : constants.TectType
         Tectonic type of interest
     im : str
@@ -299,8 +302,10 @@ def load_gmm_lt_config(
     dict
         Dictionary mapping model names to their weights for the given IM and tectonic type
     """
+    logic_tree_config_ffp = constants.GMM_LT_CONFIG_MAPPING[gmm_lt]
     with logic_tree_config_ffp.open("r") as f:
         logic_tree_config = yaml.safe_load(f)
+
     return logic_tree_config[im][tect_type.name]
 
 def prepare_model_inputs(
