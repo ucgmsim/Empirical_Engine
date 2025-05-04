@@ -85,7 +85,7 @@ for gmm in tqdm(gmms):
     if gmm is oqw.constants.GMM.GA_11:
         continue
 
-    tect_types = list(TECT_TYPE_MAPPING.keys()) if isinstance(gmm, oqw.constants.GMMLogicTree) else oqw.OQ_MODELS[gmm].keys()
+    tect_types = list(TECT_TYPE_MAPPING.keys()) if isinstance(gmm, oqw.constants.GMMLogicTree) else oqw.OQ_MODEL_MAPPING[gmm].keys()
 
     # Iterate over all tectonic types supported by the GMM
     for tect_type in tect_types:
@@ -105,11 +105,8 @@ for gmm in tqdm(gmms):
 
             try:
                 if isinstance(gmm, oqw.constants.GMMLogicTree):
-                    gmm_lt_config = oqw.load_gmm_lt_config(
-                        gmm, tect_type, im
-                    )
                     im_results = oqw.run_gmm_lt(
-                        gmm_lt_config,
+                        gmm,
                         tect_type,
                         cur_rupture_df,
                         im,

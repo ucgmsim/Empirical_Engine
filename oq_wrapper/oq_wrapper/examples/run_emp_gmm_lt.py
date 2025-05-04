@@ -13,8 +13,12 @@ import pandas as pd
 import oq_wrapper as oqw
 
 ### Load the data
-logic_tree_config_ffp = Path(__file__).parent.parent / "gmm_lt_configs" / "nhm_2010_bb_gmm_lt_config.yaml"
-record_data_ffp = Path(__file__).parent.parent.parent / "tests" / "benchmark_data" / "nzgmdb_v4p3_rupture_df.parquet"
+record_data_ffp = (
+    Path(__file__).parent.parent.parent
+    / "tests"
+    / "benchmark_data"
+    / "nzgmdb_v4p3_rupture_df.parquet"
+)
 record_df = pd.read_parquet(record_data_ffp)
 
 # Create the rupture data dataframe
@@ -25,8 +29,21 @@ record_df = pd.read_parquet(record_data_ffp)
 # In the model's file, look for the "REQUIRES_SITES_PARAMETERS",
 # "REQUIRES_RUPTURE_PARAMETERS", and "REQUIRES_DISTANCES" variables
 rupture_df = record_df[
-    ["mag", "dip", "rake", "z_tor", "r_rup", "r_jb", "r_x", "r_y", "Vs30", "Z1.0", "Z2.5", "ev_depth",
-    "z_bor"]
+    [
+        "mag",
+        "dip",
+        "rake",
+        "z_tor",
+        "r_rup",
+        "r_jb",
+        "r_x",
+        "r_y",
+        "Vs30",
+        "Z1.0",
+        "Z2.5",
+        "ev_depth",
+        "z_bor",
+    ]
 ]
 # Rename the columns to be in line what OpenQuake expects
 rupture_df = rupture_df.rename(
@@ -51,34 +68,19 @@ nan_mask = rupture_df.isna().any(axis=1)
 rupture_df = rupture_df[~nan_mask]
 print(f"Dropped {nan_mask.sum()} records with nan-values")
 
-tect_type = oqw.constants.TectType.ACTIVE_SHALLOW
-
-# Load the logic tree configuration for 
-# PGA and run the GMMs
-pga_gmm_lt_config = oqw.load_gmm_lt_config(
-    logic_tree_config_ffp,
-    tect_type,
-    "PGA",
-)
-pga_results = oqw.run_gmm_lt(
-    pga_gmm_lt_config,
-    tect_type,
-    rupture_df,
-    "PGA",
-)
-
-# Load the logic tree configuration for
-# pSA and run the GMMs
-pSA_gmm_lt_config = oqw.load_gmm_lt_config(
-    logic_tree_config_ffp,
-    tect_type,
-    "pSA",
-)
+# Select GMM logic tree and run models
+# Note this treats all records as active shallow!!
+# Call run_gmm multiple times for different tectonic types
+# tect_type = oqw.constants.TectType.ACTIVE_SHALLOW
+tect_type = oqw.constants.TectType.SUBDUCTION_SLAB
+# gmm_lt = oqw.constants.GMMLogicTree.NSHM2022
+gmm_lt = oqw.constants.GMMLogicTree.NHM2010_BB
 pSA_results = oqw.run_gmm_lt(
-    pSA_gmm_lt_config,
+    gmm_lt,
     tect_type,
     rupture_df,
     "pSA",
     periods=[0.01, 0.05, 0.1, 0.5, 1.0, 5.0, 10.0],
 )
 
+print("wtf")

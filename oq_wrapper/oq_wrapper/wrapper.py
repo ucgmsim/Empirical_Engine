@@ -4,9 +4,9 @@ from collections.abc import Callable, Sequence
 from functools import partial
 from typing import Union
 
-import yaml
 import numpy as np
 import pandas as pd
+import yaml
 from openquake.hazardlib import const as oq_const
 from openquake.hazardlib import contexts, gsim, imt
 
@@ -48,7 +48,7 @@ OQ_MODEL_MAPPING = {
     },
     # OQ's CB_08 includes the CB_10's CAV
     constants.GMM.CB_10: {
-        constants.TectType.ACTIVE_SHALLOW: gsim.campbell_bozorgnia_2008.CampbellBozorgnia2008
+        constants.TectType.ACTIVE_SHALLOW: gsim.campbell_bozorgnia_2008.CampbellBozorgnia2008,
     },
     constants.GMM.BCH_16: {
         constants.TectType.SUBDUCTION_SLAB: gsim.bchydro_2016_epistemic.BCHydroESHM20SSlab,
@@ -80,31 +80,42 @@ OQ_MODEL_MAPPING = {
         ),
     },
     constants.GMM.S_22: {
-        constants.TectType.ACTIVE_SHALLOW: gsim.nz22.stafford_2022.Stafford2022
+        constants.TectType.ACTIVE_SHALLOW: gsim.nz22.stafford_2022.Stafford2022,
+        constants.TectType.VOLCANIC: gsim.nz22.stafford_2022.Stafford2022
     },
     constants.GMM.A_22: {
         constants.TectType.ACTIVE_SHALLOW: gsim.nz22.atkinson_2022.Atkinson2022Crust,
+        constants.TectType.VOLCANIC: gsim.nz22.atkinson_2022.Atkinson2022Crust,
         constants.TectType.SUBDUCTION_SLAB: gsim.nz22.atkinson_2022.Atkinson2022SSlab,
         constants.TectType.SUBDUCTION_INTERFACE: gsim.nz22.atkinson_2022.Atkinson2022SInter,
     },
     constants.GMM.ASK_14: {
-        constants.TectType.ACTIVE_SHALLOW: gsim.abrahamson_2014.AbrahamsonEtAl2014
+        constants.TectType.ACTIVE_SHALLOW: gsim.abrahamson_2014.AbrahamsonEtAl2014,
+        constants.TectType.VOLCANIC: gsim.abrahamson_2014.AbrahamsonEtAl2014
     },
     constants.GMM.CY_14: {
-        constants.TectType.ACTIVE_SHALLOW: gsim.chiou_youngs_2014.ChiouYoungs2014
+        constants.TectType.ACTIVE_SHALLOW: gsim.chiou_youngs_2014.ChiouYoungs2014,
+        constants.TectType.VOLCANIC: gsim.chiou_youngs_2014.ChiouYoungs2014
     },
     constants.GMM.CB_14: {
         constants.TectType.ACTIVE_SHALLOW: partial(
             _oq_model,
             model=gsim.campbell_bozorgnia_2014.CampbellBozorgnia2014,
             estimate_width=True,
+        ),
+        constants.TectType.VOLCANIC: partial(
+            _oq_model,
+            model=gsim.campbell_bozorgnia_2014.CampbellBozorgnia2014,
+            estimate_width=True,
         )
     },
     constants.GMM.BSSA_14: {
-        constants.TectType.ACTIVE_SHALLOW: gsim.boore_2014.BooreEtAl2014
+        constants.TectType.ACTIVE_SHALLOW: gsim.boore_2014.BooreEtAl2014,
+        constants.TectType.VOLCANIC: gsim.boore_2014.BooreEtAl2014
     },
     constants.GMM.Br_13: {
-        constants.TectType.ACTIVE_SHALLOW: gsim.bradley_2013.Bradley2013
+        constants.TectType.ACTIVE_SHALLOW: gsim.bradley_2013.Bradley2013,
+        constants.TectType.VOLCANIC: gsim.bradley_2013.Bradley2013Volc
     },
     constants.GMM.AG_20: {
         constants.TectType.SUBDUCTION_SLAB: gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SSlab,
@@ -119,8 +130,8 @@ OQ_MODEL_MAPPING = {
         constants.TectType.SUBDUCTION_INTERFACE: gsim.kuehn_2020.KuehnEtAl2020SInter,
     },
     constants.GMM.P_21: {
-        constants.TectType.SUBDUCTION_SLAB: gsim.nz22.nz_nshm2022_parker.NZNSHM2022_ParkerEtAl2020SInterB,
-        constants.TectType.SUBDUCTION_INTERFACE: gsim.nz22.nz_nshm2022_parker.NZNSHM2022_ParkerEtAl2020SInterB,
+        constants.TectType.SUBDUCTION_SLAB: gsim.nz22.nz_nshm2022_parker.NZNSHM2022_ParkerEtAl2020SSlab,
+        constants.TectType.SUBDUCTION_INTERFACE: gsim.nz22.nz_nshm2022_parker.NZNSHM2022_ParkerEtAl2020SInter,
     },
     constants.GMM.GA_11: {
         constants.TectType.ACTIVE_SHALLOW: gsim.gulerce_abrahamson_2011.GulerceAbrahamson2011
@@ -233,16 +244,17 @@ def run_gmm(
     result_df.index = rupture_df.index
     return result_df
 
+
 def run_gmm_lt(
-    gmm_logic_tree_config: dict,
-    tect_type: constants.TectType,  
+    gmm_lt: constants.GMMLogicTree,
+    tect_type: constants.TectType,
     rupture_df: pd.DataFrame,
     im: str,
     periods: Sequence[Union[int, float]] = None,
 ):
     """
     Run a logic tree of GMMs with the specified weights.
-    
+
     Parameters
     ----------
     gmm_logic_tree_config : dict
@@ -255,15 +267,25 @@ def run_gmm_lt(
         Intensity measure (e.g., 'PGA', 'PGV', 'pSA', 'Ds575', 'Ds595')
     periods : Sequence[Union[int, float]], optional
         Periods to compute for pSA, required if im is 'pSA'
-        
+
     Returns
     -------
     pd.DataFrame
         DataFrame containing weighted combination of IM results from all models
     """
+    gmm_lt_config = load_gmm_lt_config(
+        gmm_lt,
+        tect_type,
+        im,
+    )
+    if gmm_lt_config is None:
+        raise ValueError(
+            f"IM {im} is not supported for GMM logic tree {gmm_lt.name} and tectonic type {tect_type.name}"
+        )
+
     results = []
     orig_result = []
-    for cur_model_name, cur_weight in gmm_logic_tree_config.items():
+    for cur_model_name, cur_weight in gmm_lt_config.items():
         cur_model = constants.GMM[cur_model_name]
         cur_result_df = run_gmm(
             cur_model,
@@ -277,7 +299,6 @@ def run_gmm_lt(
 
     return sum(results)
 
-    
 
 def load_gmm_lt_config(
     gmm_lt: constants.GMMLogicTree,
@@ -285,18 +306,18 @@ def load_gmm_lt_config(
     im: str,
 ):
     """
-    Load GMM logic tree configuration 
+    Load GMM logic tree configuration
     for the specified IM and tectonic type.
-    
+
     Parameters
     ----------
     gmm_lt : constants.GMMLogicTree
-        Logic tree 
+        Logic tree
     tect_type : constants.TectType
         Tectonic type of interest
     im : str
         IM of interest
-        
+
     Returns
     -------
     dict
@@ -306,7 +327,11 @@ def load_gmm_lt_config(
     with logic_tree_config_ffp.open("r") as f:
         logic_tree_config = yaml.safe_load(f)
 
+    if im not in logic_tree_config:
+        return None
+
     return logic_tree_config[im][tect_type.name]
+
 
 def prepare_model_inputs(
     model: constants.GMM,
@@ -335,9 +360,9 @@ def prepare_model_inputs(
     Returns
     -------
     pd.DataFrame
-        Updated rupture_df 
+        Updated rupture_df
     str
-        IM 
+        IM
 
     Notes
     -----
@@ -417,7 +442,7 @@ def prepare_model_inputs(
 
 
 def get_oq_model(
-    model_type: constants.GMM,
+    model: constants.GMM,
     tect_type: constants.TectType,
     **kwargs,
 ):
@@ -445,11 +470,11 @@ def get_oq_model(
     AssertionError
         If the model's defined tectonic type doesn't match the specified tectonic type
     """
-    model = OQ_MODEL_MAPPING[model_type][tect_type](**kwargs)
+    oq_model = OQ_MODEL_MAPPING[model][tect_type](**kwargs)
 
     # Sanity check
     assert (
-        constants.OQ_TECT_TYPE_MAPPING[model.DEFINED_FOR_TECTONIC_REGION_TYPE]
+        constants.OQ_TECT_TYPE_MAPPING[oq_model.DEFINED_FOR_TECTONIC_REGION_TYPE]
         == tect_type
     )
 
@@ -457,10 +482,10 @@ def get_oq_model(
     stddev_types = [
         std
         for std in constants.SPT_STD_DEVS
-        if std in model.DEFINED_FOR_STANDARD_DEVIATION_TYPES
+        if std in oq_model.DEFINED_FOR_STANDARD_DEVIATION_TYPES
     ]
 
-    return model, stddev_types
+    return oq_model, stddev_types
 
 
 def _get_model_pSA_periods(model: gsim.base.GMPE):
@@ -607,7 +632,7 @@ def _run_oq_model(
     stddev_types: Sequence[oq_const.StdDev],
 ):
     """
-    Call OpenQuake to compute mean and standard deviations 
+    Call OpenQuake to compute mean and standard deviations
     for the given GMM model and rupture context.
 
     Converts OpenQuake results to standard output format.
@@ -688,7 +713,7 @@ def _handle_missing_property(
     col_to_rename: str = None,
 ):
     """
-    Handle missing properties in the rupture dataframe for 
+    Handle missing properties in the rupture dataframe for
     the specified model type.
 
     Parameters

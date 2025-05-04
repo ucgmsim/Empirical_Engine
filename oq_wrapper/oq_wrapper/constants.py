@@ -50,11 +50,13 @@ class GMM(ExtendedStrEnum):
 class GMMLogicTree(ExtendedStrEnum):
     """Logic tree for GMMs."""
     NHM2010_BB = 1, "NHM2010_BB"
+    NSHM2022 = 2, "NSHM2022"
 
 GMM_LT_CONFIG_DIR = Path(__file__).parent / "gmm_lt_configs"
 
 GMM_LT_CONFIG_MAPPING = {
     GMMLogicTree.NHM2010_BB: GMM_LT_CONFIG_DIR / "nhm_2010_bb_gmm_lt_config.yaml",
+    GMMLogicTree.NSHM2022: GMM_LT_CONFIG_DIR / "nshm_2022_gmm_lt_config.yaml",
 }
 
 
