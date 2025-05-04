@@ -81,7 +81,7 @@ OQ_MODEL_MAPPING = {
     },
     constants.GMM.S_22: {
         constants.TectType.ACTIVE_SHALLOW: gsim.nz22.stafford_2022.Stafford2022,
-        constants.TectType.VOLCANIC: gsim.nz22.stafford_2022.Stafford2022
+        constants.TectType.VOLCANIC: gsim.nz22.stafford_2022.Stafford2022,
     },
     constants.GMM.A_22: {
         constants.TectType.ACTIVE_SHALLOW: gsim.nz22.atkinson_2022.Atkinson2022Crust,
@@ -91,11 +91,11 @@ OQ_MODEL_MAPPING = {
     },
     constants.GMM.ASK_14: {
         constants.TectType.ACTIVE_SHALLOW: gsim.abrahamson_2014.AbrahamsonEtAl2014,
-        constants.TectType.VOLCANIC: gsim.abrahamson_2014.AbrahamsonEtAl2014
+        constants.TectType.VOLCANIC: gsim.abrahamson_2014.AbrahamsonEtAl2014,
     },
     constants.GMM.CY_14: {
         constants.TectType.ACTIVE_SHALLOW: gsim.chiou_youngs_2014.ChiouYoungs2014,
-        constants.TectType.VOLCANIC: gsim.chiou_youngs_2014.ChiouYoungs2014
+        constants.TectType.VOLCANIC: gsim.chiou_youngs_2014.ChiouYoungs2014,
     },
     constants.GMM.CB_14: {
         constants.TectType.ACTIVE_SHALLOW: partial(
@@ -107,15 +107,15 @@ OQ_MODEL_MAPPING = {
             _oq_model,
             model=gsim.campbell_bozorgnia_2014.CampbellBozorgnia2014,
             estimate_width=True,
-        )
+        ),
     },
     constants.GMM.BSSA_14: {
         constants.TectType.ACTIVE_SHALLOW: gsim.boore_2014.BooreEtAl2014,
-        constants.TectType.VOLCANIC: gsim.boore_2014.BooreEtAl2014
+        constants.TectType.VOLCANIC: gsim.boore_2014.BooreEtAl2014,
     },
     constants.GMM.Br_13: {
         constants.TectType.ACTIVE_SHALLOW: gsim.bradley_2013.Bradley2013,
-        constants.TectType.VOLCANIC: gsim.bradley_2013.Bradley2013Volc
+        constants.TectType.VOLCANIC: gsim.bradley_2013.Bradley2013Volc,
     },
     constants.GMM.AG_20: {
         constants.TectType.SUBDUCTION_SLAB: gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SSlab,
@@ -473,10 +473,17 @@ def get_oq_model(
     oq_model = OQ_MODEL_MAPPING[model][tect_type](**kwargs)
 
     # Sanity check
-    assert (
-        constants.OQ_TECT_TYPE_MAPPING[oq_model.DEFINED_FOR_TECTONIC_REGION_TYPE]
-        == tect_type
-    )
+    if tect_type == constants.TectType.VOLCANIC:
+        warnings.warn(
+            f"Using {constants.OQ_TECT_TYPE_MAPPING[oq_model.DEFINED_FOR_TECTONIC_REGION_TYPE]} type "
+            f"model for {tect_type.name} tectonic type. Ensure this is on purpose!",
+            UserWarning,
+        )
+    else:
+        assert (
+            constants.OQ_TECT_TYPE_MAPPING[oq_model.DEFINED_FOR_TECTONIC_REGION_TYPE]
+            == tect_type
+        )
 
     # Model standard deviation types
     stddev_types = [

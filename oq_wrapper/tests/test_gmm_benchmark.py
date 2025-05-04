@@ -2,7 +2,6 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-import yaml
 from pandas.testing import assert_frame_equal
 
 import oq_wrapper as oqw
@@ -54,11 +53,8 @@ def test_gmm_benchmarks(benchmark_ffp: Path):
         result_df = oqw.run_gmm(gmm, tect_type, cur_rupture_df, im, periods=periods)
     # GMM Logic tree 
     else:
-        gmm_lt = oqw.constants.GMMLogicTree[gmm_name]
-        gmm_lt_config = oqw.load_gmm_lt_config(gmm_lt, tect_type, im)
-
         result_df = oqw.run_gmm_lt(
-            gmm_lt_config,
+            oqw.constants.GMMLogicTree[gmm_name],
             tect_type,
             cur_rupture_df,
             im,

@@ -12,7 +12,7 @@ jobs:
         with:
           python-version: '3.11'
       - run: sed -e '/hypothesis*/d' -e '/pytest*/d' -e '/diffimg/d' -i requirements.txt
-      - run: pip install -r requirements.txt
+      - run: pip install -r oq_wrapper/requirements.txt
       # Install deptry
       - run: pip install deptry
       # Remove pyproject.toml so that deptry doesn't get confused

@@ -22,7 +22,7 @@ jobs:
           cache-dependency-glob: "requirements**.txt"
 
       - name: Install the project
-        run: uv sync --all-extras --dev
+        run: uv sync --all-extras --dev oq_wrapper
 
       - name: Run tests
         run: |

@@ -1,7 +1,8 @@
 from pathlib import Path
 
-from qcore.constants import ExtendedEnum, ExtendedStrEnum
 from openquake.hazardlib import const as oq_const
+
+from qcore.constants import ExtendedEnum, ExtendedStrEnum
 
 # Different OQ GMM model standard deviation types of interest
 SPT_STD_DEVS = [
