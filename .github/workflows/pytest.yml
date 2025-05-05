@@ -26,6 +26,6 @@ jobs:
 
       - name: Run tests
         run: |
-          source .venv/bin/activate
+          source oq_wrapper/.venv/bin/activate
           pytest oq_wrapper/tests
 

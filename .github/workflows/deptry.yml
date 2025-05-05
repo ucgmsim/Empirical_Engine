@@ -16,7 +16,7 @@ jobs:
       # Install deptry
       - run: pip install deptry
       # Remove pyproject.toml so that deptry doesn't get confused
-      - run: rm pyproject.toml
+      - run: rm oq_wrapper/pyproject.toml
       # Run deptry to check that all dependencies are present.
       # Ignore pyarrow as its only used indirectly
       - run: deptry . --per-rule-ignores "DEP002=pyarrow"
