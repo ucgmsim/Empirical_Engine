@@ -495,7 +495,7 @@ def get_oq_model(
     return oq_model, stddev_types
 
 
-def _get_model_pSA_periods(model: gsim.base.GMPE):
+def _get_model_pSA_periods(model: gsim.base.GMPE):  # noqa: N802
     """
     Get the pSA periods supported by the specified model.
 
@@ -528,7 +528,7 @@ def _get_model_pSA_periods(model: gsim.base.GMPE):
     )
 
 
-def _oq_run_pSA(
+def _oq_run_pSA(  # noqa: N802
     model_type: constants.GMM,
     model: gsim.base.GMPE,
     rupture_ctx: contexts.RuptureContext,

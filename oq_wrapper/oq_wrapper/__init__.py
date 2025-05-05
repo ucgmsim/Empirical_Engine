@@ -1,5 +1,5 @@
 from . import constants, estimations
-from .wrapper import run_gmm, run_gmm_lt, load_gmm_lt_config, OQ_MODEL_MAPPING
+from .wrapper import OQ_MODEL_MAPPING, load_gmm_lt_config, run_gmm, run_gmm_lt
 
 __all__ = [
     "estimations",
