@@ -22,10 +22,10 @@ jobs:
           cache-dependency-glob: "requirements**.txt"
 
       - name: Install the project
-        run: uv sync --all-extras --dev oq_wrapper/
+        run: uv sync --project oq_wrapper/ --all-extras --dev 
 
       - name: Run tests
         run: |
           source .venv/bin/activate
-          pytest tests
+          pytest oq_wrapper/tests
 
