@@ -19,4 +19,4 @@ jobs:
       - run: rm oq_wrapper/pyproject.toml
       # Run deptry to check that all dependencies are present.
       # Ignore pyarrow as its only used indirectly
-      - run: deptry . --per-rule-ignores "DEP002=pyarrow"
+      - run: deptry oq_wrapper --per-rule-ignores "DEP002=pyarrow"
