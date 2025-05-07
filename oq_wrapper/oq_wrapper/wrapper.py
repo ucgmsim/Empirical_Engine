@@ -299,6 +299,33 @@ def run_gmm_lt(
 
     return sum(results)
 
+def get_model_from_str(model_name: str) -> constants.GMM | constants.GMMLogicTree:
+    """
+    Convert a string to a GMM or GMMLogicTree.
+
+    Parameters
+    ----------
+    model_name : str
+        Name of the model
+
+    Returns
+    -------
+    Union[constants.GMM, constants.GMMLogicTree]
+        Corresponding GMM or GMMLogicTree object
+
+    Raises
+    ------
+    ValueError
+        If the model name is not recognized
+    """
+    try:
+        return constants.GMM[model_name]
+    except KeyError:
+        try:
+            return constants.GMMLogicTree[model_name]
+        except KeyError:
+            raise ValueError(f"Model {model_name} not recognized.")
+
 
 def load_gmm_lt_config(
     gmm_lt: constants.GMMLogicTree,

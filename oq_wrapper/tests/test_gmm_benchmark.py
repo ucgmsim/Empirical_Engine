@@ -46,11 +46,10 @@ def test_gmm_benchmarks(benchmark_ffp: Path):
     gmm_name, tect_type_name = gmm_name.strip("_"), tect_type_name.strip("_")
     tect_type = oqw.constants.TectType[tect_type_name]
 
-
     # Single GMM model
-    if gmm_name in oqw.constants.GMM.get_names():
-        gmm = oqw.constants.GMM[gmm_name]
-        result_df = oqw.run_gmm(gmm, tect_type, cur_rupture_df, im, periods=periods)
+    model = oqw.get_model_from_str(gmm_name)
+    if isinstance(model, oqw.constants.GMM):
+        result_df = oqw.run_gmm(model, tect_type, cur_rupture_df, im, periods=periods)
     # GMM Logic tree 
     else:
         result_df = oqw.run_gmm_lt(
