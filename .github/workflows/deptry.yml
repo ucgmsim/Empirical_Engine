@@ -22,7 +22,7 @@ jobs:
           rm pyproject.toml
         working-directory: ./oq_wrapper  
       - name: Run deptry
-        run: deptry . --per-rule-ignores "DEP002=pyarrow"
+        run: deptry . --per-rule-ignores "DEP002=pyarrow" --exclude oq_wrapper/scripts/one_offs/
         working-directory: ./oq_wrapper
 
     
