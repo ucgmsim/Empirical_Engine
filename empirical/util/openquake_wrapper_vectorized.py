@@ -27,7 +27,10 @@ def openquake_model(model: gsim.base.GMPE, **kwargs):
 
 
 OQ_MODELS = {
-    GMM.Br_10: {TectType.ACTIVE_SHALLOW: gsim.bradley_2013.Bradley2013},
+    GMM.Br_10: {
+        TectType.ACTIVE_SHALLOW: gsim.bradley_2013.Bradley2013,
+        TectType.VOLCANIC: gsim.bradley_2013.Bradley2013Volc,
+    },
     GMM.AS_16: {TectType.ACTIVE_SHALLOW: gsim.afshari_stewart_2016.AfshariStewart2016},
     GMM.A_18: {
         TectType.SUBDUCTION_SLAB: gsim.abrahamson_2018.AbrahamsonEtAl2018SSlab,
@@ -271,6 +274,8 @@ def oq_prerun_exception_handle(
         ), "Tect Type must be SUBDUCTION_SLAB"
     elif trt == const.TRT.ACTIVE_SHALLOW_CRUST:
         assert tect_type == TectType.ACTIVE_SHALLOW, "Tect Type must be ACTIVE_SHALLOW"
+    elif trt == const.TRT.VOLCANIC:
+        assert tect_type == TectType.VOLCANIC, "Tect Type must be VOLCANIC"
     else:
         raise ValueError("unknown tectonic region: " + trt)
 
@@ -527,7 +532,7 @@ def oq_run(
             if period > max_period:
                 warnings.warn(
                     f"Extrapolating pSA({period}) based on maximum available period {max_period} for model {model_type.name}.",
-                    UserWarning
+                    UserWarning,
                 )
                 result.loc[:, result.columns.str.endswith("mean")] += 2 * np.log(
                     max_period / period
