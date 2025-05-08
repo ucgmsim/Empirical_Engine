@@ -284,7 +284,6 @@ def run_gmm_lt(
         )
 
     results = []
-    orig_result = []
     for cur_model_name, cur_weight in gmm_lt_config.items():
         cur_model = constants.GMM[cur_model_name]
         cur_result_df = run_gmm(
@@ -294,7 +293,6 @@ def run_gmm_lt(
             im,
             periods=periods,
         )
-        orig_result.append(cur_result_df)
         results.append(cur_result_df * cur_weight)
 
     return sum(results)
