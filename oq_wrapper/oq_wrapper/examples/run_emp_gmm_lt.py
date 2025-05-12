@@ -62,6 +62,7 @@ rupture_df = rupture_df.rename(
 )
 rupture_df["vs30measured"] = True
 rupture_df["z1pt0"] = rupture_df["z1pt0"] / 1000  # Convert Z1.0 to km
+rupture_df["backarc"] = False
 
 # Drop any records with nan-values
 nan_mask = rupture_df.isna().any(axis=1)
@@ -74,7 +75,7 @@ print(f"Dropped {nan_mask.sum()} records with nan-values")
 # tect_type = oqw.constants.TectType.ACTIVE_SHALLOW
 tect_type = oqw.constants.TectType.SUBDUCTION_SLAB
 # gmm_lt = oqw.constants.GMMLogicTree.NSHM2022
-gmm_lt = oqw.constants.GMMLogicTree.NHM2010_BB
+gmm_lt = oqw.constants.GMMLogicTree.NSHM2022
 psa_results = oqw.run_gmm_lt(
     gmm_lt,
     tect_type,
