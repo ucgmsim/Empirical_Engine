@@ -35,10 +35,6 @@ def _oq_model(model: gsim.base.GMPE, **kwargs):
 
 
 OQ_MODEL_MAPPING = {
-    constants.GMM.Br_10: {
-        constants.TectType.ACTIVE_SHALLOW: gsim.bradley_2013.Bradley2013,
-        constants.TectType.VOLCANIC: gsim.bradley_2013.Bradley2013Volc,
-    },
     constants.GMM.AS_16: {
         constants.TectType.ACTIVE_SHALLOW: gsim.afshari_stewart_2016.AfshariStewart2016
     },
@@ -414,10 +410,6 @@ def prepare_model_inputs(
 
     _handle_missing_property(
         rupture_df, model, "BCH_16", "xvf", value_factory=lambda: 0
-    )
-
-    _handle_missing_property(
-        rupture_df, model, "Br_10", "vs30measured", value_factory=lambda: False
     )
 
     # Model specified estimation that cannot be done within OQ as paper does not specify

@@ -27,7 +27,7 @@ rupture_df = record_df[
     ["mag", "dip", "rake", "z_tor", "r_rup", "r_jb", "r_x", "r_y", "Vs30", "Z1.0", "Z2.5", "ev_depth",
     "z_bor", "tect_class"]
 ]
-# Rename the columns to be in line what openquake expects
+# Rename the columns to be in line with what OpenQuake expects
 rupture_df = rupture_df.rename(
     columns={
         "z_tor": "ztor",
@@ -55,14 +55,14 @@ print(f"Dropped {nan_mask.sum()} records with nan-values")
 # Note this treats all records as active shallow!!
 # Call run_gmm multiple times for different tectonic types
 pga_result = oqw.run_gmm(
-    oqw.constants.GMM.Br_10,
+    oqw.constants.GMM.Br_13,
     oqw.constants.TectType.ACTIVE_SHALLOW,
     rupture_df,
     "PGA",
 )
 
 psa_results = oqw.run_gmm(
-    oqw.constants.GMM.Br_10,
+    oqw.constants.GMM.Br_13,
     oqw.constants.TectType.ACTIVE_SHALLOW,
     rupture_df,
     "pSA",

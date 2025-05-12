@@ -45,7 +45,7 @@ rupture_df = record_df[
         "z_bor",
     ]
 ]
-# Rename the columns to be in line what OpenQuake expects
+# Rename the columns to be in line with what OpenQuake expects
 rupture_df = rupture_df.rename(
     columns={
         "z_tor": "ztor",

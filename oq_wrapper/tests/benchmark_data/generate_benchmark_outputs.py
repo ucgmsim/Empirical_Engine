@@ -54,7 +54,7 @@ PERIODS = [
 
 rupture_df = pd.read_parquet(Path(__file__).parent / "nzgmdb_v4p3_rupture_df.parquet")
 
-# Rename the columns to be in line with what openquake expects
+# Rename the columns to be in line with what OpenQuake expects
 rupture_df = rupture_df.rename(columns=oqw.constants.NZGMDB_OQ_COL_MAPPING)
 rupture_df["vs30measured"] = True
 rupture_df["backarc"] = False

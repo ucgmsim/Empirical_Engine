@@ -32,7 +32,6 @@ class GMM(StrEnum):
     """Ground motion models."""
 
     ZA_06 = "Z_06"
-    Br_10 = "Br_10"
     AS_16 = "AS_16"
     BSSA_14 = "BSSA_14"
     ASK_14 = "ASK_14"
