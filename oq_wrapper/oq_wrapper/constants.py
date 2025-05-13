@@ -30,7 +30,7 @@ OQ_TECT_TYPE_MAPPING = {
 
 class GMM(StrEnum):
     """Ground motion models."""
-    ZA_06 = "Z_06"
+    ZA_06 = "ZA_06"
     AS_16 = "AS_16"
     BSSA_14 = "BSSA_14"
     ASK_14 = "ASK_14"
