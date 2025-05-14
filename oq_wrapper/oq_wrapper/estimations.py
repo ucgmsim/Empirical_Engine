@@ -336,9 +336,9 @@ Z_CALC_MODEL_REGION_MAPPING = {
 
 def calc_z_for_model(
     model: constants.GMM,
-    vs30: Union[float, np.ndarray],
-    region: Union[str, None] = None,
-):
+    vs30: npt.ArrayLike,
+    region: str | None = None
+) -> tuple[np.ndarray, str]:
     """
     Calculates the z value for a given model, region and Vs30 value / values
 
@@ -346,7 +346,7 @@ def calc_z_for_model(
     ----------
     model : constants.GMM
         The model to calculate the z value for
-    vs30 : Union[float, np.ndarray]
+    vs30 : array-like
         The Vs30 value or values, in meters per second
     region : Union[str, None]
         The region to use, use None to define a Global region, default is None.

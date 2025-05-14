@@ -1,4 +1,4 @@
-from enum import StrEnum
+from enum import StrEnum, auto
 from pathlib import Path
 
 from openquake.hazardlib import const as oq_const
@@ -14,10 +14,10 @@ SPT_STD_DEVS = [
 class TectType(StrEnum):
     """Fault tectonic type."""
 
-    ACTIVE_SHALLOW = "ACTIVE_SHALLOW"
-    VOLCANIC = "VOLCANIC"
-    SUBDUCTION_INTERFACE = "SUBDUCTION_INTERFACE"
-    SUBDUCTION_SLAB = "SUBDUCTION_SLAB"
+    ACTIVE_SHALLOW = auto()
+    VOLCANIC = auto()
+    SUBDUCTION_INTERFACE = auto()
+    SUBDUCTION_SLAB = auto()
 
 
 OQ_TECT_TYPE_MAPPING = {

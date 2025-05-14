@@ -1,8 +1,8 @@
 import logging
 import warnings
 from collections.abc import Callable, Sequence
-from functools import partial
-from typing import Union
+import functools
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -13,7 +13,7 @@ from openquake.hazardlib import contexts, gsim, imt
 from . import constants, estimations
 
 
-def _oq_model(model: gsim.base.GMPE, **kwargs):
+def _oq_model(model: gsim.base.GMPE, **kwargs: dict[str, Any]) -> gsim.base.GMPE:
     """
     Create a partial function to simplify model instantiation.
 
@@ -21,7 +21,7 @@ def _oq_model(model: gsim.base.GMPE, **kwargs):
     ----------
     model : gsim.base.GMPE
         OpenQuake ground motion model class
-    **kwargs
+    **kwargs : dict
         Extra model-specific parameters, e.g.:
         - region="NZL" for models ending with _NZ
         - estimate_width=True for CB_14 to estimate fault width
@@ -56,20 +56,20 @@ OQ_MODEL_MAPPING = {
         constants.TectType.SUBDUCTION_INTERFACE: gsim.zhao_2006.ZhaoEtAl2006SInter,
     },
     constants.GMM.K_20_NZ: {
-        constants.TectType.SUBDUCTION_SLAB: partial(
+        constants.TectType.SUBDUCTION_SLAB: functools.partial(
             _oq_model, model=gsim.kuehn_2020.KuehnEtAl2020SSlab, region="NZL"
         ),
-        constants.TectType.SUBDUCTION_INTERFACE: partial(
+        constants.TectType.SUBDUCTION_INTERFACE: functools.partial(
             _oq_model, model=gsim.kuehn_2020.KuehnEtAl2020SInter, region="NZL"
         ),
     },
     constants.GMM.AG_20_NZ: {
-        constants.TectType.SUBDUCTION_SLAB: partial(
+        constants.TectType.SUBDUCTION_SLAB: functools.partial(
             _oq_model,
             model=gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SSlab,
             region="NZL",
         ),
-        constants.TectType.SUBDUCTION_INTERFACE: partial(
+        constants.TectType.SUBDUCTION_INTERFACE: functools.partial(
             _oq_model,
             model=gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SInter,
             region="NZL",
@@ -94,12 +94,12 @@ OQ_MODEL_MAPPING = {
         constants.TectType.VOLCANIC: gsim.chiou_youngs_2014.ChiouYoungs2014,
     },
     constants.GMM.CB_14: {
-        constants.TectType.ACTIVE_SHALLOW: partial(
+        constants.TectType.ACTIVE_SHALLOW: functools.partial(
             _oq_model,
             model=gsim.campbell_bozorgnia_2014.CampbellBozorgnia2014,
             estimate_width=True,
         ),
-        constants.TectType.VOLCANIC: partial(
+        constants.TectType.VOLCANIC: functools.partial(
             _oq_model,
             model=gsim.campbell_bozorgnia_2014.CampbellBozorgnia2014,
             estimate_width=True,
@@ -140,9 +140,9 @@ def run_gmm(
     tect_type: constants.TectType,
     rupture_df: pd.DataFrame,
     im: str,
-    periods: Sequence[Union[int, float]] = None,
-    **kwargs,
-):
+    periods: Sequence[int | float] | None = None,
+    **kwargs: dict[str, Any],
+) -> pd.DataFrame:
     """
     Run OpenQuake GMM for the given rupture dataframe and intensity measure.
 
@@ -159,7 +159,7 @@ def run_gmm(
         Each row represents a separate site-fault pair.
     im : str
         Intensity measure (e.g., 'PGA', 'PGV', 'pSA', 'Ds575', 'Ds595')
-    periods : Sequence[Union[int, float]], optional
+    periods : sequence of ints or floats, optional
         Periods to compute for pSA, required if im is 'pSA'.
         Ignored for other IMs.
     **kwargs
@@ -192,7 +192,8 @@ def run_gmm(
     )
 
     # Convert Z1.0 from km to m
-    assert np.all(rupture_df["z1pt0"] < 10), "Z1.0 must be in kilometres"
+    if np.any(rupture_df["z1pt0"] >= 10):
+        raise ValueError("Z1.0 values are too high. Did you pass in metre values instead of kilometres?")
     rupture_df["z1pt0"] *= 1000  # this is ok as we are not editing the original df
 
     # OQ's single new-style context which contains all site, distance and rupture's information
@@ -246,8 +247,8 @@ def run_gmm_lt(
     tect_type: constants.TectType,
     rupture_df: pd.DataFrame,
     im: str,
-    periods: Sequence[Union[int, float]] = None,
-):
+    periods: Sequence[int | float] | None= None,
+) -> pd.DataFrame:
     """
     Run a logic tree of GMMs with the specified weights.
 
@@ -261,7 +262,7 @@ def run_gmm_lt(
         DataFrame containing rupture and site parameters
     im : str
         Intensity measure (e.g., 'PGA', 'PGV', 'pSA', 'Ds575', 'Ds595')
-    periods : Sequence[Union[int, float]], optional
+    periods : sequence of ints or floats, optional
         Periods to compute for pSA, required if im is 'pSA'
 
     Returns
@@ -325,7 +326,7 @@ def load_gmm_lt_config(
     gmm_lt: constants.GMMLogicTree,
     tect_type: constants.TectType,
     im: str,
-):
+) -> dict[str, float]:
     """
     Load GMM logic tree configuration
     for the specified IM and tectonic type.
@@ -359,7 +360,7 @@ def prepare_model_inputs(
     oq_model: gsim.base.GMPE,
     rupture_df: pd.DataFrame,
     im: str,
-):
+) -> tuple[pd.DataFrame, str]:
     """
     Prepares the rupture dataframe and IM for OpenQuake.
     Handles missing model specific properties.
@@ -484,7 +485,7 @@ def get_oq_model(
 
     Raises
     ------
-    AssertionError
+    ValueError
         If the model's defined tectonic type doesn't match the specified tectonic type
     """
     oq_model = OQ_MODEL_MAPPING[model][tect_type](**kwargs)
@@ -512,7 +513,7 @@ def get_oq_model(
     return oq_model, stddev_types
 
 
-def _get_model_pSA_periods(model: gsim.base.GMPE):  # noqa: N802
+def _get_model_pSA_periods(model: gsim.base.GMPE) -> np.ndarray:  # noqa: N802
     """
     Get the pSA periods supported by the specified model.
 
@@ -551,7 +552,7 @@ def _oq_run_pSA(  # noqa: N802
     rupture_ctx: contexts.RuptureContext,
     periods: Sequence[float],
     stddev_types: Sequence[oq_const.StdDev],
-):
+) -> pd.DataFrame:
     """
     Run OpenQuake GMM for pSA.
     Handles extrapolation for periods larger than the model's maximum period.
@@ -604,7 +605,10 @@ def _oq_run_pSA(  # noqa: N802
             ):
                 # Period is smaller than model's supported min_period E.g., ZA_06
                 # Interpolate between PGA(0.0) and model's min_period
-                assert period < min(model_periods)
+                if period >= min(model_periods):
+                    raise ValueError(
+                        f"Trying to interpolate to {period}, which is larger than {min(model_periods)}"
+                    )
                 low_result = _run_oq_model(
                     model,
                     rupture_ctx,
@@ -654,7 +658,7 @@ def _run_oq_model(
     ctx: contexts.RuptureContext,
     im: imt.IMT,
     stddev_types: Sequence[oq_const.StdDev],
-):
+) -> pd.DataFrame:
     """
     Call OpenQuake to compute mean and standard deviations
     for the given GMM model and rupture context.
@@ -734,8 +738,8 @@ def _handle_missing_property(
     model_name: str,
     col_missing: str,
     value_factory: Callable = lambda: None,
-    col_to_rename: str = None,
-):
+    col_to_rename: str | None = None,
+) -> None:
     """
     Handle missing properties in the rupture dataframe for
     the specified model type.
