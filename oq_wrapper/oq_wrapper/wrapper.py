@@ -1,7 +1,7 @@
+import functools
 import logging
 import warnings
 from collections.abc import Callable, Sequence
-import functools
 from typing import Any
 
 import numpy as np
@@ -231,18 +231,20 @@ def run_gmm(
     else:
         # Check that the IM is supported
         # Supported IMs are specified as functions per model, hence the getattr
-        imc = getattr(imt, im)
-        if imc not in oq_model.DEFINED_FOR_INTENSITY_MEASURE_TYPES:
+        # Have to use the IM type function, as that is what is used to 
+        # define the allowed IM types for a model.
+        oq_im_type_fn = getattr(imt, im)
+        if oq_im_type_fn not in oq_model.DEFINED_FOR_INTENSITY_MEASURE_TYPES:
             raise ValueError(
                 f"Model {model.name} does not support {im}. Supported types are {oq_model.DEFINED_FOR_INTENSITY_MEASURE_TYPES}"
             )
-        result_df = _run_oq_model(oq_model, rupture_ctx, imc(), stddev_types)
+        result_df = _run_oq_model(oq_model, rupture_ctx, oq_im_type_fn(), stddev_types)
 
     result_df.index = rupture_df.index
     return result_df
 
 
-def run_gmm_lt(
+def run_gmm_logic_tree(
     gmm_lt: constants.GMMLogicTree,
     tect_type: constants.TectType,
     rupture_df: pd.DataFrame,
@@ -270,7 +272,7 @@ def run_gmm_lt(
     pd.DataFrame
         DataFrame containing weighted combination of IM results from all models
     """
-    gmm_lt_config = load_gmm_lt_config(
+    gmm_lt_config = load_gmm_logic_tree_config(
         gmm_lt,
         tect_type,
         im,
@@ -322,7 +324,7 @@ def get_model_from_str(model_name: str) -> constants.GMM | constants.GMMLogicTre
             raise ValueError(f"Model {model_name} not recognized.")
 
 
-def load_gmm_lt_config(
+def load_gmm_logic_tree_config(
     gmm_lt: constants.GMMLogicTree,
     tect_type: constants.TectType,
     im: str,

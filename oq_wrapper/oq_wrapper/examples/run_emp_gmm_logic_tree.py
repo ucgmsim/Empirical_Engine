@@ -75,7 +75,7 @@ print(f"Dropped {nan_mask.sum()} records with nan-values")
 tect_type = oqw.constants.TectType.SUBDUCTION_SLAB
 # gmm_lt = oqw.constants.GMMLogicTree.NSHM2022
 gmm_lt = oqw.constants.GMMLogicTree.NHM2010_BB
-psa_results = oqw.run_gmm_lt(
+psa_results = oqw.run_gmm_logic_tree(
     gmm_lt,
     tect_type,
     rupture_df,

@@ -1,6 +1,7 @@
 from typing import Union
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 from scipy import interpolate
 from scipy.special import erf
@@ -10,11 +11,22 @@ from source_modelling.sources import Plane
 from . import constants
 
 
-def estimate_width_ASK14(dip: pd.Series, mag: pd.Series):  # noqa: N802
-    """Estimate a width for ASK_14 model
-    The equation is from NGA-West 2 spreadsheet
-    dip: pd.Series
-    mag: pd.Series
+def estimate_width_ASK14(dip: npt.ArrayLike, mag: npt.ArrayLike) -> np.ndarray:  # noqa: N802
+    """
+    Estimate the fault rupture width using the ASK14 model.
+    This is based on the NGA-West 2 GMM implementation.
+    
+    Parameters
+    ----------
+    dip : array-like
+        Dip angle of the fault in degrees. Should be a 1D array or Series of floats.
+    mag : array-like
+        Magnitude of the earthquake. Should be a 1D array or Series of floats.
+
+    Returns
+    -------
+    width : np.ndarray
+        Estimated rupture width for each (dip, mag) pair.
     """
     return np.minimum(18 / np.sin(np.radians(dip)), 10 ** (-1.75 + 0.45 * mag))
 
@@ -394,10 +406,9 @@ def interpolate_with_pga(
     high_period: float,
     low_y: pd.DataFrame,
     high_y: pd.DataFrame,
-):
+) -> pd.DataFrame:
     """Use interpolation to find the value of new points at the given period
     which is between 0.0(PGA) and the model's minimum period.
-
     period: Union[float, int]
         target period for interpolation
     high_period: float
@@ -409,6 +420,15 @@ def interpolate_with_pga(
     high_y: pd.DataFrame
         DataFrame that contains GMM computational results
         at period = model's minimum period
+        
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame containing the interpolated ground motion metrics (mean,
+        total standard deviation, inter-event standard deviation,
+        intra-event standard deviation) at the target `period`. The columns
+        are named using the pattern ``pSA_{period}_{metric_name}``.
+        The mean values are returned in log space.
     """
     x = [0.0, high_period]
     # each subarray represents values at period=0.0 and period=high_period
