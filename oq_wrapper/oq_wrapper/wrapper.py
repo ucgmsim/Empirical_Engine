@@ -266,7 +266,7 @@ def run_gmm_logic_tree(
 
     Parameters
     ----------
-    gmm_lt: constants.GMMLogicTree
+    gmm_lt : constants.GMMLogicTree
         The logic tree of GMMs to run, available logic trees
         are defined in constants.py
     tect_type : constants.TectType
@@ -476,11 +476,11 @@ def get_oq_model(
 
     Parameters
     ----------
-    model: constants.GMM
+    model : constants.GMM
         Ground motion model
     tect_type : constants.TectType
         Tectonic type
-    **kwargs
+    **kwargs2
         Extra model-specific parameters passed to the model constructor
 
     Returns

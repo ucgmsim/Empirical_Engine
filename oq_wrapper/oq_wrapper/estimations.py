@@ -16,9 +16,9 @@ from source_modelling.sources import Plane
 from . import constants
 
 
-def estimate_width_ASK14(
+def estimate_width_ASK14(   # noqa: N802
     dip: npt.ArrayLike, mag: npt.ArrayLike
-) -> np.ndarray:  # noqa: N802
+) -> np.ndarray:  
     """
     Estimate the fault rupture width using the ASK14 model.
     This is based on the NGA-West 2 GMM implementation.
@@ -250,14 +250,14 @@ def chiou_young_08_calc_z2p5(
 
     Parameters
     ----------
-    z1p0: Union[float, np.ndarray, pd.DataFrame]
-        Z1.0 values
-    z1p5: Union[float, np.ndarray, pd.DataFrame]
-        Z1.5 values
+    z1p0 : Union[float, np.ndarray, pd.DataFrame], optional
+        Z1.0 values in km, by default None
+    z1p5 : Union[float, np.ndarray, pd.DataFrame], optional
+        Z1.5 values in km, by default None
 
     Returns
     -------
-    Union[float, np.ndarray]: 
+    Union[float, np.ndarray]
         Z2.5 values in the same format as z1p0 or z1p5 in km
     """
     if z1p5 is not None:
