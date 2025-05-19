@@ -425,8 +425,8 @@ def calc_z_for_model(
 def interpolate_with_pga(
     period: Union[float, int],
     model_min_period: float,
-    low_y: pd.DataFrame,
-    high_y: pd.DataFrame,
+    pga_y: pd.DataFrame,
+    min_period_y: pd.DataFrame,
 ) -> pd.DataFrame:
     """
     Use interpolation to find the pSA value at the given period,
@@ -436,11 +436,11 @@ def interpolate_with_pga(
     ----------
     period: float or int
         Target period for interpolation
-    model_min_period: float
+    model_min_period : float
         Minimum supported pSA period for GMM of interest
-    pga_y: pd.DataFrame
+    pga_y : pd.DataFrame
         DataFrame that contains GMM results for PGA
-    min_period_y: pd.DataFrame
+    min_period_y : pd.DataFrame
         DataFrame that contains GMM results
         at the model's minimum period
 
@@ -460,29 +460,29 @@ def interpolate_with_pga(
     # where a,c are at period=0.0=PGA and b,d are at period=model_min_period
     mean_y = np.concatenate(
         (
-            np.exp(low_y.loc[:, low_y.columns.str.endswith("mean")].to_numpy()),
-            np.exp(high_y.loc[:, high_y.columns.str.endswith("mean")].to_numpy()),
+            np.exp(pga_y.loc[:, pga_y.columns.str.endswith("mean")].to_numpy()),
+            np.exp(min_period_y.loc[:, min_period_y.columns.str.endswith("mean")].to_numpy()),
         ),
         axis=1,
     )
     sigma_total_y = np.concatenate(
         (
-            low_y.loc[:, low_y.columns.str.endswith("std_Total")].to_numpy(),
-            high_y.loc[:, high_y.columns.str.endswith("std_Total")].to_numpy(),
+            pga_y.loc[:, pga_y.columns.str.endswith("std_Total")].to_numpy(),
+            min_period_y.loc[:, min_period_y.columns.str.endswith("std_Total")].to_numpy(),
         ),
         axis=1,
     )
     sigma_inter_y = np.concatenate(
         (
-            low_y.loc[:, low_y.columns.str.endswith("std_Inter")].to_numpy(),
-            high_y.loc[:, high_y.columns.str.endswith("std_Inter")].to_numpy(),
+            pga_y.loc[:, pga_y.columns.str.endswith("std_Inter")].to_numpy(),
+            min_period_y.loc[:, min_period_y.columns.str.endswith("std_Inter")].to_numpy(),
         ),
         axis=1,
     )
     sigma_intra_y = np.concatenate(
         (
-            low_y.loc[:, low_y.columns.str.endswith("std_Intra")].to_numpy(),
-            high_y.loc[:, high_y.columns.str.endswith("std_Intra")].to_numpy(),
+            pga_y.loc[:, pga_y.columns.str.endswith("std_Intra")].to_numpy(),
+            min_period_y.loc[:, min_period_y.columns.str.endswith("std_Intra")].to_numpy(),
         ),
         axis=1,
     )

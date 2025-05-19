@@ -480,7 +480,7 @@ def get_oq_model(
         Ground motion model
     tect_type : constants.TectType
         Tectonic type
-    **kwargs2
+    **kwargs : dict
         Extra model-specific parameters passed to the model constructor
 
     Returns
