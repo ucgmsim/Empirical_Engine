@@ -434,7 +434,7 @@ def interpolate_with_pga(
 
     Parameters
     ----------
-    period: float or int
+    period : float or int
         Target period for interpolation
     model_min_period : float
         Minimum supported pSA period for GMM of interest
