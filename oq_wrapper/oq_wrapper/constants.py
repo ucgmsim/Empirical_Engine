@@ -1,3 +1,5 @@
+"""Constants used in the OpenQuake wrapper package."""
+
 from enum import StrEnum, auto
 from pathlib import Path
 

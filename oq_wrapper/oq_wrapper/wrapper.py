@@ -1,3 +1,10 @@
+"""
+Module containing functions of the OQ GMM wrapper.
+The two key functions for running GMMs are:
+- `run_gmm`: Runs a single GMM for the given rupture dataframe and IM.
+- `run_gmm_logic_tree`: Runs a logic tree of GMMs for the given rupture dataframe and IM.
+"""
+
 import functools
 import logging
 import warnings
@@ -259,8 +266,9 @@ def run_gmm_logic_tree(
 
     Parameters
     ----------
-    gmm_logic_tree_config : dict
-        Dictionary mapping model names to their weights in the logic tree
+    gmm_lt: constants.GMMLogicTree
+        The logic tree of GMMs to run, available logic trees
+        are defined in constants.py
     tect_type : constants.TectType
         Tectonic type (ACTIVE_SHALLOW, SUBDUCTION_SLAB or SUBDUCTION_INTERFACE)
     rupture_df : pd.DataFrame
@@ -468,8 +476,8 @@ def get_oq_model(
 
     Parameters
     ----------
-    model_type : constants.GMM
-        Ground motion model identifier
+    model: constants.GMM
+        Ground motion model
     tect_type : constants.TectType
         Tectonic type
     **kwargs
