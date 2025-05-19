@@ -33,7 +33,7 @@ def estimate_width_ASK14(dip: npt.ArrayLike, mag: npt.ArrayLike) -> np.ndarray: 
 
 def calculate_avg_strike_dip_rake(
     planes: list[Plane], plane_avg_rake: list[float], plane_total_slip: list[float]
-):
+) -> tuple[float, float, float]:
     """
     Calculates the average strike, dip and rake of the fault planes
     based on the weighted average of the Total Slip on each plane.
@@ -69,7 +69,7 @@ def calculate_avg_strike_dip_rake(
     return avg_strike, avg_dip, avg_rake
 
 
-def kuehn_20_calc_z(vs30: Union[float, np.ndarray], region: str):
+def kuehn_20_calc_z(vs30: Union[float, np.ndarray], region: str) -> Union[float, np.ndarray]:
     """
     Calculates the z1p0 or z2p5 value for the Kuehn et al. (2020) model
     Depends on the region for z1p0 or z2p5
@@ -127,7 +127,7 @@ def kuehn_20_calc_z(vs30: Union[float, np.ndarray], region: str):
     return ln_z_ref
 
 
-def chiou_young_14_calc_z1p0(vs30: Union[float, np.ndarray], region: str = None):
+def chiou_young_14_calc_z1p0(vs30: Union[float, np.ndarray], region: str = None) -> Union[float, np.ndarray]:
     """
     Calculates the z1p0 value for the Chiou and Youngs (2014) model
 
@@ -155,7 +155,7 @@ def chiou_young_14_calc_z1p0(vs30: Union[float, np.ndarray], region: str = None)
     return np.exp(z1p0) / 1000  # In km
 
 
-def mod_chiou_young_14_calc_z1p0(vs30: Union[float, np.ndarray], region: str = None):
+def mod_chiou_young_14_calc_z1p0(vs30: Union[float, np.ndarray], region: str = None) -> Union[float, np.ndarray]:
     """
     Calculates the z1p0 value for the Chiou and Youngs (2014) model
     Modified for a different coefficient for the global model
@@ -182,7 +182,7 @@ def mod_chiou_young_14_calc_z1p0(vs30: Union[float, np.ndarray], region: str = N
     return np.exp(z1p0) / 1000  # In km
 
 
-def campbell_bozorgina_14_calc_z2p5(vs30: Union[float, np.ndarray], region: str = None):
+def campbell_bozorgina_14_calc_z2p5(vs30: Union[float, np.ndarray], region: str = None) -> Union[float, np.ndarray]:
     """
     Calculates the z2p5 value for the Campbell and Bozorgnia (2014) model
 
@@ -206,7 +206,7 @@ def campbell_bozorgina_14_calc_z2p5(vs30: Union[float, np.ndarray], region: str 
     return z2p5  # In km
 
 
-def chiou_young_08_calc_z1p0(vs30: Union[float, np.ndarray, pd.DataFrame]):
+def chiou_young_08_calc_z1p0(vs30: Union[float, np.ndarray, pd.DataFrame]) -> Union[float, np.ndarray]:
     """
     Calculates the z2p5 value for the Chiou and Youngs (2008) model
 
@@ -227,7 +227,7 @@ def chiou_young_08_calc_z1p0(vs30: Union[float, np.ndarray, pd.DataFrame]):
 def chiou_young_08_calc_z2p5(
     z1p0: Union[float, np.ndarray, pd.DataFrame] = None,
     z1p5: Union[float, np.ndarray, pd.DataFrame] = None,
-):
+) -> Union[float, np.ndarray]:
     """
     Calculates the z2p5 value using z1p0 or z1p5 for the Chiou and Youngs (2008) model
 
@@ -249,7 +249,7 @@ def chiou_young_08_calc_z2p5(
         raise ValueError("no z2p5 able to be estimated")
 
 
-def abrahamson_gulerce_20_calc_z2p5(vs30: Union[float, np.ndarray], region: str):
+def abrahamson_gulerce_20_calc_z2p5(vs30: Union[float, np.ndarray], region: str) -> Union[float, np.ndarray]:
     """
     Calculates the z2p5 value for the Abrahamson and Gulerce (2020) model
 
@@ -274,7 +274,7 @@ def abrahamson_gulerce_20_calc_z2p5(vs30: Union[float, np.ndarray], region: str)
     return np.exp(ln_zref)  # In km
 
 
-def parker_20_calc_z2p5(vs30: Union[float, np.ndarray], region: str):
+def parker_20_calc_z2p5(vs30: Union[float, np.ndarray], region: str) -> Union[float, np.ndarray]:
     """
     Calculates the z2p5 value for the Parker et al. (2020) model
 
