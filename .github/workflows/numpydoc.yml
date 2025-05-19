@@ -27,4 +27,4 @@ jobs:
 
       - name: Run Numpydoc Lint
         run: |
-          fdfind ./oq_wrapper oq_wrapper/ -E "__init__.py" --extension py | xargs numpydoc lint
+          fdfind . oq_wrapper/oq_wrapper/ -E "__init__.py" --extension py | xargs numpydoc lint

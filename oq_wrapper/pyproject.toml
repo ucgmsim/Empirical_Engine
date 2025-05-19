@@ -19,6 +19,9 @@ oq_wrapper = "oq_wrapper"
 [tool.setuptools.dynamic]
 dependencies = { file = ["requirements.txt"] }
 
+[tool.ruff]
+exclude = ["oq_wrapper/scripts/one_offs"]
+
 [tool.ruff.lint]
 extend-select = [
   # isort imports
@@ -52,7 +55,6 @@ extend-select = [
   "ANN206",
   # Using except without specifying an exception type to catch
   "BLE001",
-
 ]
 ignore = ["D104"]
 

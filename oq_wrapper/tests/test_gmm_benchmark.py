@@ -15,7 +15,7 @@ rupture_df = pd.read_parquet(
 
 
 @pytest.mark.parametrize("benchmark_ffp", benchmark_ffps)
-def test_gmm_benchmarks(benchmark_ffp: Path):
+def test_gmm_benchmarks(benchmark_ffp: Path) -> None:
     im = benchmark_ffp.parent.name
     bench_df = pd.read_parquet(benchmark_ffp)
 

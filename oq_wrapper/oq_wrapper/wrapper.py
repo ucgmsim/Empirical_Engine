@@ -461,7 +461,7 @@ def prepare_model_inputs(
 def get_oq_model(
     model: constants.GMM,
     tect_type: constants.TectType,
-    **kwargs,
+    **kwargs: dict[str, Any],
 ) -> tuple[gsim.base.GMPE, list[oq_const.StdDev]]:
     """
     Get the OpenQuake GMM model for specified GMM and tectonic type.
@@ -715,7 +715,7 @@ def _confirm_all_properties_exist(
     type: str,
     params_required: set,
     params_present: set,
-):
+) -> None:
     """
     Check if all required columns are present in the rupture dataframe.
 
@@ -805,7 +805,7 @@ def _convert_to_oq_im(im: str) -> str:
     return im
 
 
-def _convert_from_oq_im(im: imt.IMT):
+def _convert_from_oq_im(im: imt.IMT) -> str:
     """
     Convert OpenQuake's IM name.
 
