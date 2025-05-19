@@ -184,7 +184,8 @@ def run_gmm(
     oq_model, stddev_types = get_oq_model(model, tect_type, **kwargs)
 
     # Prepare inputs
-    rupture_df, im = prepare_model_inputs(
+    im = _convert_to_oq_im(im)
+    rupture_df = prepare_model_inputs(
         model,
         oq_model,
         rupture_df,
@@ -193,7 +194,9 @@ def run_gmm(
 
     # Convert Z1.0 from km to m
     if np.any(rupture_df["z1pt0"] >= 10):
-        raise ValueError("Z1.0 values are too high. Did you pass in metre values instead of kilometres?")
+        raise ValueError(
+            "Z1.0 values are too high. Did you pass in metre values instead of kilometres?"
+        )
     rupture_df["z1pt0"] *= 1000  # this is ok as we are not editing the original df
 
     # OQ's single new-style context which contains all site, distance and rupture's information
@@ -231,7 +234,7 @@ def run_gmm(
     else:
         # Check that the IM is supported
         # Supported IMs are specified as functions per model, hence the getattr
-        # Have to use the IM type function, as that is what is used to 
+        # Have to use the IM type function, as that is what is used to
         # define the allowed IM types for a model.
         oq_im_type_fn = getattr(imt, im)
         if oq_im_type_fn not in oq_model.DEFINED_FOR_INTENSITY_MEASURE_TYPES:
@@ -249,7 +252,7 @@ def run_gmm_logic_tree(
     tect_type: constants.TectType,
     rupture_df: pd.DataFrame,
     im: str,
-    periods: Sequence[int | float] | None= None,
+    periods: Sequence[int | float] | None = None,
 ) -> pd.DataFrame:
     """
     Run a logic tree of GMMs with the specified weights.
@@ -296,6 +299,7 @@ def run_gmm_logic_tree(
 
     return sum(results)
 
+
 def get_model_from_str(model_name: str) -> constants.GMM | constants.GMMLogicTree:
     """
     Convert a string to a GMM or GMMLogicTree.
@@ -315,13 +319,12 @@ def get_model_from_str(model_name: str) -> constants.GMM | constants.GMMLogicTre
     ValueError
         If the model name is not recognized
     """
-    try:
+    if model_name in constants.GMM:
         return constants.GMM[model_name]
-    except KeyError:
-        try:
-            return constants.GMMLogicTree[model_name]
-        except KeyError:
-            raise ValueError(f"Model {model_name} not recognized.")
+    elif model_name in constants.GMMLogicTree:
+        return constants.GMMLogicTree[model_name]
+    else:
+        raise ValueError(f"Model {model_name} not recognized.")
 
 
 def load_gmm_logic_tree_config(
@@ -362,7 +365,7 @@ def prepare_model_inputs(
     oq_model: gsim.base.GMPE,
     rupture_df: pd.DataFrame,
     im: str,
-) -> tuple[pd.DataFrame, str]:
+) -> pd.DataFrame:
     """
     Prepares the rupture dataframe and IM for OpenQuake.
     Handles missing model specific properties.
@@ -385,8 +388,6 @@ def prepare_model_inputs(
     -------
     pd.DataFrame
         Updated rupture_df
-    str
-        IM
 
     Notes
     -----
@@ -438,10 +439,6 @@ def prepare_model_inputs(
     )
     _handle_missing_property(rupture_df, model, "GA_11", "ry0", col_to_rename="ry")
 
-    # Rename IMs to OQ's term
-    if im in ("Ds575", "Ds595"):
-        im = im.replace("Ds", "RSD")
-
     # Check all model requirements are met
     rupture_ctx_properties = set(rupture_df.columns.values)
     _confirm_all_properties_exist(
@@ -458,14 +455,14 @@ def prepare_model_inputs(
         model, im, "distance", oq_model.REQUIRES_DISTANCES, rupture_ctx_properties
     )
 
-    return rupture_df, im
+    return rupture_df
 
 
 def get_oq_model(
     model: constants.GMM,
     tect_type: constants.TectType,
     **kwargs,
-):
+) -> tuple[gsim.base.GMPE, list[oq_const.StdDev]]:
     """
     Get the OpenQuake GMM model for specified GMM and tectonic type.
 
@@ -485,25 +482,34 @@ def get_oq_model(
     list
         Standard deviation types supported by the model
 
+    Warnings
+    --------
+    UserWarning
+        When using a non-volcanic model for tectonic type VOLCANIC
+
     Raises
     ------
     ValueError
         If the model's defined tectonic type doesn't match the specified tectonic type
+        (unless tect_type is VOLCANIC)
     """
     oq_model = OQ_MODEL_MAPPING[model][tect_type](**kwargs)
 
-    # Sanity check
-    if tect_type == constants.TectType.VOLCANIC:
-        warnings.warn(
-            f"Using {constants.OQ_TECT_TYPE_MAPPING[oq_model.DEFINED_FOR_TECTONIC_REGION_TYPE]} type "
-            f"model for {tect_type.name} tectonic type. Ensure this is on purpose!",
-            UserWarning,
-        )
-    else:
-        assert (
-            constants.OQ_TECT_TYPE_MAPPING[oq_model.DEFINED_FOR_TECTONIC_REGION_TYPE]
-            == tect_type
-        )
+    if (
+        constants.OQ_TECT_TYPE_MAPPING[oq_model.DEFINED_FOR_TECTONIC_REGION_TYPE]
+        != tect_type
+    ):
+        if tect_type == constants.TectType.VOLCANIC:
+            warnings.warn(
+                f"Using {constants.OQ_TECT_TYPE_MAPPING[oq_model.DEFINED_FOR_TECTONIC_REGION_TYPE]} type "
+                f"model for {tect_type.name} tectonic type. Ensure this is on purpose!",
+                UserWarning,
+            )
+        else:
+            raise ValueError(
+                f"Invalid model type for {tect_type.name}."
+                f"Model expects {constants.OQ_TECT_TYPE_MAPPING[oq_model.DEFINED_FOR_TECTONIC_REGION_TYPE]} type."
+            )
 
     # Model standard deviation types
     stddev_types = [
@@ -578,10 +584,17 @@ def _oq_run_pSA(  # noqa: N802
     pd.DataFrame
         DataFrame containing spectral acceleration results for all requested periods
 
+    Warnings
+    --------
+    UserWarning
+        When extrapolating pSA values
+
     Raises
     ------
     ValueError
         If the model does not support spectral acceleration
+        If pSA period interpolation fails
+
     """
     if imt.SA not in model.DEFINED_FOR_INTENSITY_MEASURE_TYPES:
         raise ValueError(
@@ -604,13 +617,10 @@ def _oq_run_pSA(  # noqa: N802
                 isinstance(cause, imt.IMT)
                 and str(cause).startswith("SA")
                 and cause.period > 0.0
+                and period < min(model_periods)
             ):
                 # Period is smaller than model's supported min_period E.g., ZA_06
                 # Interpolate between PGA(0.0) and model's min_period
-                if period >= min(model_periods):
-                    raise ValueError(
-                        f"Trying to interpolate to {period}, which is larger than {min(model_periods)}"
-                    )
                 low_result = _run_oq_model(
                     model,
                     rupture_ctx,
@@ -639,7 +649,8 @@ def _oq_run_pSA(  # noqa: N802
         # extrapolate pSA value up based on maximum available period
         if period > max_model_period:
             warnings.warn(
-                f"Extrapolating pSA({period}) based on maximum available period {max_model_period} for model {model_type.name}.",
+                f"Extrapolating pSA({period}) based on maximum "
+                f"available period {max_model_period} for model {model_type.name}.",
                 UserWarning,
             )
             result.loc[:, result.columns.str.endswith("mean")] += 2 * np.log(
@@ -688,12 +699,12 @@ def _run_oq_model(
     # Order of the standard deviation can vary.
     results = contexts.get_mean_stds(oq_model, ctx, [im])
 
-    mean_stddev_dict = {f"{_convert_im_label(im)}_mean": results[0][0]}
+    mean_stddev_dict = {f"{_convert_from_oq_im(im)}_mean": results[0][0]}
     for idx, std_dev in enumerate(stddev_types):
         # std_devs index are between 1 and 3
-        mean_stddev_dict[f"{_convert_im_label(im)}_std_{std_dev.split()[0]}"] = results[
-            idx + 1
-        ][0]
+        mean_stddev_dict[f"{_convert_from_oq_im(im)}_std_{std_dev.split()[0]}"] = (
+            results[idx + 1][0]
+        )
 
     return pd.DataFrame(mean_stddev_dict)
 
@@ -739,7 +750,7 @@ def _handle_missing_property(
     model: constants.GMM,
     model_name: str,
     col_missing: str,
-    value_factory: Callable = lambda: None,
+    value_factory: Callable[[], Any] = lambda: None,
     col_to_rename: str | None = None,
 ) -> None:
     """
@@ -771,7 +782,30 @@ def _handle_missing_property(
             rupture_df[col_missing] = value_factory()
 
 
-def _convert_im_label(im: imt.IMT):
+def _convert_to_oq_im(im: str) -> str:
+    """
+    Convert IM name to OpenQuake's IM name.
+
+    Only supports conversion for
+    Ds575 and Ds595 to RSD575 and RSD595.
+
+    Parameters
+    ----------
+    im : str
+        IM name
+
+    Returns
+    -------
+    str
+        Converted IM name
+    """
+    if im in ("Ds575", "Ds595"):
+        im = im.replace("Ds", "RSD")
+
+    return im
+
+
+def _convert_from_oq_im(im: imt.IMT):
     """
     Convert OpenQuake's IM name.
 

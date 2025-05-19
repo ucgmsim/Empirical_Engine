@@ -31,7 +31,7 @@ OQ_TECT_TYPE_MAPPING = {
 class GMM(StrEnum):
     """Ground motion models."""
 
-    ZA_06 = "Z_06"
+    ZA_06 = "ZA_06"
     AS_16 = "AS_16"
     BSSA_14 = "BSSA_14"
     ASK_14 = "ASK_14"
@@ -59,11 +59,11 @@ class GMMLogicTree(StrEnum):
     NSHM2022 = "NSHM2022"
 
 
-GMM_LT_CONFIG_DIR = Path(__file__).parent / "gmm_lt_configs"
+GMM_LT_CONFIG_DIR = Path(__file__).parent / "gmm_logic_tree_configs"
 
 GMM_LT_CONFIG_MAPPING = {
-    GMMLogicTree.NHM2010_BB: GMM_LT_CONFIG_DIR / "nhm_2010_bb_gmm_lt_config.yaml",
-    GMMLogicTree.NSHM2022: GMM_LT_CONFIG_DIR / "nshm_2022_gmm_lt_config.yaml",
+    GMMLogicTree.NHM2010_BB: GMM_LT_CONFIG_DIR / "nhm_2010_bb_config.yaml",
+    GMMLogicTree.NSHM2022: GMM_LT_CONFIG_DIR / "nshm_2022_config.yaml",
 }
 
 

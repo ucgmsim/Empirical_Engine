@@ -4,7 +4,6 @@ pandas
 pytest-black
 pytest>=3.5.0
 pyyaml
-qcore @ git+https://github.com/ucgmsim/qcore.git
 scipy>=1.7.2
 source-modelling @ git+https://github.com/ucgmsim/source_modelling.git
 pyarrow
