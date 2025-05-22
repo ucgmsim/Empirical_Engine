@@ -1,0 +1,9 @@
+numpy<2
+openquake.engine
+pandas
+pytest-black
+pytest>=3.5.0
+pyyaml
+scipy>=1.7.2
+source-modelling @ git+https://github.com/ucgmsim/source_modelling.git
+pyarrow
