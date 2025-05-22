@@ -2,9 +2,6 @@
 Module that contains functions used to estimate input parameters for
 empirical GMMs, such as fault width and Z-values.
 """
-
-from typing import Union
-
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
@@ -77,22 +74,22 @@ def calculate_avg_strike_dip_rake(
 
 
 def kuehn_20_calc_z(
-    vs30: Union[float, np.ndarray], region: str
-) -> Union[float, np.ndarray]:
+    vs30: npt.ArrayLike, region: str
+) -> float | np.ndarray:
     """
     Calculates the z1p0 or z2p5 value for the Kuehn et al. (2020) model
     Depends on the region for z1p0 or z2p5
 
     Parameters
     ----------
-    vs30 : Union[float, np.ndarray]
+    vs30 : array-like
         The Vs30 value or values, in meters per second
     region : str
         The region to use, must be one of ["Cascadia", "Japan", "NewZealand", "Taiwan"]
 
     Returns
     -------
-    Union[float, np.ndarray]
+    float | np.ndarray
         Z1.0, in km if region is ["NewZealand", "Taiwan"]
         Z2.5, in km if region is ["Cascadia", "Japan"]
     """
@@ -137,14 +134,14 @@ def kuehn_20_calc_z(
 
 
 def chiou_young_14_calc_z1p0(
-    vs30: Union[float, np.ndarray], region: str = None
-) -> Union[float, np.ndarray]:
+    vs30: npt.ArrayLike, region: str | None = None
+) -> float | np.ndarray:
     """
     Calculates the z1p0 value for the Chiou and Youngs (2014) model
 
     Parameters
     ----------
-    vs30 : Union[float, np.ndarray]
+    vs30 : float | np.ndarray
         The Vs30 value or values, in meters per second
     region : str, optional
         The region to use, by default None which uses the global region
@@ -152,7 +149,7 @@ def chiou_young_14_calc_z1p0(
 
     Returns
     -------
-    Union[float, np.ndarray]
+    float | np.ndarray
         The z1p0 value or values, in km
     """
     if region == "Japan":
@@ -167,15 +164,15 @@ def chiou_young_14_calc_z1p0(
 
 
 def mod_chiou_young_14_calc_z1p0(
-    vs30: Union[float, np.ndarray], region: str = None
-) -> Union[float, np.ndarray]:
+    vs30: npt.ArrayLike, region: str | None = None
+) -> float | np.ndarray:
     """
     Calculates the z1p0 value for the Chiou and Youngs (2014) model
     Modified for a different coefficient for the global model
 
     Parameters
     ----------
-    vs30 : Union[float, np.ndarray]
+    vs30 : array-like
         The Vs30 value or values, in meters per second
     region : str, optional
         The region to use, by default None which uses the global region
@@ -183,7 +180,7 @@ def mod_chiou_young_14_calc_z1p0(
 
     Returns
     -------
-    Union[float, np.ndarray]
+    float | np.ndarray
         The z1p0 value or values, in km
     """
     if region == "Japan":
@@ -196,14 +193,14 @@ def mod_chiou_young_14_calc_z1p0(
 
 
 def campbell_bozorgina_14_calc_z2p5(
-    vs30: Union[float, np.ndarray], region: str = None
-) -> Union[float, np.ndarray]:
+    vs30: npt.ArrayLike, region: str | None = None
+) -> float | np.ndarray:
     """
     Calculates the z2p5 value for the Campbell and Bozorgnia (2014) model
 
     Parameters
     ----------
-    vs30 : Union[float, np.ndarray]
+    vs30 : array-like
         The Vs30 value or values, in meters per second
     region : str, optional
         The region to use, by default None which uses the global region
@@ -211,7 +208,7 @@ def campbell_bozorgina_14_calc_z2p5(
 
     Returns
     -------
-    Union[float, np.ndarray]
+    float | np.ndarray
         The z2p5 value or values, in km
     """
     if region == "Japan":
@@ -222,19 +219,19 @@ def campbell_bozorgina_14_calc_z2p5(
 
 
 def chiou_young_08_calc_z1p0(
-    vs30: Union[float, np.ndarray, pd.DataFrame],
-) -> Union[float, np.ndarray]:
+    vs30: npt.ArrayLike,
+) -> float | np.ndarray:
     """
     Calculates the z2p5 value for the Chiou and Youngs (2008) model
 
     Parameters
     ----------
-    vs30 : Union[float, np.ndarray, pd.DataFrame]
+    vs30 : array-like
         The Vs30 value or values, in meters per second
 
     Returns
     -------
-    Union[float, np.ndarray]
+    float | np.ndarray
         The z1p0 value or values, in km
     """
     z1p0 = np.exp(28.5 - 3.82 / 8 * np.log(vs30**8 + 378.7**8)) / 1000  # In km
@@ -242,22 +239,22 @@ def chiou_young_08_calc_z1p0(
 
 
 def chiou_young_08_calc_z2p5(
-    z1p0: Union[float, np.ndarray, pd.DataFrame] = None,
-    z1p5: Union[float, np.ndarray, pd.DataFrame] = None,
-) -> Union[float, np.ndarray]:
+    z1p0: npt.ArrayLike | None = None,
+    z1p5: float | np.ndarray | pd.DataFrame = None,
+) -> float | np.ndarray:
     """
     Calculates the z2p5 value using z1p0 or z1p5 for the Chiou and Youngs (2008) model
 
     Parameters
     ----------
-    z1p0 : Union[float, np.ndarray, pd.DataFrame], optional
+    z1p0 : array-like, optional
         Z1.0 values in km, by default None
-    z1p5 : Union[float, np.ndarray, pd.DataFrame], optional
+    z1p5 : array-like, optional
         Z1.5 values in km, by default None
 
     Returns
     -------
-    Union[float, np.ndarray]
+    float | np.ndarray
         Z2.5 values in the same format as z1p0 or z1p5 in km
     """
     if z1p5 is not None:
@@ -269,21 +266,21 @@ def chiou_young_08_calc_z2p5(
 
 
 def abrahamson_gulerce_20_calc_z2p5(
-    vs30: Union[float, np.ndarray], region: str
-) -> Union[float, np.ndarray]:
+    vs30: npt.ArrayLike, region: str
+) -> float | np.ndarray:
     """
     Calculates the z2p5 value for the Abrahamson and Gulerce (2020) model
 
     Parameters
     ----------
-    vs30 : Union[float, np.ndarray]
+    vs30 : array-like
         The Vs30 value or values, in meters per second
     region : str
         The region to use, can only be in ["Japan", "Cascadia"]
 
     Returns
     -------
-    Union[float, np.ndarray]
+    float | np.ndarray
         The z2p5 value or values, in km
     """
     if region == "Cascadia":
@@ -296,21 +293,21 @@ def abrahamson_gulerce_20_calc_z2p5(
 
 
 def parker_20_calc_z2p5(
-    vs30: Union[float, np.ndarray], region: str
-) -> Union[float, np.ndarray]:
+    vs30: npt.ArrayLike, region: str
+) -> float | np.ndarray:
     """
     Calculates the z2p5 value for the Parker et al. (2020) model
 
     Parameters
     ----------
-    vs30 : Union[float, np.ndarray]
+    vs30 : array-like
         The Vs30 value or values, in meters per second
     region : str
         The region to use, can only be in ["Japan", "Cascadia"]
 
     Returns
     -------
-    Union[float, np.ndarray]
+    float | np.ndarray
         The z2p5 value or values, in km
     """
     if region == "Japan":
@@ -423,7 +420,7 @@ def calc_z_for_model(
 
 
 def interpolate_with_pga(
-    period: Union[float, int],
+    period: float | int,
     model_min_period: float,
     pga_y: pd.DataFrame,
     min_period_y: pd.DataFrame,
