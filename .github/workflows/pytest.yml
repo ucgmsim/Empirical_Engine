@@ -9,6 +9,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -22,10 +24,10 @@ jobs:
           cache-dependency-glob: "requirements**.txt"
 
       - name: Install the project
-        run: uv sync --all-extras --dev
+        run: uv sync --project oq_wrapper/ --all-extras --dev 
 
       - name: Run tests
         run: |
-          source .venv/bin/activate
-          pytest tests
+          source oq_wrapper/.venv/bin/activate
+          pytest oq_wrapper/tests
 
