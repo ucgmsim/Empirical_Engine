@@ -273,7 +273,7 @@ def run_gmm(
         assert len(mean_cols) == len(std_total_cols)
         assert all(
             [
-                c1.rstrip("_mean") == c2.rstrip("std_Total")
+                c1.rstrip("_mean") == c2.rstrip("_std_Total")
                 for c1, c2 in zip(mean_cols, std_total_cols)
             ]
         )
@@ -330,14 +330,14 @@ def run_gmm_logic_tree(
         # Epistemic uncertainy branches per GMM
         cur_model = constants.GMM[cur_model_name]
         if isinstance(cur_value, dict):
-            for cur_epistemich_branch, cur_weight in cur_value.items():
+            for cur_epistemic_branch, cur_weight in cur_value.items():
                 cur_result_df = run_gmm(
                     cur_model,
                     tect_type,
                     rupture_df,
                     im,
                     periods=periods,
-                    epistemic_branch=constants.EpistemicBranch(cur_epistemich_branch),
+                    epistemic_branch=constants.EpistemicBranch(cur_epistemic_branch),
                 )
                 results.append(cur_result_df * cur_weight)
         # No epistemic uncertainty branches
