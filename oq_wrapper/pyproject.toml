@@ -2,11 +2,12 @@
 requires = ["setuptools", "setuptools-scm", "cython"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools_scm]
+fallback_version = "0.1.dev0"
+
 [project]
 name = "oq_wrapper"
-authors = [
-    {name = "QuakeCoRE" },
-]
+authors = [{ name = "QuakeCoRE" }]
 description = "Package for empirical calculations"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -16,7 +17,10 @@ dynamic = ["version", "dependencies"]
 oq_wrapper = "oq_wrapper"
 
 [tool.setuptools.dynamic]
-dependencies = {file = ["requirements.txt"]}
+dependencies = { file = ["requirements.txt"] }
+
+[tool.ruff]
+exclude = ["oq_wrapper/scripts/one_offs"]
 
 [tool.ruff.lint]
 extend-select = [
@@ -39,7 +43,18 @@ extend-select = [
   # Missing function argument type-annotation
   "ANN001",
   # Using except without specifying an exception type to catch
-  "BLE001"
+  "BLE001",
+  # Missing function argument type-annotation
+  "ANN001",
+  "ANN002",
+  "ANN003",
+  "ANN201",
+  "ANN202",
+  "ANN204",
+  "ANN205",
+  "ANN206",
+  # Using except without specifying an exception type to catch
+  "BLE001",
 ]
 ignore = ["D104"]
 
@@ -48,14 +63,13 @@ convention = "numpy"
 
 [tool.ruff.lint.isort]
 known-first-party = [
-    "source_modelling",
-    "workflow",
-    "pygmt_helper",
-    "qcore",
-    "empirical",
-    "nshmdb",
-    "IM_calculation",
-    "mera"
+  "source_modelling",
+  "workflow",
+  "pygmt_helper",
+  "empirical",
+  "nshmdb",
+  "IM_calculation",
+  "mera",
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -64,4 +78,26 @@ known-first-party = [
 # Ignore docstring errors in tests folder
 "tests/**.py" = ["D"]
 
-
+[tool.numpydoc_validation]
+checks = [
+    "GL05",
+    "GL08",
+    "GL10",
+    "PR01",
+    "PR02",
+    "PR03",
+    "PR04",
+    "PR05",
+    "PR06",
+    "PR07",
+    "RT01",
+    "RT02",
+    "RT03",
+    "RT04",
+    "YD01",
+]
+# remember to use single quotes for regex in TOML
+exclude = [ # don't report on objects that match any of these regex
+    '\.undocumented_method$',
+    '\.__repr__$',
+]

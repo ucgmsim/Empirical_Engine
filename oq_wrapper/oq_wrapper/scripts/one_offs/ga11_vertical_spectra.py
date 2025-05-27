@@ -3,7 +3,7 @@ import pandas as pd
 
 from qcore.constants import EXT_PERIOD
 
-from . import constants, oq_wrapper
+from ... import constants, oq_wrapper
 
 # GA_11 Specific coefficients for V/H Ratio
 BETWEEN_EVENT_COEFFICIENTS = [

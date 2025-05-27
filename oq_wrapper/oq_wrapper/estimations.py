@@ -1,6 +1,9 @@
-from typing import Union
-
+"""
+Module that contains functions used to estimate input parameters for
+empirical GMMs, such as fault width and Z-values.
+"""
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 from scipy import interpolate
 from scipy.special import erf
@@ -10,18 +13,31 @@ from source_modelling.sources import Plane
 from . import constants
 
 
-def estimate_width_ASK14(dip: pd.Series, mag: pd.Series):  # noqa: N802
-    """Estimate a width for ASK_14 model
-    The equation is from NGA-West 2 spreadsheet
-    dip: pd.Series
-    mag: pd.Series
+def estimate_width_ASK14(   # noqa: N802
+    dip: npt.ArrayLike, mag: npt.ArrayLike
+) -> np.ndarray:  
+    """
+    Estimate the fault rupture width using the ASK14 model.
+    This is based on the NGA-West 2 GMM implementation.
+
+    Parameters
+    ----------
+    dip : array-like
+        Dip angle of the fault in degrees. Should be a 1D array or Series of floats.
+    mag : array-like
+        Magnitude of the earthquake. Should be a 1D array or Series of floats.
+
+    Returns
+    -------
+    np.ndarray
+        Estimated rupture width for each (dip, mag) pair.
     """
     return np.minimum(18 / np.sin(np.radians(dip)), 10 ** (-1.75 + 0.45 * mag))
 
 
 def calculate_avg_strike_dip_rake(
     planes: list[Plane], plane_avg_rake: list[float], plane_total_slip: list[float]
-):
+) -> tuple[float, float, float]:
     """
     Calculates the average strike, dip and rake of the fault planes
     based on the weighted average of the Total Slip on each plane.
@@ -57,23 +73,25 @@ def calculate_avg_strike_dip_rake(
     return avg_strike, avg_dip, avg_rake
 
 
-def kuehn_20_calc_z(vs30: Union[float, np.ndarray], region: str):
+def kuehn_20_calc_z(
+    vs30: npt.ArrayLike, region: str
+) -> float | np.ndarray:
     """
     Calculates the z1p0 or z2p5 value for the Kuehn et al. (2020) model
     Depends on the region for z1p0 or z2p5
 
     Parameters
     ----------
-    vs30 : Union[float, np.ndarray]
+    vs30 : array-like
         The Vs30 value or values, in meters per second
     region : str
         The region to use, must be one of ["Cascadia", "Japan", "NewZealand", "Taiwan"]
 
     Returns
     -------
-    Union[float, np.ndarray]
-        z1p0, in km if region is ["NewZealand", "Taiwan"]
-        z2p5, in km if region is ["Cascadia", "Japan"]
+    float | np.ndarray
+        Z1.0, in km if region is ["NewZealand", "Taiwan"]
+        Z2.5, in km if region is ["Cascadia", "Japan"]
     """
     # Basin depth model parameters for each of the regions for which a
     # basin response model is defined
@@ -115,13 +133,15 @@ def kuehn_20_calc_z(vs30: Union[float, np.ndarray], region: str):
     return ln_z_ref
 
 
-def chiou_young_14_calc_z1p0(vs30: Union[float, np.ndarray], region: str = None):
+def chiou_young_14_calc_z1p0(
+    vs30: npt.ArrayLike, region: str | None = None
+) -> float | np.ndarray:
     """
     Calculates the z1p0 value for the Chiou and Youngs (2014) model
 
     Parameters
     ----------
-    vs30 : Union[float, np.ndarray]
+    vs30 : float | np.ndarray
         The Vs30 value or values, in meters per second
     region : str, optional
         The region to use, by default None which uses the global region
@@ -129,7 +149,7 @@ def chiou_young_14_calc_z1p0(vs30: Union[float, np.ndarray], region: str = None)
 
     Returns
     -------
-    Union[float, np.ndarray]
+    float | np.ndarray
         The z1p0 value or values, in km
     """
     if region == "Japan":
@@ -143,14 +163,16 @@ def chiou_young_14_calc_z1p0(vs30: Union[float, np.ndarray], region: str = None)
     return np.exp(z1p0) / 1000  # In km
 
 
-def mod_chiou_young_14_calc_z1p0(vs30: Union[float, np.ndarray], region: str = None):
+def mod_chiou_young_14_calc_z1p0(
+    vs30: npt.ArrayLike, region: str | None = None
+) -> float | np.ndarray:
     """
     Calculates the z1p0 value for the Chiou and Youngs (2014) model
     Modified for a different coefficient for the global model
 
     Parameters
     ----------
-    vs30 : Union[float, np.ndarray]
+    vs30 : array-like
         The Vs30 value or values, in meters per second
     region : str, optional
         The region to use, by default None which uses the global region
@@ -158,7 +180,7 @@ def mod_chiou_young_14_calc_z1p0(vs30: Union[float, np.ndarray], region: str = N
 
     Returns
     -------
-    Union[float, np.ndarray]
+    float | np.ndarray
         The z1p0 value or values, in km
     """
     if region == "Japan":
@@ -170,13 +192,15 @@ def mod_chiou_young_14_calc_z1p0(vs30: Union[float, np.ndarray], region: str = N
     return np.exp(z1p0) / 1000  # In km
 
 
-def campbell_bozorgina_14_calc_z2p5(vs30: Union[float, np.ndarray], region: str = None):
+def campbell_bozorgina_14_calc_z2p5(
+    vs30: npt.ArrayLike, region: str | None = None
+) -> float | np.ndarray:
     """
     Calculates the z2p5 value for the Campbell and Bozorgnia (2014) model
 
     Parameters
     ----------
-    vs30 : Union[float, np.ndarray]
+    vs30 : array-like
         The Vs30 value or values, in meters per second
     region : str, optional
         The region to use, by default None which uses the global region
@@ -184,7 +208,7 @@ def campbell_bozorgina_14_calc_z2p5(vs30: Union[float, np.ndarray], region: str 
 
     Returns
     -------
-    Union[float, np.ndarray]
+    float | np.ndarray
         The z2p5 value or values, in km
     """
     if region == "Japan":
@@ -194,18 +218,20 @@ def campbell_bozorgina_14_calc_z2p5(vs30: Union[float, np.ndarray], region: str 
     return z2p5  # In km
 
 
-def chiou_young_08_calc_z1p0(vs30: Union[float, np.ndarray, pd.DataFrame]):
+def chiou_young_08_calc_z1p0(
+    vs30: npt.ArrayLike,
+) -> float | np.ndarray:
     """
     Calculates the z2p5 value for the Chiou and Youngs (2008) model
 
     Parameters
     ----------
-    vs30 : Union[float, np.ndarray, pd.DataFrame]
+    vs30 : array-like
         The Vs30 value or values, in meters per second
 
     Returns
     -------
-    Union[float, np.ndarray]
+    float | np.ndarray
         The z1p0 value or values, in km
     """
     z1p0 = np.exp(28.5 - 3.82 / 8 * np.log(vs30**8 + 378.7**8)) / 1000  # In km
@@ -213,21 +239,23 @@ def chiou_young_08_calc_z1p0(vs30: Union[float, np.ndarray, pd.DataFrame]):
 
 
 def chiou_young_08_calc_z2p5(
-    z1p0: Union[float, np.ndarray, pd.DataFrame] = None,
-    z1p5: Union[float, np.ndarray, pd.DataFrame] = None,
-):
+    z1p0: npt.ArrayLike | None = None,
+    z1p5: float | np.ndarray | pd.DataFrame = None,
+) -> float | np.ndarray:
     """
     Calculates the z2p5 value using z1p0 or z1p5 for the Chiou and Youngs (2008) model
 
     Parameters
     ----------
-    z1p0: Z1.0 values in Union[float, np.ndarray, pd.DataFrame]
-    z1p5: Z1.5 values in Union[float, np.ndarray, pd.DataFrame]
+    z1p0 : array-like, optional
+        Z1.0 values in km, by default None
+    z1p5 : array-like, optional
+        Z1.5 values in km, by default None
 
     Returns
     -------
-    z2p5: Z2.5 values in the same format as z1p0 or z1p5 in km
-
+    float | np.ndarray
+        Z2.5 values in the same format as z1p0 or z1p5 in km
     """
     if z1p5 is not None:
         return 0.636 + 1.549 * z1p5
@@ -237,20 +265,22 @@ def chiou_young_08_calc_z2p5(
         raise ValueError("no z2p5 able to be estimated")
 
 
-def abrahamson_gulerce_20_calc_z2p5(vs30: Union[float, np.ndarray], region: str):
+def abrahamson_gulerce_20_calc_z2p5(
+    vs30: npt.ArrayLike, region: str
+) -> float | np.ndarray:
     """
     Calculates the z2p5 value for the Abrahamson and Gulerce (2020) model
 
     Parameters
     ----------
-    vs30 : Union[float, np.ndarray]
+    vs30 : array-like
         The Vs30 value or values, in meters per second
     region : str
         The region to use, can only be in ["Japan", "Cascadia"]
 
     Returns
     -------
-    Union[float, np.ndarray]
+    float | np.ndarray
         The z2p5 value or values, in km
     """
     if region == "Cascadia":
@@ -262,20 +292,22 @@ def abrahamson_gulerce_20_calc_z2p5(vs30: Union[float, np.ndarray], region: str)
     return np.exp(ln_zref)  # In km
 
 
-def parker_20_calc_z2p5(vs30: Union[float, np.ndarray], region: str):
+def parker_20_calc_z2p5(
+    vs30: npt.ArrayLike, region: str
+) -> float | np.ndarray:
     """
     Calculates the z2p5 value for the Parker et al. (2020) model
 
     Parameters
     ----------
-    vs30 : Union[float, np.ndarray]
+    vs30 : array-like
         The Vs30 value or values, in meters per second
     region : str
         The region to use, can only be in ["Japan", "Cascadia"]
 
     Returns
     -------
-    Union[float, np.ndarray]
+    float | np.ndarray
         The z2p5 value or values, in km
     """
     if region == "Japan":
@@ -335,10 +367,8 @@ Z_CALC_MODEL_REGION_MAPPING = {
 
 
 def calc_z_for_model(
-    model: constants.GMM,
-    vs30: Union[float, np.ndarray],
-    region: Union[str, None] = None,
-):
+    model: constants.GMM, vs30: npt.ArrayLike, region: str | None = None
+) -> tuple[np.ndarray, str]:
     """
     Calculates the z value for a given model, region and Vs30 value / values
 
@@ -346,7 +376,7 @@ def calc_z_for_model(
     ----------
     model : constants.GMM
         The model to calculate the z value for
-    vs30 : Union[float, np.ndarray]
+    vs30 : array-like
         The Vs30 value or values, in meters per second
     region : Union[str, None]
         The region to use, use None to define a Global region, default is None.
@@ -390,56 +420,66 @@ def calc_z_for_model(
 
 
 def interpolate_with_pga(
-    period: Union[float, int],
-    high_period: float,
-    low_y: pd.DataFrame,
-    high_y: pd.DataFrame,
-):
-    """Use interpolation to find the value of new points at the given period
-    which is between 0.0(PGA) and the model's minimum period.
-
-    period: Union[float, int]
-        target period for interpolation
-    high_period: float
-        also known as a minimum period from the given model
-        which to be used in x coordinates range which looks like
-        [0.0 (PGA), high_period]
-    low_y: pd.DataFrame
-        DataFrame that contains GMM computational results at period = 0.0
-    high_y: pd.DataFrame
-        DataFrame that contains GMM computational results
-        at period = model's minimum period
+    period: float | int,
+    model_min_period: float,
+    pga_y: pd.DataFrame,
+    min_period_y: pd.DataFrame,
+) -> pd.DataFrame:
     """
-    x = [0.0, high_period]
+    Use interpolation to find the pSA value at the given period,
+    which is between PGA and the model's minimum period.
+
+    Parameters
+    ----------
+    period : float or int
+        Target period for interpolation
+    model_min_period : float
+        Minimum supported pSA period for GMM of interest
+    pga_y : pd.DataFrame
+        DataFrame that contains GMM results for PGA
+    min_period_y : pd.DataFrame
+        DataFrame that contains GMM results
+        at the model's minimum period
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame containing the interpolated ground motion metrics (mean,
+        total standard deviation, inter-event standard deviation,
+        intra-event standard deviation) at the target `period`. The columns
+        are named using the pattern ``pSA_{period}_{metric_name}``.
+        The mean values are returned in log space.
+    """
+    x = [0.0, model_min_period]
     # each subarray represents values at period=0.0 and period=high_period
     # E.g., two site/rupture data would look something like
     # mean_y = np.array([[a,b], [c,d]])
-    # where a,c are at period=0.0 and b,d are at period=high_period
+    # where a,c are at period=0.0=PGA and b,d are at period=model_min_period
     mean_y = np.concatenate(
         (
-            np.exp(low_y.loc[:, low_y.columns.str.endswith("mean")].to_numpy()),
-            np.exp(high_y.loc[:, high_y.columns.str.endswith("mean")].to_numpy()),
+            np.exp(pga_y.loc[:, pga_y.columns.str.endswith("mean")].to_numpy()),
+            np.exp(min_period_y.loc[:, min_period_y.columns.str.endswith("mean")].to_numpy()),
         ),
         axis=1,
     )
     sigma_total_y = np.concatenate(
         (
-            low_y.loc[:, low_y.columns.str.endswith("std_Total")].to_numpy(),
-            high_y.loc[:, high_y.columns.str.endswith("std_Total")].to_numpy(),
+            pga_y.loc[:, pga_y.columns.str.endswith("std_Total")].to_numpy(),
+            min_period_y.loc[:, min_period_y.columns.str.endswith("std_Total")].to_numpy(),
         ),
         axis=1,
     )
     sigma_inter_y = np.concatenate(
         (
-            low_y.loc[:, low_y.columns.str.endswith("std_Inter")].to_numpy(),
-            high_y.loc[:, high_y.columns.str.endswith("std_Inter")].to_numpy(),
+            pga_y.loc[:, pga_y.columns.str.endswith("std_Inter")].to_numpy(),
+            min_period_y.loc[:, min_period_y.columns.str.endswith("std_Inter")].to_numpy(),
         ),
         axis=1,
     )
     sigma_intra_y = np.concatenate(
         (
-            low_y.loc[:, low_y.columns.str.endswith("std_Intra")].to_numpy(),
-            high_y.loc[:, high_y.columns.str.endswith("std_Intra")].to_numpy(),
+            pga_y.loc[:, pga_y.columns.str.endswith("std_Intra")].to_numpy(),
+            min_period_y.loc[:, min_period_y.columns.str.endswith("std_Intra")].to_numpy(),
         ),
         axis=1,
     )

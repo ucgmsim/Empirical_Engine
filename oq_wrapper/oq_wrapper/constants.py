@@ -1,4 +1,6 @@
-from enum import StrEnum
+"""Constants used in the OpenQuake wrapper package."""
+
+from enum import StrEnum, auto
 from pathlib import Path
 
 from openquake.hazardlib import const as oq_const
@@ -14,10 +16,10 @@ SPT_STD_DEVS = [
 class TectType(StrEnum):
     """Fault tectonic type."""
 
-    ACTIVE_SHALLOW = "ACTIVE_SHALLOW"
-    VOLCANIC = "VOLCANIC"
-    SUBDUCTION_INTERFACE = "SUBDUCTION_INTERFACE"
-    SUBDUCTION_SLAB = "SUBDUCTION_SLAB"
+    ACTIVE_SHALLOW = auto()
+    VOLCANIC = auto()
+    SUBDUCTION_INTERFACE = auto()
+    SUBDUCTION_SLAB = auto()
 
 
 OQ_TECT_TYPE_MAPPING = {
@@ -30,6 +32,7 @@ OQ_TECT_TYPE_MAPPING = {
 
 class GMM(StrEnum):
     """Ground motion models."""
+
     ZA_06 = "ZA_06"
     AS_16 = "AS_16"
     BSSA_14 = "BSSA_14"
@@ -94,11 +97,47 @@ GMM_EPISTEMIC_BRANCH_SIGMA_FACTOR_MAPPING = {
     },
 }
 
-GMM_LT_CONFIG_DIR = Path(__file__).parent / "gmm_lt_configs"
+class EpistemicBranch(StrEnum):
+    """Epistemic uncertainty for GMMs"""
+    LOWER = "LOWER"
+    CENTRAL = "CENTRAL"
+    UPPER = "UPPER"
+
+GMM_EPISTEMIC_BRANCH_KWARGS_MAPPING = {
+    GMM.S_22: {
+        EpistemicBranch.LOWER: {"mu_branch": "Lower", "sigma_branch": "Lower"},
+        EpistemicBranch.UPPER: {"mu_branch": "Upper", "sigma_branch": "Upper"},
+    }
+}
+
+GMM_EPISTEMIC_BRANCH_SIGMA_FACTOR_MAPPING = {
+    GMM.Br_13: {
+        EpistemicBranch.LOWER: -1.2815,
+        EpistemicBranch.UPPER: 1.2815,
+    },
+    GMM.ASK_14: {
+        EpistemicBranch.LOWER: -1.2815,
+        EpistemicBranch.UPPER: 1.2815,
+    },
+    GMM.CY_14: {
+        EpistemicBranch.LOWER: -1.2815,
+        EpistemicBranch.UPPER: 1.2815,
+    },
+    GMM.CB_14: {
+        EpistemicBranch.LOWER: -1.2815,
+        EpistemicBranch.UPPER: 1.2815,
+    },
+    GMM.BSSA_14: {
+        EpistemicBranch.LOWER: -1.2815,
+        EpistemicBranch.UPPER: 1.2815,
+    },
+}
+
+GMM_LT_CONFIG_DIR = Path(__file__).parent / "gmm_logic_tree_configs"
 
 GMM_LT_CONFIG_MAPPING = {
-    GMMLogicTree.NHM2010_BB: GMM_LT_CONFIG_DIR / "nhm_2010_bb_gmm_lt_config.yaml",
-    GMMLogicTree.NSHM2022: GMM_LT_CONFIG_DIR / "nshm_2022_gmm_lt_config.yaml",
+    GMMLogicTree.NHM2010_BB: GMM_LT_CONFIG_DIR / "nhm_2010_bb_config.yaml",
+    GMMLogicTree.NSHM2022: GMM_LT_CONFIG_DIR / "nshm_2022_config.yaml",
 }
 
 

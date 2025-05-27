@@ -105,7 +105,7 @@ for gmm in tqdm(gmms):
 
             try:
                 if isinstance(gmm, oqw.constants.GMMLogicTree):
-                    im_results = oqw.run_gmm_lt(
+                    im_results = oqw.run_gmm_logic_tree(
                         gmm,
                         tect_type,
                         cur_rupture_df,

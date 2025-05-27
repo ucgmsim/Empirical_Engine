@@ -72,11 +72,9 @@ print(f"Dropped {nan_mask.sum()} records with nan-values")
 # Select GMM logic tree and run models
 # Note this treats all records as active shallow!!
 # Call run_gmm multiple times for different tectonic types
-# tect_type = oqw.constants.TectType.ACTIVE_SHALLOW
-tect_type = oqw.constants.TectType.SUBDUCTION_SLAB
-# gmm_lt = oqw.constants.GMMLogicTree.NSHM2022
+tect_type = oqw.constants.TectType.ACTIVE_SHALLOW
 gmm_lt = oqw.constants.GMMLogicTree.NSHM2022
-psa_results = oqw.run_gmm_lt(
+psa_results = oqw.run_gmm_logic_tree(
     gmm_lt,
     tect_type,
     rupture_df,

@@ -15,7 +15,7 @@ rupture_df = pd.read_parquet(
 
 
 @pytest.mark.parametrize("benchmark_ffp", benchmark_ffps)
-def test_gmm_benchmarks(benchmark_ffp: Path):
+def test_gmm_benchmarks(benchmark_ffp: Path) -> None:
     im = benchmark_ffp.parent.name
     bench_df = pd.read_parquet(benchmark_ffp)
 
@@ -52,7 +52,7 @@ def test_gmm_benchmarks(benchmark_ffp: Path):
         result_df = oqw.run_gmm(model, tect_type, cur_rupture_df, im, periods=periods)
     # GMM Logic tree 
     else:
-        result_df = oqw.run_gmm_lt(
+        result_df = oqw.run_gmm_logic_tree(
             oqw.constants.GMMLogicTree[gmm_name],
             tect_type,
             cur_rupture_df,
