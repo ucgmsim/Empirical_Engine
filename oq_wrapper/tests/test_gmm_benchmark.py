@@ -61,8 +61,3 @@ def test_gmm_benchmarks(benchmark_ffp: Path) -> None:
         )
 
     assert_frame_equal(result_df, bench_df)
-
-if __name__ == "__main__":
-    # test_gmm_benchmarks(benchmark_ffps[0])
-    for cur_ffp in benchmark_ffps:
-        test_gmm_benchmarks(cur_ffp)
