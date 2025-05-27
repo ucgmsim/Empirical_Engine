@@ -170,6 +170,9 @@ def run_gmm(
     periods : sequence of ints or floats, optional
         Periods to compute for pSA, required if im is 'pSA'.
         Ignored for other IMs.
+    epistemic_branch : constants.EpistemicBranch
+        Epistemic uncertainty branch to use for the model.
+        Defaults to constants.EpistemicBranch.CENTRAL.
     **kwargs
         Extra parameters passed to the model constructor
 
@@ -528,6 +531,9 @@ def get_oq_model(
         Ground motion model
     tect_type : constants.TectType
         Tectonic type
+    epistemic_branch : constants.EpistemicBranch
+        Epistemic uncertainty branch to use for the model.
+        Defaults to constants.EpistemicBranch.CENTRAL.
     **kwargs : dict
         Extra model-specific parameters passed to the model constructor
 
