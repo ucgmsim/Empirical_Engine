@@ -148,6 +148,7 @@ def run_gmm(
     rupture_df: pd.DataFrame,
     im: str,
     periods: Sequence[int | float] | None = None,
+    epistemic_branch: constants.EpistemicBranch = constants.EpistemicBranch.CENTRAL,
     **kwargs: dict[str, Any],
 ) -> pd.DataFrame:
     """
@@ -169,6 +170,9 @@ def run_gmm(
     periods : sequence of ints or floats, optional
         Periods to compute for pSA, required if im is 'pSA'.
         Ignored for other IMs.
+    epistemic_branch : constants.EpistemicBranch
+        Epistemic uncertainty branch to use for the model.
+        Defaults to constants.EpistemicBranch.CENTRAL.
     **kwargs
         Extra parameters passed to the model constructor
 
@@ -188,7 +192,9 @@ def run_gmm(
         If required periods for pSA are not specified or if the IM is not supported
     """
     # Get the OQ model
-    oq_model, stddev_types = get_oq_model(model, tect_type, **kwargs)
+    oq_model, stddev_types = get_oq_model(
+        model, tect_type, epistemic_branch=epistemic_branch, **kwargs
+    )
 
     # Prepare inputs
     im = _convert_to_oq_im(im)
@@ -251,6 +257,33 @@ def run_gmm(
         result_df = _run_oq_model(oq_model, rupture_ctx, oq_im_type_fn(), stddev_types)
 
     result_df.index = rupture_df.index
+
+    # Median prediction adjustment using sigma factor
+    # Used by 2022 NZ NSHM
+    if (
+        epistemic_branch is not constants.EpistemicBranch.CENTRAL
+        and model in constants.GMM_EPISTEMIC_BRANCH_SIGMA_FACTOR_MAPPING
+    ):
+        sigma_factor_mapping = constants.GMM_EPISTEMIC_BRANCH_SIGMA_FACTOR_MAPPING[
+            model
+        ]
+        mean_cols = [col for col in result_df.columns if col.endswith("_mean")]
+        std_total_cols = [
+            col for col in result_df.columns if col.endswith("_std_Total")
+        ]
+        assert len(mean_cols) == len(std_total_cols)
+        assert all(
+            [
+                c1.rstrip("_mean") == c2.rstrip("_std_Total")
+                for c1, c2 in zip(mean_cols, std_total_cols)
+            ]
+        )
+
+        result_df[mean_cols] = (
+            result_df[mean_cols].values
+            + sigma_factor_mapping[epistemic_branch] * result_df[std_total_cols].values
+        )
+
     return result_df
 
 
@@ -294,16 +327,31 @@ def run_gmm_logic_tree(
         )
 
     results = []
-    for cur_model_name, cur_weight in gmm_lt_config.items():
+    for cur_model_name, cur_value in gmm_lt_config.items():
+        # Epistemic uncertainy branches per GMM
         cur_model = constants.GMM[cur_model_name]
-        cur_result_df = run_gmm(
-            cur_model,
-            tect_type,
-            rupture_df,
-            im,
-            periods=periods,
-        )
-        results.append(cur_result_df * cur_weight)
+        if isinstance(cur_value, dict):
+            for cur_epistemic_branch, cur_weight in cur_value.items():
+                cur_result_df = run_gmm(
+                    cur_model,
+                    tect_type,
+                    rupture_df,
+                    im,
+                    periods=periods,
+                    epistemic_branch=constants.EpistemicBranch(cur_epistemic_branch),
+                )
+                results.append(cur_result_df * cur_weight)
+        # No epistemic uncertainty branches
+        else:
+            cur_weight = cur_value
+            cur_result_df = run_gmm(
+                cur_model,
+                tect_type,
+                rupture_df,
+                im,
+                periods=periods,
+            )
+            results.append(cur_result_df * cur_weight)
 
     return sum(results)
 
@@ -469,6 +517,7 @@ def prepare_model_inputs(
 def get_oq_model(
     model: constants.GMM,
     tect_type: constants.TectType,
+    epistemic_branch: constants.EpistemicBranch = constants.EpistemicBranch.CENTRAL,
     **kwargs: dict[str, Any],
 ) -> tuple[gsim.base.GMPE, list[oq_const.StdDev]]:
     """
@@ -480,6 +529,9 @@ def get_oq_model(
         Ground motion model
     tect_type : constants.TectType
         Tectonic type
+    epistemic_branch : constants.EpistemicBranch
+        Epistemic uncertainty branch to use for the model.
+        Defaults to constants.EpistemicBranch.CENTRAL.
     **kwargs : dict
         Extra model-specific parameters passed to the model constructor
 
@@ -501,6 +553,15 @@ def get_oq_model(
         If the model's defined tectonic type doesn't match the specified tectonic type
         (unless tect_type is VOLCANIC)
     """
+    # Get correct epistemic uncertainty branch, only applicable for backbone models
+    # and the mappings needs to be defined in constants.GMM_EPISTEMIC_BRANCH_KWARGS_MAPPING
+    if (
+        epistemic_branch is not constants.EpistemicBranch.CENTRAL
+        and (epis_mapping := constants.GMM_EPISTEMIC_BRANCH_KWARGS_MAPPING.get(model))
+        is not None
+    ):
+        kwargs = {**kwargs, **epis_mapping[epistemic_branch]}
+
     oq_model = OQ_MODEL_MAPPING[model][tect_type](**kwargs)
 
     if (

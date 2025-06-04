@@ -62,6 +62,7 @@ rupture_df = rupture_df.rename(
 )
 rupture_df["vs30measured"] = True
 rupture_df["z1pt0"] = rupture_df["z1pt0"] / 1000  # Convert Z1.0 to km
+rupture_df["backarc"] = False
 
 # Drop any records with nan-values
 nan_mask = rupture_df.isna().any(axis=1)
@@ -71,10 +72,8 @@ print(f"Dropped {nan_mask.sum()} records with nan-values")
 # Select GMM logic tree and run models
 # Note this treats all records as active shallow!!
 # Call run_gmm multiple times for different tectonic types
-# tect_type = oqw.constants.TectType.ACTIVE_SHALLOW
-tect_type = oqw.constants.TectType.SUBDUCTION_SLAB
-# gmm_lt = oqw.constants.GMMLogicTree.NSHM2022
-gmm_lt = oqw.constants.GMMLogicTree.NHM2010_BB
+tect_type = oqw.constants.TectType.ACTIVE_SHALLOW
+gmm_lt = oqw.constants.GMMLogicTree.NSHM2022
 psa_results = oqw.run_gmm_logic_tree(
     gmm_lt,
     tect_type,
