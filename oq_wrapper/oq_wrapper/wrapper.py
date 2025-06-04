@@ -262,13 +262,11 @@ def run_gmm(
     # Used by 2022 NZ NSHM
     if (
         epistemic_branch is not constants.EpistemicBranch.CENTRAL
-        and (
-            sigma_factor_mapping := constants.GMM_EPISTEMIC_BRANCH_SIGMA_FACTOR_MAPPING.get(
-                model
-            )
-        )
-        is not None
+        and model in constants.GMM_EPISTEMIC_BRANCH_SIGMA_FACTOR_MAPPING
     ):
+        sigma_factor_mapping = constants.GMM_EPISTEMIC_BRANCH_SIGMA_FACTOR_MAPPING[
+            model
+        ]
         mean_cols = [col for col in result_df.columns if col.endswith("_mean")]
         std_total_cols = [
             col for col in result_df.columns if col.endswith("_std_Total")

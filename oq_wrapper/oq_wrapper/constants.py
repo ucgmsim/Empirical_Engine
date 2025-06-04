@@ -63,9 +63,11 @@ class GMMLogicTree(StrEnum):
 
 class EpistemicBranch(StrEnum):
     """Epistemic uncertainty for GMMs"""
+
     LOWER = "LOWER"
     CENTRAL = "CENTRAL"
     UPPER = "UPPER"
+
 
 GMM_EPISTEMIC_BRANCH_KWARGS_MAPPING = {
     GMM.S_22: {
@@ -97,11 +99,6 @@ GMM_EPISTEMIC_BRANCH_SIGMA_FACTOR_MAPPING = {
     },
 }
 
-class EpistemicBranch(StrEnum):
-    """Epistemic uncertainty for GMMs"""
-    LOWER = "LOWER"
-    CENTRAL = "CENTRAL"
-    UPPER = "UPPER"
 
 GMM_LT_CONFIG_DIR = Path(__file__).parent / "gmm_logic_tree_configs"
 
