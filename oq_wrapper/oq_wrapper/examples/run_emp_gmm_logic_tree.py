@@ -74,10 +74,11 @@ print(f"Dropped {nan_mask.sum()} records with nan-values")
 # Call run_gmm multiple times for different tectonic types
 tect_type = oqw.constants.TectType.ACTIVE_SHALLOW
 gmm_lt = oqw.constants.GMMLogicTree.NSHM2022
-psa_results = oqw.run_gmm_logic_tree(
+psa_results, ind_results = oqw.run_gmm_logic_tree(
     gmm_lt,
     tect_type,
     rupture_df,
     "pSA",
     periods=[0.01, 0.05, 0.1, 0.5, 1.0, 5.0, 10.0],
+    return_ind_results=True,
 )
