@@ -294,7 +294,7 @@ def run_gmm_logic_tree(
     im: str,
     periods: Sequence[int | float] | None = None,
     return_ind_results: bool = False
-) -> pd.DataFrame:
+) -> pd.DataFrame | tuple[pd.DataFrame, dict]:
     """
     Run a logic tree of GMMs with the specified weights.
 
@@ -322,7 +322,6 @@ def run_gmm_logic_tree(
     dict
         Dictionary containing individual model results 
         and their weights if `return_ind_results` is True
-
     """
     gmm_lt_config = load_gmm_logic_tree_config(
         gmm_lt,
