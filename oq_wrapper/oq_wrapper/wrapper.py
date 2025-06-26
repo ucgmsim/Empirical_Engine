@@ -293,7 +293,8 @@ def run_gmm_logic_tree(
     rupture_df: pd.DataFrame,
     im: str,
     periods: Sequence[int | float] | None = None,
-) -> pd.DataFrame:
+    return_ind_results: bool = False
+) -> pd.DataFrame | tuple[pd.DataFrame, dict]:
     """
     Run a logic tree of GMMs with the specified weights.
 
@@ -310,11 +311,17 @@ def run_gmm_logic_tree(
         Intensity measure (e.g., 'PGA', 'PGV', 'pSA', 'Ds575', 'Ds595')
     periods : sequence of ints or floats, optional
         Periods to compute for pSA, required if im is 'pSA'
+    return_ind_results : bool, optional
+        If True, returns individual model results and their weights.
+        Defaults to False.
 
     Returns
     -------
     pd.DataFrame
         DataFrame containing weighted combination of IM results from all models
+    dict
+        Dictionary containing individual model results 
+        and their weights if `return_ind_results` is True
     """
     gmm_lt_config = load_gmm_logic_tree_config(
         gmm_lt,
@@ -327,6 +334,7 @@ def run_gmm_logic_tree(
         )
 
     results = []
+    ind_results = {}
     for cur_model_name, cur_value in gmm_lt_config.items():
         # Epistemic uncertainy branches per GMM
         cur_model = constants.GMM[cur_model_name]
@@ -341,6 +349,7 @@ def run_gmm_logic_tree(
                     epistemic_branch=constants.EpistemicBranch(cur_epistemic_branch),
                 )
                 results.append(cur_result_df * cur_weight)
+                ind_results[f"{cur_model}_{cur_epistemic_branch}"] = (cur_weight, cur_result_df)
         # No epistemic uncertainty branches
         else:
             cur_weight = cur_value
@@ -352,8 +361,13 @@ def run_gmm_logic_tree(
                 periods=periods,
             )
             results.append(cur_result_df * cur_weight)
+            ind_results[str(cur_model)] = (cur_weight, cur_result_df)
 
-    return sum(results)
+    result_df = sum(results)
+    if return_ind_results:
+        return result_df, ind_results
+    else:
+        return result_df
 
 
 def get_model_from_str(model_name: str) -> constants.GMM | constants.GMMLogicTree:
