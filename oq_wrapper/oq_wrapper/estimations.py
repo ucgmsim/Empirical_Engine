@@ -37,7 +37,7 @@ def estimate_width_ASK14(   # noqa: N802
 
 def calculate_avg_multi_plane_properties(
     planes: list[Plane], plane_avg_rake: list[float], plane_areas: list[float]
-) -> tuple[float, float, float]:
+) -> tuple[float, float, float, float]:
     """
     Calculates the average strike, dip, rake and width of the fault planes
     based on the weighted average of the Area of each plane.
@@ -64,8 +64,11 @@ def calculate_avg_multi_plane_properties(
     avg_width : float
         Average width of the fault planes
     """
-    # Calculate the weights based on the area of each plane
-    area_weights = np.asarray(plane_areas) / sum(plane_areas)
+    try:
+        # Calculate the weights based on the area of each plane
+        area_weights = np.asarray(plane_areas) / sum(plane_areas)
+    except ZeroDivisionError:
+        raise ValueError("Sum of plane areas cannot be zero, check input data.")
 
     # Compute the weighted average of the strike, dip and rake
     avg_strike = np.average([plane.strike for plane in planes], weights=area_weights)
