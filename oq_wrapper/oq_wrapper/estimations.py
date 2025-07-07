@@ -35,14 +35,14 @@ def estimate_width_ASK14(   # noqa: N802
     return np.minimum(18 / np.sin(np.radians(dip)), 10 ** (-1.75 + 0.45 * mag))
 
 
-def calculate_avg_strike_dip_rake(
-    planes: list[Plane], plane_avg_rake: list[float], plane_total_slip: list[float]
-) -> tuple[float, float, float]:
+def calculate_avg_multi_plane_properties(
+    planes: list[Plane], plane_avg_rake: list[float], plane_areas: list[float]
+) -> tuple[float, float, float, float]:
     """
-    Calculates the average strike, dip and rake of the fault planes
-    based on the weighted average of the Total Slip on each plane.
+    Calculates the average strike, dip, rake and width of the fault planes
+    based on the weighted average of the Area of each plane.
     Useful when taking into account multiple fault planes and trying to calculate
-    a single strike, dip and rake for the fault/scenario.
+    a single strike, dip, rake and width for the fault/scenario.
 
     Parameters
     ----------
@@ -50,8 +50,8 @@ def calculate_avg_strike_dip_rake(
         List of Plane objects
     plane_avg_rake : list[float]
         List of the average rake of the fault planes
-    plane_total_slip : list[float]
-        List of the total slip on each fault plane
+    plane_areas : list[float]
+        List of the areas of each fault plane
 
     Returns
     -------
@@ -61,16 +61,22 @@ def calculate_avg_strike_dip_rake(
         Average dip of the fault planes
     avg_rake : float
         Average rake of the fault planes
+    avg_width : float
+        Average width of the fault planes
     """
-    # Calculate the weights based on the total slip on each plane
-    slip_weights = np.asarray(plane_total_slip) / sum(plane_total_slip)
+    try:
+        # Calculate the weights based on the area of each plane
+        area_weights = np.asarray(plane_areas) / sum(plane_areas)
+    except ZeroDivisionError:
+        raise ValueError("Sum of plane areas cannot be zero, check input data.")
 
     # Compute the weighted average of the strike, dip and rake
-    avg_strike = np.average([plane.strike for plane in planes], weights=slip_weights)
-    avg_dip = np.average([plane.dip for plane in planes], weights=slip_weights)
-    avg_rake = np.average(plane_avg_rake, weights=slip_weights)
+    avg_strike = np.average([plane.strike for plane in planes], weights=area_weights)
+    avg_dip = np.average([plane.dip for plane in planes], weights=area_weights)
+    avg_rake = np.average(plane_avg_rake, weights=area_weights)
+    avg_width = np.average([plane.width for plane in planes], weights=area_weights)
 
-    return avg_strike, avg_dip, avg_rake
+    return avg_strike, avg_dip, avg_rake, avg_width
 
 
 def kuehn_20_calc_z(
