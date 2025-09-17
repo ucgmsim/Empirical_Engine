@@ -20,9 +20,7 @@ def test_gmm_benchmarks(benchmark_ffp: Path) -> None:
     bench_df = pd.read_parquet(benchmark_ffp)
 
     cur_rupture_df = rupture_df.loc[bench_df.index.values]
-    cur_rupture_df = cur_rupture_df.rename(
-        columns=oqw.constants.NZGMDB_OQ_COL_MAPPING
-    )
+    cur_rupture_df = cur_rupture_df.rename(columns=oqw.constants.NZGMDB_OQ_COL_MAPPING)
 
     cur_rupture_df["vs30measured"] = True
     cur_rupture_df["backarc"] = False
@@ -50,7 +48,8 @@ def test_gmm_benchmarks(benchmark_ffp: Path) -> None:
     model = oqw.get_model_from_str(gmm_name)
     if isinstance(model, oqw.constants.GMM):
         result_df = oqw.run_gmm(model, tect_type, cur_rupture_df, im, periods=periods)
-    # GMM Logic tree 
+        assert_frame_equal(result_df, bench_df)
+    # GMM Logic tree
     else:
         result_df = oqw.run_gmm_logic_tree(
             oqw.constants.GMMLogicTree[gmm_name],
@@ -60,4 +59,4 @@ def test_gmm_benchmarks(benchmark_ffp: Path) -> None:
             periods=periods,
         )
 
-    assert_frame_equal(result_df, bench_df)
+        assert_frame_equal(result_df, bench_df)
