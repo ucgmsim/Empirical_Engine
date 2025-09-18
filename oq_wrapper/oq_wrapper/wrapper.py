@@ -293,7 +293,7 @@ def run_gmm_logic_tree(
     rupture_df: pd.DataFrame,
     im: str,
     periods: Sequence[int | float] | None = None,
-    return_ind_results: bool = False
+    return_ind_results: bool = False,
 ) -> pd.DataFrame | tuple[pd.DataFrame, dict]:
     """
     Run a logic tree of GMMs with the specified weights.
@@ -320,7 +320,7 @@ def run_gmm_logic_tree(
     pd.DataFrame
         DataFrame containing weighted combination of IM results from all models
     dict
-        Dictionary containing individual model results 
+        Dictionary containing individual model results
         and their weights if `return_ind_results` is True
     """
     gmm_lt_config = load_gmm_logic_tree_config(
@@ -349,7 +349,10 @@ def run_gmm_logic_tree(
                     epistemic_branch=constants.EpistemicBranch(cur_epistemic_branch),
                 )
                 results.append(cur_result_df * cur_weight)
-                ind_results[f"{cur_model}_{cur_epistemic_branch}"] = (cur_weight, cur_result_df)
+                ind_results[f"{cur_model}_{cur_epistemic_branch}"] = (
+                    cur_weight,
+                    cur_result_df,
+                )
         # No epistemic uncertainty branches
         else:
             cur_weight = cur_value
@@ -363,7 +366,22 @@ def run_gmm_logic_tree(
             results.append(cur_result_df * cur_weight)
             ind_results[str(cur_model)] = (cur_weight, cur_result_df)
 
-    result_df = sum(results)
+    im_keys = [im] if not im.startswith("pSA") else [f"pSA_{p}" for p in periods]
+    mean_im_keys = [f"{key}_mean" for key in im_keys]
+    std_im_keys = [f"{key}_std_Total" for key in im_keys]
+
+    # Compute weighted mean and standard deviation
+    lt_mean = sum([w * df[mean_im_keys] for (w, df) in ind_results.values()])
+    lt_within_model_var = sum(
+        [w * df[std_im_keys] ** 2 for (w, df) in ind_results.values()]
+    )
+    lt_between_model_var = sum(
+        [w * (df[mean_im_keys] - lt_mean) ** 2 for (w, df) in ind_results.values()]
+    )
+    lt_between_model_var.columns = std_im_keys
+    lt_std = np.sqrt(lt_within_model_var + lt_between_model_var)
+
+    result_df = pd.merge(lt_mean, lt_std, left_index=True, right_index=True)
     if return_ind_results:
         return result_df, ind_results
     else:

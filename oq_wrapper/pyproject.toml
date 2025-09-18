@@ -10,7 +10,7 @@ name = "oq_wrapper"
 authors = [{ name = "QuakeCoRE" }]
 description = "Package for empirical calculations"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dynamic = ["version", "dependencies"]
 
 [tool.setuptools.package-dir]
