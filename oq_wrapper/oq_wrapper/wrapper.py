@@ -677,8 +677,6 @@ def _oq_run_EAS(  # noqa: N802
 ) -> pd.DataFrame:
     """
     Run OpenQuake GMM for EAS.
-    Handles extrapolation for frequencies larger than the model's maximum period.
-    Handles interpolation for frequencies smaller than the model's minimum period using PGA.
 
     Parameters
     ----------
@@ -991,7 +989,7 @@ def _convert_from_oq_im(im: imt.IMT) -> str:
     Notes
     -----
     Examples of conversions:
-    - EAS(period) → pSA_period
+    - EAS(frequency) → EAS_frequency
     - SA(period) → pSA_period
     - RSD575 → Ds575
     - RSD595 → Ds595
@@ -1000,6 +998,7 @@ def _convert_from_oq_im(im: imt.IMT) -> str:
         period = im[1]
         frequency = 1 / period
         return f"EAS_{frequency}"
+
     imt_tuple = imt.imt2tup(im.string)
     if len(imt_tuple) == 1:
         return (
