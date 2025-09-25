@@ -687,14 +687,14 @@ def _oq_run_EAS(  # noqa: N802
     rupture_ctx : contexts.RuptureContext
         OpenQuake rupture context containing site, distance, and rupture information
     frequencies : Sequence[float]
-        Frequencies to calculate spectral acceleration for
+        Frequencies to calculate effective amplitude spectra for
     stddev_types : Sequence[oq_const.StdDev]
         Standard deviation types to calculate
 
     Returns
     -------
     pd.DataFrame
-        DataFrame containing spectral acceleration results for all requested frequencies
+        DataFrame containing effective amplitude spectra results for all requested frequencies
 
     Raises
     ------
