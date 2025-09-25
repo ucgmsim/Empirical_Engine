@@ -13,7 +13,10 @@ import pandas as pd
 import oq_wrapper as oqw
 
 ### Load the data
-record_data_ffp = Path(__file__).parent.parent.parent / "tests/benchmark_data/nzgmdb_v4p3_rupture_df.parquet"
+record_data_ffp = (
+    Path(__file__).parent.parent.parent
+    / "tests/benchmark_data/nzgmdb_v4p3_rupture_df.parquet"
+)
 record_df = pd.read_parquet(record_data_ffp)
 
 # Create the rupture data dataframe
@@ -24,8 +27,22 @@ record_df = pd.read_parquet(record_data_ffp)
 # In the model's file, look for the "REQUIRES_SITES_PARAMETERS",
 # "REQUIRES_RUPTURE_PARAMETERS", and "REQUIRES_DISTANCES" variables
 rupture_df = record_df[
-    ["mag", "dip", "rake", "z_tor", "r_rup", "r_jb", "r_x", "r_y", "Vs30", "Z1.0", "Z2.5", "ev_depth",
-    "z_bor", "tect_class"]
+    [
+        "mag",
+        "dip",
+        "rake",
+        "z_tor",
+        "r_rup",
+        "r_jb",
+        "r_x",
+        "r_y",
+        "Vs30",
+        "Z1.0",
+        "Z2.5",
+        "ev_depth",
+        "z_bor",
+        "tect_class",
+    ]
 ]
 # Rename the columns to be in line with what OpenQuake expects
 rupture_df = rupture_df.rename(
