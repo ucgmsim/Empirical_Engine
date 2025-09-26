@@ -139,6 +139,9 @@ OQ_MODEL_MAPPING = {
     constants.GMM.GA_11: {
         constants.TectType.ACTIVE_SHALLOW: gsim.gulerce_abrahamson_2011.GulerceAbrahamson2011
     },
+    constants.GMM.BA_18: {
+        constants.TectType.ACTIVE_SHALLOW: gsim.bayless_abrahamson_2018.BaylessAbrahamson2018
+    },
 }
 
 
@@ -148,6 +151,7 @@ def run_gmm(
     rupture_df: pd.DataFrame,
     im: str,
     periods: Sequence[int | float] | None = None,
+    frequencies: Sequence[int | float] | None = None,
     epistemic_branch: constants.EpistemicBranch = constants.EpistemicBranch.CENTRAL,
     **kwargs: dict[str, Any],
 ) -> pd.DataFrame:
@@ -170,6 +174,9 @@ def run_gmm(
     periods : sequence of ints or floats, optional
         Periods to compute for pSA, required if im is 'pSA'.
         Ignored for other IMs.
+    frequencies : sequence of ints or floats, optional
+        Frequencies to compute for EAS, required if im is 'EAS'.
+        Ignored for other IMs.
     epistemic_branch : constants.EpistemicBranch
         Epistemic uncertainty branch to use for the model.
         Defaults to constants.EpistemicBranch.CENTRAL.
@@ -189,7 +196,8 @@ def run_gmm(
     Raises
     ------
     ValueError
-        If required periods for pSA are not specified or if the IM is not supported
+        If required periods for pSA, required frequencies for EAS are
+        not specified, or if the IM is not supported.
     """
     # Get the OQ model
     oq_model, stddev_types = get_oq_model(
@@ -244,6 +252,11 @@ def run_gmm(
             periods,
             stddev_types,
         )
+    elif im.startswith("EAS"):
+        if frequencies is None:
+            raise ValueError("Frequencies must be specified for EAS.")
+
+        result_df = _oq_run_EAS(model, oq_model, rupture_ctx, frequencies, stddev_types)
     else:
         # Check that the IM is supported
         # Supported IMs are specified as functions per model, hence the getattr
@@ -655,6 +668,60 @@ def _get_model_pSA_periods(model: gsim.base.GMPE) -> np.ndarray:  # noqa: N802
     )
 
 
+def _oq_run_EAS(  # noqa: N802
+    model_type: constants.GMM,
+    model: gsim.base.GMPE,
+    rupture_ctx: contexts.RuptureContext,
+    frequencies: Sequence[float],
+    stddev_types: Sequence[oq_const.StdDev],
+) -> pd.DataFrame:
+    """
+    Run OpenQuake GMM for EAS.
+
+    Parameters
+    ----------
+    model_type : constants.GMM
+        Ground motion model identifier
+    model : gsim.base.GMPE
+        Instantiated OpenQuake ground motion model
+    rupture_ctx : contexts.RuptureContext
+        OpenQuake rupture context containing site, distance, and rupture information
+    frequencies : Sequence[float]
+        Frequencies to calculate effective amplitude spectra for
+    stddev_types : Sequence[oq_const.StdDev]
+        Standard deviation types to calculate
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame containing effective amplitude spectra results for all requested frequencies
+
+    Raises
+    ------
+    ValueError
+        If the model does not support effective amplitude spectrum
+    """
+    if imt.EAS not in model.DEFINED_FOR_INTENSITY_MEASURE_TYPES:
+        raise ValueError(
+            f"Model {model_type.name} does not support EAS. Supported types are {model.DEFINED_FOR_INTENSITY_MEASURE_TYPES}"
+        )
+
+    # Get model frequencies
+    results = []
+    for frequency in frequencies:
+        im = imt.EAS(frequency=frequency)
+        try:
+            result = _run_oq_model(model, rupture_ctx, im, stddev_types)
+        except Exception as e:
+            # Any other exceptions that we cannot handle.
+            logging.exception(e)
+            raise
+
+        results.append(result)
+
+    return pd.concat(results, axis=1)
+
+
 def _oq_run_pSA(  # noqa: N802
     model_type: constants.GMM,
     model: gsim.base.GMPE,
@@ -799,7 +866,6 @@ def _run_oq_model(
     # mean, std_total, std_inter and std_intra.
     # Order of the standard deviation can vary.
     results = contexts.get_mean_stds(oq_model, ctx, [im])
-
     mean_stddev_dict = {f"{_convert_from_oq_im(im)}_mean": results[0][0]}
     for idx, std_dev in enumerate(stddev_types):
         # std_devs index are between 1 and 3
@@ -923,10 +989,16 @@ def _convert_from_oq_im(im: imt.IMT) -> str:
     Notes
     -----
     Examples of conversions:
+    - EAS(frequency) → EAS_frequency
     - SA(period) → pSA_period
     - RSD575 → Ds575
     - RSD595 → Ds595
     """
+    if im[0].startswith("EAS"):
+        period = im[1]
+        frequency = 1 / period
+        return f"EAS_{frequency}"
+
     imt_tuple = imt.imt2tup(im.string)
     if len(imt_tuple) == 1:
         return (

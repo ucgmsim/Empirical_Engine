@@ -52,6 +52,7 @@ class GMM(StrEnum):
     Br_13 = "Br_13"
     P_21 = "P_21"
     GA_11 = "GA_11"
+    BA_18 = "BA_18"
 
 
 class GMMLogicTree(StrEnum):
