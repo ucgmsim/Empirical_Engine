@@ -35,6 +35,28 @@ def estimate_width_ASK14(   # noqa: N802
     return np.minimum(18 / np.sin(np.radians(dip)), 10 ** (-1.75 + 0.45 * mag))
 
 
+def circ_mean(
+    samples: npt.NDArray[np.floating], weights: npt.NDArray[np.floating]
+) -> float:
+    """
+    Calculate the circular mean of a set of angles in radians, taking into account
+    their weights. This is useful for averaging angles like strike and rake.
+
+    Parameters
+    ----------
+    samples : array-like
+        Array of angles in radians.
+    weights : array-like
+        Array of weights corresponding to each angle.
+    """
+    x = np.cos(samples)
+    y = np.sin(samples)
+    z = weights * np.array([x, y])
+    mean_resultant_vector = np.mean(z, axis=1)
+    argument = np.arctan2(mean_resultant_vector[1], mean_resultant_vector[0])
+    return float(argument)
+
+
 def calculate_avg_multi_plane_properties(
     planes: list[Plane], plane_avg_rake: list[float], plane_areas: list[float]
 ) -> tuple[float, float, float, float]:
@@ -43,6 +65,8 @@ def calculate_avg_multi_plane_properties(
     based on the weighted average of the Area of each plane.
     Useful when taking into account multiple fault planes and trying to calculate
     a single strike, dip, rake and width for the fault/scenario.
+    For strike and rake the circular nature is taken into account by using
+    the circ_mean function.
 
     Parameters
     ----------
@@ -71,9 +95,15 @@ def calculate_avg_multi_plane_properties(
         raise ValueError("Sum of plane areas cannot be zero, check input data.")
 
     # Compute the weighted average of the strike, dip and rake
-    avg_strike = np.average([plane.strike for plane in planes], weights=area_weights)
+    avg_strike = circ_mean(
+        np.radians([plane.strike for plane in planes]), weights=area_weights
+    )
+    avg_strike = np.degrees(avg_strike) % 360  # Convert back to degrees
+    avg_rake = circ_mean(
+        np.radians(plane_avg_rake), weights=area_weights
+    )
+    avg_rake = np.degrees(avg_rake) % 360  # Convert back to degrees
     avg_dip = np.average([plane.dip for plane in planes], weights=area_weights)
-    avg_rake = np.average(plane_avg_rake, weights=area_weights)
     avg_width = np.average([plane.width for plane in planes], weights=area_weights)
 
     return avg_strike, avg_dip, avg_rake, avg_width
