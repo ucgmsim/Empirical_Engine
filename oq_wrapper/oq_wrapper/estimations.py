@@ -48,12 +48,15 @@ def circ_mean(
         Array of angles in radians.
     weights : array-like
         Array of weights corresponding to each angle.
+
+    Returns
+    -------
+    float
+        The circular mean angle in radians.
     """
-    x = np.cos(samples)
-    y = np.sin(samples)
-    z = weights * np.array([x, y])
-    mean_resultant_vector = np.mean(z, axis=1)
-    argument = np.arctan2(mean_resultant_vector[1], mean_resultant_vector[0])
+    weighted_sines = np.sum(np.sin(samples) * weights)
+    weighted_cosines = np.sum(np.cos(samples) * weights)
+    argument = np.arctan2(weighted_sines, weighted_cosines)
     return float(argument)
 
 
@@ -102,7 +105,7 @@ def calculate_avg_multi_plane_properties(
     avg_rake = circ_mean(
         np.radians(plane_avg_rake), weights=area_weights
     )
-    avg_rake = np.degrees(avg_rake) % 360  # Convert back to degrees
+    avg_rake = (np.degrees(avg_rake) + 180) % 360 - 180  # Convert back to degrees in [-180, 180] range
     avg_dip = np.average([plane.dip for plane in planes], weights=area_weights)
     avg_width = np.average([plane.width for plane in planes], weights=area_weights)
 
