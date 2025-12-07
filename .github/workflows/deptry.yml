@@ -23,7 +23,7 @@ jobs:
         run: uv sync --project oq_wrapper/ --all-extras --dev 
         
       - name: Run deptry
-        run: uv run deptry . --exclude oq_wrapper/scripts/one_offs/ --exclude tests
+        run: uv run deptry . -ee oq_wrapper/scripts/one_offs/ -ee tests
         working-directory: ./oq_wrapper
 
     
