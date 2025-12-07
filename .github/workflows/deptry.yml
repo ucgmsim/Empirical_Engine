@@ -10,7 +10,7 @@ jobs:
       # Setup the minimum required python distribution
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.13'
       - name: Define a cache dependency glob
         uses: astral-sh/setup-uv@v5
         with:
