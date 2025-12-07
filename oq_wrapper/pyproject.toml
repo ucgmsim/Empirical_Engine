@@ -11,13 +11,25 @@ authors = [{ name = "QuakeCoRE" }]
 description = "Package for empirical calculations"
 readme = "README.md"
 requires-python = ">=3.11"
-dynamic = ["version", "dependencies"]
+dynamic = ["version"]
+dependencies = [
+  "numpy",
+  "openquake.engine",
+  "pandas[pyarrow]",
+  "pyyaml",
+  "scipy>=1.7.2",
+  "source-modelling @ git+https://github.com/ucgmsim/source_modelling.git",
+]
+
+[project.optional-dependencies]
+test = ["pytest"]
+dev = ["ruff", "deptry", "ty"]
+
+[tool.deptry]
+pep621_dev_dependency_groups = ["test", "dev"]
 
 [tool.setuptools.package-dir]
 oq_wrapper = "oq_wrapper"
-
-[tool.setuptools.dynamic]
-dependencies = { file = ["requirements.txt"] }
 
 [tool.ruff]
 exclude = ["oq_wrapper/scripts/one_offs"]
