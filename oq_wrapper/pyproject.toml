@@ -15,11 +15,10 @@ dynamic = ["version"]
 dependencies = [
   "numpy",
   "openquake.engine",
-  "pandas",
+  "pandas[pyarrow]",
   "pyyaml",
   "scipy>=1.7.2",
   "source-modelling @ git+https://github.com/ucgmsim/source_modelling.git",
-  "pyarrow",
 ]
 
 [project.optional-dependencies]

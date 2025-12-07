@@ -11,18 +11,15 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Setup
-        run: |
-          sed -e '/hypothesis*/d' -e '/pytest*/d' -e '/diffimg/d' -i requirements.txt
-          # Install dependencies
-          pip install -r requirements.txt
-          # Install deptry
-          pip install deptry
-          # Remove pyproject.toml so that deptry doesn't get confused
-          rm pyproject.toml
-        working-directory: ./oq_wrapper  
+      - name: Define a cache dependency glob
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Install the project
+        run: uv sync --project oq_wrapper/ --all-extras --dev 
+        
       - name: Run deptry
-        run: deptry . --per-rule-ignores "DEP002=pyarrow" --exclude oq_wrapper/scripts/one_offs/ --exclude tests
+        run: deptry . --exclude oq_wrapper/scripts/one_offs/ --exclude tests
         working-directory: ./oq_wrapper
 
     
