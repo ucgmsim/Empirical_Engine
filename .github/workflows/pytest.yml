@@ -30,6 +30,6 @@ jobs:
 
       - name: Run tests
         run: |
-          source oq_wrapper/.venv/bin/activate
-          pytest oq_wrapper/tests
+          uv run pytest tests
+        working-directory: ./oq_wrapper
 
