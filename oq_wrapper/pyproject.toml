@@ -31,9 +31,6 @@ pep621_dev_dependency_groups = ["test", "dev"]
 [tool.setuptools.package-dir]
 oq_wrapper = "oq_wrapper"
 
-[tool.setuptools.dynamic]
-dependencies = { file = ["requirements.txt"] }
-
 [tool.ruff]
 exclude = ["oq_wrapper/scripts/one_offs"]
 
