@@ -15,6 +15,10 @@ jobs:
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
+
+      - name: Install gdal
+        run: apt-get install gdal-bin libgdal-dev
+
       - name: Install the project
         run: uv sync --project oq_wrapper/ --all-extras --dev 
         
