@@ -1,16 +1,16 @@
 [build-system]
-requires = ["setuptools", "setuptools-scm", "cython"]
+requires = ["setuptools", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools_scm]
 fallback_version = "0.1.dev0"
 
 [project]
-name = "oq_wrapper"
-authors = [{ name = "QuakeCoRE" }]
-description = "Package for empirical calculations"
+name = "oq-wrapper"
+authors = [{ name = "ucgmsim" }]
+description = "Wrapper for OpenQuake engine to run empirical GMMs"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.14"
 dynamic = ["version", "dependencies"]
 
 [tool.setuptools.package-dir]
