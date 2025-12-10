@@ -13,8 +13,8 @@ readme = "README.md"
 requires-python = ">=3.11,<3.14"
 dynamic = ["version", "dependencies"]
 
-[tool.setuptools.package-dir]
-oq_wrapper = "oq_wrapper"
+[tool.setuptools.packages.find]
+exclude = ["tests*"]
 
 [tool.setuptools.dynamic]
 dependencies = { file = ["requirements.txt"] }
