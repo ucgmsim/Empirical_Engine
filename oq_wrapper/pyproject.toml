@@ -1,14 +1,14 @@
 [build-system]
-requires = ["setuptools", "setuptools-scm", "cython"]
+requires = ["setuptools", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools_scm]
-fallback_version = "0.1.dev0"
+root = ".."
 
 [project]
-name = "oq_wrapper"
-authors = [{ name = "QuakeCoRE" }]
-description = "Package for empirical calculations"
+name = "oq-wrapper"
+authors = [{ name = "ucgmsim" }]
+description = "Wrapper for OpenQuake engine to run empirical GMMs"
 readme = "README.md"
 requires-python = ">=3.11"
 dynamic = ["version"]
@@ -18,7 +18,7 @@ dependencies = [
   "pandas[pyarrow]",
   "pyyaml",
   "scipy>=1.7.2",
-  "source-modelling @ git+https://github.com/ucgmsim/source_modelling.git",
+  "source-modelling",
 ]
 
 [project.optional-dependencies]
@@ -28,8 +28,8 @@ dev = ["ruff", "deptry", "ty"]
 [tool.deptry]
 pep621_dev_dependency_groups = ["test", "dev"]
 
-[tool.setuptools.package-dir]
-oq_wrapper = "oq_wrapper"
+[tool.setuptools.packages.find]
+exclude = ["tests*"]
 
 [tool.ruff]
 exclude = ["oq_wrapper/scripts/one_offs"]
@@ -92,24 +92,24 @@ known-first-party = [
 
 [tool.numpydoc_validation]
 checks = [
-    "GL05",
-    "GL08",
-    "GL10",
-    "PR01",
-    "PR02",
-    "PR03",
-    "PR04",
-    "PR05",
-    "PR06",
-    "PR07",
-    "RT01",
-    "RT02",
-    "RT03",
-    "RT04",
-    "YD01",
+  "GL05",
+  "GL08",
+  "GL10",
+  "PR01",
+  "PR02",
+  "PR03",
+  "PR04",
+  "PR05",
+  "PR06",
+  "PR07",
+  "RT01",
+  "RT02",
+  "RT03",
+  "RT04",
+  "YD01",
 ]
 # remember to use single quotes for regex in TOML
 exclude = [ # don't report on objects that match any of these regex
-    '\.undocumented_method$',
-    '\.__repr__$',
+  '\.undocumented_method$',
+  '\.__repr__$',
 ]
