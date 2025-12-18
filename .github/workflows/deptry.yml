@@ -10,19 +10,20 @@ jobs:
       # Setup the minimum required python distribution
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-      - name: Setup
-        run: |
-          sed -e '/hypothesis*/d' -e '/pytest*/d' -e '/diffimg/d' -i requirements.txt
-          # Install dependencies
-          pip install -r requirements.txt
-          # Install deptry
-          pip install deptry
-          # Remove pyproject.toml so that deptry doesn't get confused
-          rm pyproject.toml
-        working-directory: ./oq_wrapper  
+          python-version: '3.13'
+      - name: Define a cache dependency glob
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install gdal
+        run: sudo apt-get update && sudo apt-get install gdal-bin libgdal-dev
+
+      - name: Install the project
+        run: uv sync --project oq_wrapper/ --all-extras --dev 
+        
       - name: Run deptry
-        run: deptry . --per-rule-ignores "DEP002=pyarrow" --exclude oq_wrapper/scripts/one_offs/ --exclude tests
+        run: uv run deptry . -ee oq_wrapper/scripts/one_offs/ -ee tests
         working-directory: ./oq_wrapper
 
     
