@@ -26,6 +26,8 @@ dev = ["ruff", "deptry", "ty"]
 
 [tool.deptry]
 pep621_dev_dependency_groups = ["test", "dev"]
+extend_exclude = ["tests", "oq_wrapper/scripts/one_offs"]
+
 
 [tool.setuptools.packages.find]
 exclude = ["tests*"]
