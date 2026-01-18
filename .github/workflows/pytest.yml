@@ -28,4 +28,3 @@ jobs:
       - name: Run tests
         run: |
           uv run --extra test pytest tests
-        working-directory: ./oq_wrapper
