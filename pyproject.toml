@@ -12,8 +12,8 @@ readme = "README.md"
 requires-python = ">=3.11"
 dynamic = ["version"]
 dependencies = [
-  "numpy",
-  "openquake.engine",
+  "numpy>=2.0",
+  "openquake.engine>=3.21",
   "pandas[pyarrow]",
   "pyyaml",
   "scipy>=1.7.2",
