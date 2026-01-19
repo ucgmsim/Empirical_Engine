@@ -27,14 +27,14 @@ def estimate_width_ASK14(  # noqa: N802
 
     Parameters
     ----------
-    dip : array
+    dip : T
         Dip angle of the fault in degrees. Should be a 1D array or Series of floats.
-    mag : array
+    mag : T
         Magnitude of the earthquake. Should be a 1D array or Series of floats.
 
     Returns
     -------
-    np.ndarray
+    T
         Estimated rupture width for each (dip, mag) pair.
     """
     return np.minimum(18 / np.sin(np.radians(dip)), 10 ** (-1.75 + 0.45 * mag))  # type: ignore
@@ -47,14 +47,14 @@ def circ_mean(samples: T, weights: T) -> float:
 
     Parameters
     ----------
-    samples : array
+    samples : T
         Array of angles in radians.
-    weights : array
+    weights : T
         Array of weights corresponding to each angle.
 
     Returns
     -------
-    float
+    T
         The circular mean angle in radians.
     """
     weighted_sines = np.sum(np.sin(samples) * weights)
@@ -122,14 +122,14 @@ def kuehn_20_calc_z(vs30: T, region: str) -> T:
 
     Parameters
     ----------
-    vs30 : array
+    vs30 : T
         The Vs30 value or values, in meters per second
     region : str
         The region to use, must be one of ["Cascadia", "Japan", "NewZealand", "Taiwan"]
 
     Returns
     -------
-    float | np.ndarray
+    T
         Z1.0, in km if region is ["NewZealand", "Taiwan"]
         Z2.5, in km if region is ["Cascadia", "Japan"]
     """
@@ -187,7 +187,7 @@ def chiou_young_14_calc_z1p0(vs30: T, region: str | None = None) -> T:
 
     Returns
     -------
-    float | np.ndarray
+    T
         The z1p0 value or values, in km
     """
     if region == "Japan":
@@ -208,7 +208,7 @@ def mod_chiou_young_14_calc_z1p0(vs30: T, region: str | None = None) -> T:
 
     Parameters
     ----------
-    vs30 : array
+    vs30 : T
         The Vs30 value or values, in meters per second
     region : str, optional
         The region to use, by default None which uses the global region
@@ -216,7 +216,7 @@ def mod_chiou_young_14_calc_z1p0(vs30: T, region: str | None = None) -> T:
 
     Returns
     -------
-    float | np.ndarray
+    T
         The z1p0 value or values, in km
     """
     if region == "Japan":
@@ -236,7 +236,7 @@ def campbell_bozorgina_14_calc_z2p5(vs30: T, region: str | None = None) -> T:
 
     Parameters
     ----------
-    vs30 : array
+    vs30 : T
         The Vs30 value or values, in meters per second
     region : str, optional
         The region to use, by default None which uses the global region
@@ -244,7 +244,7 @@ def campbell_bozorgina_14_calc_z2p5(vs30: T, region: str | None = None) -> T:
 
     Returns
     -------
-    float | np.ndarray
+    T
         The z2p5 value or values, in km
     """
     if region == "Japan":
@@ -262,12 +262,12 @@ def chiou_young_08_calc_z1p0(
 
     Parameters
     ----------
-    vs30 : array
+    vs30 : T
         The Vs30 value or values, in meters per second
 
     Returns
     -------
-    float | np.ndarray
+    T
         The z1p0 value or values, in km
     """
     z1p0 = (
@@ -288,14 +288,14 @@ def chiou_young_08_calc_z2p5(
 
     Parameters
     ----------
-    z1p0 : array, optional
+    z1p0 : T, optional
         Z1.0 values in km, by default None
-    z1p5 : array, optional
+    z1p5 : T, optional
         Z1.5 values in km, by default None
 
     Returns
     -------
-    float | np.ndarray
+    T
         Z2.5 values in the same format as z1p0 or z1p5 in km
     """
     if z1p5 is not None:
@@ -312,14 +312,14 @@ def abrahamson_gulerce_20_calc_z2p5(vs30: T, region: str) -> T:
 
     Parameters
     ----------
-    vs30 : array
+    vs30 : T
         The Vs30 value or values, in meters per second
     region : str
         The region to use, can only be in ["Japan", "Cascadia"]
 
     Returns
     -------
-    float | np.ndarray
+    T
         The z2p5 value or values, in km
     """
     if region == "Cascadia":
@@ -337,14 +337,14 @@ def parker_20_calc_z2p5(vs30: T, region: str) -> T:
 
     Parameters
     ----------
-    vs30 : array
+    vs30 : T
         The Vs30 value or values, in meters per second
     region : str
         The region to use, can only be in ["Japan", "Cascadia"]
 
     Returns
     -------
-    float | np.ndarray
+    T
         The z2p5 value or values, in km
     """
     if region == "Japan":
@@ -419,7 +419,7 @@ def calc_z_for_model(
     ----------
     model : constants.GMM
         The model to calculate the z value for
-    vs30 : array
+    vs30 : T
         The Vs30 value or values, in meters per second
     region : Union[str, None]
         The region to use, use None to define a Global region, default is None.
