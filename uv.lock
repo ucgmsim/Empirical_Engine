@@ -1348,7 +1348,6 @@ dependencies = [
     { name = "pyyaml" },
     { name = "scipy" },
     { name = "source-modelling" },
-    { name = "tqdm" },
 ]
 
 [package.optional-dependencies]
@@ -1359,6 +1358,7 @@ dev = [
 ]
 test = [
     { name = "pytest" },
+    { name = "tqdm" },
 ]
 types = [
     { name = "pandas-stubs" },
@@ -1378,7 +1378,7 @@ requires-dist = [
     { name = "scipy", specifier = ">=1.7.2" },
     { name = "scipy-stubs", marker = "extra == 'types'" },
     { name = "source-modelling" },
-    { name = "tqdm", extras = ["tests"], specifier = ">=4.67.1" },
+    { name = "tqdm", marker = "extra == 'test'", specifier = ">=4.0.0" },
     { name = "ty", marker = "extra == 'dev'" },
 ]
 provides-extras = ["test", "types", "dev"]
