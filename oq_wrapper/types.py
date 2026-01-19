@@ -1,3 +1,5 @@
+"""Supporting types for oq_wrapper modules"""
+
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
