@@ -18,11 +18,10 @@ dependencies = [
   "pyyaml",
   "scipy>=1.7.2",
   "source-modelling",
-  "tqdm[tests]>=4.67.1",
 ]
 
 [project.optional-dependencies]
-test = ["pytest"]
+test = ["pytest", "tqdm>=4.0.0"]
 types = ["pandas-stubs", "scipy-stubs"]
 dev = ["ruff", "deptry", "ty"]
 
