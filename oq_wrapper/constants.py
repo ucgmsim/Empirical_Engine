@@ -6,6 +6,7 @@ from pathlib import Path
 from openquake.hazardlib import const as oq_const
 
 # Different OQ GMM model standard deviation types of interest
+
 SPT_STD_DEVS = [
     oq_const.StdDev.TOTAL,
     oq_const.StdDev.INTER_EVENT,

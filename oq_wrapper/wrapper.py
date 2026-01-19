@@ -7,20 +7,38 @@ The two key functions for running GMMs are:
 
 import functools
 import logging
+import typing
 import warnings
 from collections.abc import Callable, Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any, overload
 
 import numpy as np
 import pandas as pd
 import yaml
-from openquake.hazardlib import const as oq_const
-from openquake.hazardlib import contexts, gsim, imt
+from openquake.hazardlib import contexts, imt
+from openquake.hazardlib import gsim as _gsim
 
 from . import constants, estimations
 
+# NOTE: OpenQuake hack!
+#
+# The gsim module members are dynamically initialised, so it will
+# always fail type checks for module accessors like
+# gsim.afshari_stewart_2016.
+#
+# To convince the type checker that these attributes exist, we recast
+# _gsim as Any to suppress these errors and assign it to gsim when the
+# special `TYPE_CHECKING` constant is True (only when a type checker
+# is evaluating code).
+#
+# At run time gsim is correctly bound to the gsim module in openquake.hazardlib
+if TYPE_CHECKING:
+    gsim = typing.cast(Any, _gsim)
+else:
+    gsim = _gsim
 
-def _oq_model(model: gsim.base.GMPE, **kwargs: dict[str, Any]) -> gsim.base.GMPE:
+
+def _oq_model(model: gsim.base.MetaGSIM, **kwargs: dict[str, Any]) -> gsim.base.GMPE:
     """
     Create a partial function to simplify model instantiation.
 
@@ -300,6 +318,28 @@ def run_gmm(
     return result_df
 
 
+@overload
+def run_gmm_logic_tree(
+    gmm_lt: constants.GMMLogicTree,
+    tect_type: constants.TectType,
+    rupture_df: pd.DataFrame,
+    im: str,
+    periods: Sequence[int | float] | None = ...,
+    return_ind_results: bool = False,
+) -> pd.DataFrame: ...  # numpydoc ignore=GL08
+
+
+@overload
+def run_gmm_logic_tree(
+    gmm_lt: constants.GMMLogicTree,
+    tect_type: constants.TectType,
+    rupture_df: pd.DataFrame,
+    im: str,
+    periods: Sequence[int | float] | None = ...,
+    return_ind_results: bool = True,
+) -> tuple[pd.DataFrame, dict]: ...  # numpydoc ignore=GL08
+
+
 def run_gmm_logic_tree(
     gmm_lt: constants.GMMLogicTree,
     tect_type: constants.TectType,
@@ -335,6 +375,11 @@ def run_gmm_logic_tree(
     dict
         Dictionary containing individual model results
         and their weights if `return_ind_results` is True
+
+    Raises
+    ------
+    ValueError
+        If calculating pSA results without specifying periods.
     """
     gmm_lt_config = load_gmm_logic_tree_config(
         gmm_lt,
@@ -379,7 +424,12 @@ def run_gmm_logic_tree(
             results.append(cur_result_df * cur_weight)
             ind_results[str(cur_model)] = (cur_weight, cur_result_df)
 
-    im_keys = [im] if not im.startswith("pSA") else [f"pSA_{p}" for p in periods]
+    if im.startswith("pSA") and periods:
+        im_keys = [f"pSA_{p}" for p in periods]
+    elif im.startswith("pSA"):
+        raise ValueError("Periods must be specified for pSA.")
+    else:
+        im_keys = [im]
     mean_im_keys = [f"{key}_mean" for key in im_keys]
     std_im_keys = [f"{key}_std_Total" for key in im_keys]
 
@@ -456,7 +506,9 @@ def load_gmm_logic_tree_config(
         logic_tree_config = yaml.safe_load(f)
 
     if im not in logic_tree_config:
-        return None
+        raise ValueError(
+            f"Logic tree config does not contain configuration for IM: {im}"
+        )
 
     return logic_tree_config[im][tect_type.name]
 
@@ -564,7 +616,7 @@ def get_oq_model(
     tect_type: constants.TectType,
     epistemic_branch: constants.EpistemicBranch = constants.EpistemicBranch.CENTRAL,
     **kwargs: dict[str, Any],
-) -> tuple[gsim.base.GMPE, list[oq_const.StdDev]]:
+) -> tuple[gsim.base.GMPE, list[str]]:
     """
     Get the OpenQuake GMM model for specified GMM and tectonic type.
 
@@ -673,7 +725,7 @@ def _oq_run_EAS(  # noqa: N802
     model: gsim.base.GMPE,
     rupture_ctx: contexts.RuptureContext,
     frequencies: Sequence[float],
-    stddev_types: Sequence[oq_const.StdDev],
+    stddev_types: Sequence[str],
 ) -> pd.DataFrame:
     """
     Run OpenQuake GMM for EAS.
@@ -688,7 +740,7 @@ def _oq_run_EAS(  # noqa: N802
         OpenQuake rupture context containing site, distance, and rupture information
     frequencies : Sequence[float]
         Frequencies to calculate effective amplitude spectra for
-    stddev_types : Sequence[oq_const.StdDev]
+    stddev_types : Sequence[str]
         Standard deviation types to calculate
 
     Returns
@@ -727,7 +779,7 @@ def _oq_run_pSA(  # noqa: N802
     model: gsim.base.GMPE,
     rupture_ctx: contexts.RuptureContext,
     periods: Sequence[float],
-    stddev_types: Sequence[oq_const.StdDev],
+    stddev_types: Sequence[str],
 ) -> pd.DataFrame:
     """
     Run OpenQuake GMM for pSA.
@@ -744,7 +796,7 @@ def _oq_run_pSA(  # noqa: N802
         OpenQuake rupture context containing site, distance, and rupture information
     periods : Sequence[float]
         Periods to calculate spectral acceleration for
-    stddev_types : Sequence[oq_const.StdDev]
+    stddev_types : Sequence[str]
         Standard deviation types to calculate
 
     Returns
@@ -838,7 +890,7 @@ def _run_oq_model(
     oq_model: gsim.base.GMPE,
     ctx: contexts.RuptureContext,
     im: imt.IMT,
-    stddev_types: Sequence[oq_const.StdDev],
+    stddev_types: Sequence[str],
 ) -> pd.DataFrame:
     """
     Call OpenQuake to compute mean and standard deviations
@@ -854,7 +906,7 @@ def _run_oq_model(
         OpenQuake rupture context containing site, distance, and rupture information
     im : imt.IMT
         Intensity measure type
-    stddev_types : Sequence[oq_const.StdDev]
+    stddev_types : Sequence[str]
         Standard deviation types to calculate
 
     Returns

@@ -18,22 +18,24 @@ dependencies = [
   "pyyaml",
   "scipy>=1.7.2",
   "source-modelling",
+  "tqdm[tests]>=4.67.1",
 ]
 
 [project.optional-dependencies]
 test = ["pytest"]
+types = ["pandas-stubs", "scipy-stubs"]
 dev = ["ruff", "deptry", "ty"]
 
 [tool.deptry]
 pep621_dev_dependency_groups = ["test", "dev"]
-extend_exclude = ["tests", "oq_wrapper/scripts/one_offs"]
+extend_exclude = ["tests", "scripts/one_offs"]
 
 
 [tool.setuptools.packages.find]
 exclude = ["tests*"]
 
 [tool.ruff]
-exclude = ["oq_wrapper/scripts/one_offs"]
+exclude = ["scripts/one_offs"]
 
 [tool.ruff.lint]
 extend-select = [
