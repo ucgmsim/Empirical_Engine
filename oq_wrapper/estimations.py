@@ -411,7 +411,7 @@ Z_CALC_MODEL_REGION_MAPPING: dict[
 
 def calc_z_for_model(
     model: constants.GMM, vs30: T, region: str | None = None
-) -> tuple[np.ndarray, str]:
+) -> tuple[T, str]:
     """
     Calculates the z value for a given model, region and Vs30 value / values
 
