@@ -3,7 +3,6 @@ requires = ["setuptools", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools_scm]
-root = ".."
 
 [project]
 name = "oq-wrapper"
@@ -13,8 +12,8 @@ readme = "README.md"
 requires-python = ">=3.11"
 dynamic = ["version"]
 dependencies = [
-  "numpy",
-  "openquake.engine",
+  "numpy>=2.0",
+  "openquake.engine>=3.21",
   "pandas[pyarrow]",
   "pyyaml",
   "scipy>=1.7.2",
@@ -27,6 +26,8 @@ dev = ["ruff", "deptry", "ty"]
 
 [tool.deptry]
 pep621_dev_dependency_groups = ["test", "dev"]
+extend_exclude = ["tests", "oq_wrapper/scripts/one_offs"]
+
 
 [tool.setuptools.packages.find]
 exclude = ["tests*"]

@@ -25,11 +25,6 @@ jobs:
       - name: Install gdal
         run: sudo apt-get update && sudo apt-get install gdal-bin libgdal-dev
 
-      - name: Install the project
-        run: uv sync --project oq_wrapper/ --all-extras --dev 
-
       - name: Run tests
         run: |
-          uv run pytest tests
-        working-directory: ./oq_wrapper
-
+          uv run --extra test pytest tests
