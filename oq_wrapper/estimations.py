@@ -15,46 +15,47 @@ from source_modelling.sources import Plane
 
 from . import constants, types
 
-T = TypeVar("T", bound=types.Array)
+TArrayLike = TypeVar("TArrayLike", bound=types.Array)
 
 
 def estimate_width_ASK14(  # noqa: N802
-    dip: T, mag: T
-) -> T:
+    dip: TArrayLike, mag: TArrayLike
+) -> TArrayLike:
     """
     Estimate the fault rupture width using the ASK14 model.
     This is based on the NGA-West 2 GMM implementation.
 
     Parameters
     ----------
-    dip : T
+    dip : array-like (list, numpy array, pandas series, float, ...)
         Dip angle of the fault in degrees. Should be a 1D array or Series of floats.
-    mag : T
+    mag : array-like
         Magnitude of the earthquake. Should be a 1D array or Series of floats.
 
     Returns
     -------
-    T
-        Estimated rupture width for each (dip, mag) pair.
+    array-like (list, numpy array, pandas series, float, ...)
+        Estimated rupture width for each (dip, mag) pair. Has the same
+        time as input arguments.
     """
     return np.minimum(18 / np.sin(np.radians(dip)), 10 ** (-1.75 + 0.45 * mag))  # type: ignore
 
 
-def circ_mean(samples: T, weights: T) -> float:
+def circ_mean(samples: TArrayLike, weights: TArrayLike) -> float:
     """
     Calculate the circular mean of a set of angles in radians, taking into account
     their weights. This is useful for averaging angles like strike and rake.
 
     Parameters
     ----------
-    samples : T
+    samples : array-like (list, numpy array, pandas series, float, ...)
         Array of angles in radians.
-    weights : T
+    weights : array-like
         Array of weights corresponding to each angle.
 
     Returns
     -------
-    T
+    array-like (list, numpy array, pandas series, float, ...)
         The circular mean angle in radians.
     """
     weighted_sines = np.sum(np.sin(samples) * weights)
@@ -115,23 +116,24 @@ def calculate_avg_multi_plane_properties(
     return avg_strike, avg_dip, avg_rake, avg_width
 
 
-def kuehn_20_calc_z(vs30: T, region: str) -> T:
+def kuehn_20_calc_z(vs30: TArrayLike, region: str) -> TArrayLike:
     """
     Calculates the z1p0 or z2p5 value for the Kuehn et al. (2020) model
     Depends on the region for z1p0 or z2p5
 
     Parameters
     ----------
-    vs30 : T
+    vs30 : array-like (list, numpy array, pandas series, float, ...)
         The Vs30 value or values, in meters per second
     region : str
         The region to use, must be one of ["Cascadia", "Japan", "NewZealand", "Taiwan"]
 
     Returns
     -------
-    T
+    array-like (list, numpy array, pandas series, float, ...)
         Z1.0, in km if region is ["NewZealand", "Taiwan"]
         Z2.5, in km if region is ["Cascadia", "Japan"]
+        Has the same time as ``vs30``.
     """
     # Basin depth model parameters for each of the regions for which a
     # basin response model is defined
@@ -173,7 +175,7 @@ def kuehn_20_calc_z(vs30: T, region: str) -> T:
     return ln_z_ref
 
 
-def chiou_young_14_calc_z1p0(vs30: T, region: str | None = None) -> T:
+def chiou_young_14_calc_z1p0(vs30: TArrayLike, region: str | None = None) -> TArrayLike:
     """
     Calculates the z1p0 value for the Chiou and Youngs (2014) model
 
@@ -187,7 +189,7 @@ def chiou_young_14_calc_z1p0(vs30: T, region: str | None = None) -> T:
 
     Returns
     -------
-    T
+    TArrayLike
         The z1p0 value or values, in km
     """
     if region == "Japan":
@@ -201,14 +203,16 @@ def chiou_young_14_calc_z1p0(vs30: T, region: str | None = None) -> T:
     return np.exp(z1p0) / 1000  # In km
 
 
-def mod_chiou_young_14_calc_z1p0(vs30: T, region: str | None = None) -> T:
+def mod_chiou_young_14_calc_z1p0(
+    vs30: TArrayLike, region: str | None = None
+) -> TArrayLike:
     """
     Calculates the z1p0 value for the Chiou and Youngs (2014) model
     Modified for a different coefficient for the global model
 
     Parameters
     ----------
-    vs30 : T
+    vs30 : array-like (list, numpy array, pandas series, float, ...)
         The Vs30 value or values, in meters per second
     region : str, optional
         The region to use, by default None which uses the global region
@@ -216,8 +220,8 @@ def mod_chiou_young_14_calc_z1p0(vs30: T, region: str | None = None) -> T:
 
     Returns
     -------
-    T
-        The z1p0 value or values, in km
+    array-like (list, numpy array, pandas series, float, ...)
+        The z1p0 value or values, in km. Has the same type as ``vs30``.
     """
     if region == "Japan":
         z1p0 = (
@@ -230,13 +234,15 @@ def mod_chiou_young_14_calc_z1p0(vs30: T, region: str | None = None) -> T:
     return np.exp(z1p0) / 1000  # In km
 
 
-def campbell_bozorgina_14_calc_z2p5(vs30: T, region: str | None = None) -> T:
+def campbell_bozorgina_14_calc_z2p5(
+    vs30: TArrayLike, region: str | None = None
+) -> TArrayLike:
     """
     Calculates the z2p5 value for the Campbell and Bozorgnia (2014) model
 
     Parameters
     ----------
-    vs30 : T
+    vs30 : array-like (list, numpy array, pandas series, float, ...)
         The Vs30 value or values, in meters per second
     region : str, optional
         The region to use, by default None which uses the global region
@@ -244,8 +250,8 @@ def campbell_bozorgina_14_calc_z2p5(vs30: T, region: str | None = None) -> T:
 
     Returns
     -------
-    T
-        The z2p5 value or values, in km
+    array-like (list, numpy array, pandas series, float, ...)
+        The z2p5 value or values, in km. Has the same type as ``vs30``.
     """
     if region == "Japan":
         z2p5 = np.exp(7.089 - 1.144 * np.log(vs30))
@@ -255,20 +261,20 @@ def campbell_bozorgina_14_calc_z2p5(vs30: T, region: str | None = None) -> T:
 
 
 def chiou_young_08_calc_z1p0(
-    vs30: T,
-) -> T:
+    vs30: TArrayLike,
+) -> TArrayLike:
     """
     Calculates the z2p5 value for the Chiou and Youngs (2008) model
 
     Parameters
     ----------
-    vs30 : T
+    vs30 : array-like (list, numpy array, pandas series, float, ...)
         The Vs30 value or values, in meters per second
 
     Returns
     -------
-    T
-        The z1p0 value or values, in km
+    array-like (list, numpy array, pandas series, float, ...)
+        The z1p0 value or values, in km. Has the same type as ``vs30``.
     """
     z1p0 = (
         np.exp(
@@ -280,23 +286,23 @@ def chiou_young_08_calc_z1p0(
 
 
 def chiou_young_08_calc_z2p5(
-    z1p0: T | None = None,
-    z1p5: T | None = None,
-) -> T:
+    z1p0: TArrayLike | None = None,
+    z1p5: TArrayLike | None = None,
+) -> TArrayLike:
     """
     Calculates the z2p5 value using z1p0 or z1p5 for the Chiou and Youngs (2008) model
 
     Parameters
     ----------
-    z1p0 : T, optional
+    z1p0 : array-like (list, numpy array, pandas series, float, ...), optional
         Z1.0 values in km, by default None
-    z1p5 : T, optional
+    z1p5 : array-like, optional
         Z1.5 values in km, by default None
 
     Returns
     -------
-    T
-        Z2.5 values in the same format as z1p0 or z1p5 in km
+    array-like
+        Z2.5 values in the same format as z1p0 or z1p5 in km. Has the same type as inputs.
     """
     if z1p5 is not None:
         return 0.636 + 1.549 * z1p5  # type: ignore[unsupported-operator]
@@ -306,21 +312,21 @@ def chiou_young_08_calc_z2p5(
         raise ValueError("no z2p5 able to be estimated")
 
 
-def abrahamson_gulerce_20_calc_z2p5(vs30: T, region: str) -> T:
+def abrahamson_gulerce_20_calc_z2p5(vs30: TArrayLike, region: str) -> TArrayLike:
     """
     Calculates the z2p5 value for the Abrahamson and Gulerce (2020) model
 
     Parameters
     ----------
-    vs30 : T
+    vs30 : array-like (list, numpy array, pandas series, float, ...)
         The Vs30 value or values, in meters per second
     region : str
         The region to use, can only be in ["Japan", "Cascadia"]
 
     Returns
     -------
-    T
-        The z2p5 value or values, in km
+    array-like (list, numpy array, pandas series, float, ...)
+        The z2p5 value or values, in km. Has the same type as ``vs30``.
     """
     if region == "Cascadia":
         ln_zref = np.clip(8.52 - 0.88 * np.log(vs30 / 200.0), 7.6, 8.52)  # type: ignore[unsupported-operator]
@@ -331,21 +337,21 @@ def abrahamson_gulerce_20_calc_z2p5(vs30: T, region: str) -> T:
     return np.exp(ln_zref)  # In km
 
 
-def parker_20_calc_z2p5(vs30: T, region: str) -> T:
+def parker_20_calc_z2p5(vs30: TArrayLike, region: str) -> TArrayLike:
     """
     Calculates the z2p5 value for the Parker et al. (2020) model
 
     Parameters
     ----------
-    vs30 : T
+    vs30 : array-like (list, numpy array, pandas series, float, ...)
         The Vs30 value or values, in meters per second
     region : str
         The region to use, can only be in ["Japan", "Cascadia"]
 
     Returns
     -------
-    T
-        The z2p5 value or values, in km
+    TArrayLike
+        The z2p5 value or values, in km. Has the same type as ``vs30``.
     """
     if region == "Japan":
         theta0, theta1, vmu, vsig = 3.05, -0.8, 500, 0.33
@@ -353,7 +359,7 @@ def parker_20_calc_z2p5(vs30: T, region: str) -> T:
         theta0, theta1, vmu, vsig = 3.94, -0.42, 200, 0.2
     else:
         raise ValueError("Does not support region %s" % region)
-    z2pt5: T = 10 ** (
+    z2pt5: TArrayLike = 10 ** (
         theta0
         + theta1 * (1 + erf((np.log10(vs30) - np.log10(vmu)) / (vsig * np.sqrt(2))))
     )  # type: ignore[invalid-assignment]
@@ -410,8 +416,8 @@ Z_CALC_MODEL_REGION_MAPPING: dict[
 
 
 def calc_z_for_model(
-    model: constants.GMM, vs30: T, region: str | None = None
-) -> tuple[T, str]:
+    model: constants.GMM, vs30: TArrayLike, region: str | None = None
+) -> tuple[TArrayLike, str]:
     """
     Calculates the z value for a given model, region and Vs30 value / values
 
@@ -419,7 +425,7 @@ def calc_z_for_model(
     ----------
     model : constants.GMM
         The model to calculate the z value for
-    vs30 : T
+    vs30 : array-like (list, numpy array, pandas series, float, ...)
         The Vs30 value or values, in meters per second
     region : Union[str, None]
         The region to use, use None to define a Global region, default is None.
@@ -429,8 +435,8 @@ def calc_z_for_model(
 
     Returns
     -------
-    z_value: Union[float, np.ndarray]
-        The z value or values, in km
+    z_value: array-like (list, numpy array, pandas series, float, ...)
+        The z value or values, in km. Has the same type as ``vs30``.
     z_return: str
         The z value return type, either "z1pt0" or "z2pt5"
     """
@@ -454,9 +460,9 @@ def calc_z_for_model(
 
     # Calculate the z value using the function
     if region is None:
-        z_value: T = z_calc_function(vs30)
+        z_value: TArrayLike = z_calc_function(vs30)
     else:
-        z_value: T = z_calc_function(vs30, region)
+        z_value: TArrayLike = z_calc_function(vs30, region)
     assert isinstance(z_return, str)
     return z_value, z_return
 
