@@ -21,19 +21,20 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-test = ["pytest"]
+test = ["pytest", "tqdm>=4.0.0"]
+types = ["pandas-stubs", "scipy-stubs"]
 dev = ["ruff", "deptry", "ty"]
 
 [tool.deptry]
-pep621_dev_dependency_groups = ["test", "dev"]
-extend_exclude = ["tests", "oq_wrapper/scripts/one_offs"]
+pep621_dev_dependency_groups = ["test", "dev", "types"]
+extend_exclude = ["tests", "scripts/one_offs"]
 
 
 [tool.setuptools.packages.find]
 exclude = ["tests*"]
 
 [tool.ruff]
-exclude = ["oq_wrapper/scripts/one_offs"]
+exclude = ["scripts/one_offs"]
 
 [tool.ruff.lint]
 extend-select = [

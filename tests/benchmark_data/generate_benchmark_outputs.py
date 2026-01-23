@@ -80,12 +80,15 @@ gmms = list(oqw.constants.GMM) + list(oqw.constants.GMMLogicTree)
 # If a given model (GMM+TectType) does not support a given IM, or requires input
 # parameters that are not provided, we catch the Exception and continue.
 for gmm in tqdm(gmms):
-
     # (V/H) ratio model, i.e. not relevant for benchmark
     if gmm is oqw.constants.GMM.GA_11:
         continue
 
-    tect_types = list(TECT_TYPE_MAPPING.keys()) if isinstance(gmm, oqw.constants.GMMLogicTree) else oqw.OQ_MODEL_MAPPING[gmm].keys()
+    tect_types = (
+        list(TECT_TYPE_MAPPING.keys())
+        if isinstance(gmm, oqw.constants.GMMLogicTree)
+        else oqw.OQ_MODEL_MAPPING[gmm].keys()
+    )
 
     # Iterate over all tectonic types supported by the GMM
     for tect_type in tect_types:
@@ -120,22 +123,18 @@ for gmm in tqdm(gmms):
                         im,
                         periods=cur_periods,
                     )
-            except (
-                ValueError,
-            ) as e:
+            except (ValueError,) as e:
                 logging.error(
                     f"Error generating {im} for {gmm.name} and {tect_type.name}: {type(e).__name__}: {e}"
                 )
                 continue
 
-            benchmark_data_output_dir = (
-                Path(__file__).parent / "data" / im
-            )
+            benchmark_data_output_dir = Path(__file__).parent / "data" / im
             benchmark_data_output_dir.mkdir(parents=True, exist_ok=True)
-
             im_results.index = cur_rupture_df.index
             im_results.to_parquet(
-                benchmark_data_output_dir / f"{gmm.name}_TectType_{tect_type.name}.parquet",
+                benchmark_data_output_dir
+                / f"{gmm.name}_TectType_{tect_type.name}.parquet",
             )
             logging.info(
                 f"Successfully generated {im} for {gmm.name} and {tect_type.name}."
