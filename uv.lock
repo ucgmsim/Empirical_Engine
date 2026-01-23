@@ -1333,8 +1333,8 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "deptry", marker = "extra == 'dev'" },
-    { name = "numpy" },
-    { name = "openquake-engine" },
+    { name = "numpy", specifier = ">=2.0" },
+    { name = "openquake-engine", specifier = ">=3.21" },
     { name = "pandas", extras = ["pyarrow"] },
     { name = "pytest", marker = "extra == 'test'" },
     { name = "pyyaml" },
