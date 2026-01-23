@@ -214,11 +214,12 @@ def run_gmm(
     )
 
     # Convert Z1.0 from km to m
-    if np.any(rupture_df["z1pt0"] >= 10):
+    if "z1pt0" in rupture_df.columns and np.any(rupture_df["z1pt0"] >= 10):
         raise ValueError(
             "Z1.0 values are too high. Did you pass in metre values instead of kilometres?"
         )
-    rupture_df["z1pt0"] *= 1000  # this is ok as we are not editing the original df
+    elif "z1pt0" in rupture_df.columns:
+        rupture_df["z1pt0"] *= 1000  # this is ok as we are not editing the original df
 
     # OQ's single new-style context which contains all site, distance and rupture's information
     rupture_ctx = contexts.RuptureContext(
