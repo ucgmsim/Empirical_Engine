@@ -8,7 +8,6 @@ from pytest import Metafunc
 
 import oq_wrapper as oqw
 
-# Keep data loading scoped or cached to avoid redundant I/O
 DATA_DIR = Path(__file__).parent / "benchmark_data"
 RUPTURE_PATH = DATA_DIR / "nzgmdb_v4p3_rupture_df.parquet"
 SKIPPED_TESTS = {
