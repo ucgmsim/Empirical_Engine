@@ -59,6 +59,10 @@ def _oq_model(model: gsim.base.MetaGSIM, **kwargs: dict[str, Any]) -> gsim.base.
     return model(**kwargs)
 
 
+ESHM20_BCHYDRO = getattr(gsim, "eshm20_bchydro", None) or getattr(
+    gsim, "bchydro_2016_epistemic"
+)
+
 OQ_MODEL_MAPPING = {
     constants.GMM.AS_16: {
         constants.TectType.ACTIVE_SHALLOW: gsim.afshari_stewart_2016.AfshariStewart2016
@@ -72,8 +76,8 @@ OQ_MODEL_MAPPING = {
         constants.TectType.ACTIVE_SHALLOW: gsim.campbell_bozorgnia_2008.CampbellBozorgnia2008,
     },
     constants.GMM.BCH_16: {
-        constants.TectType.SUBDUCTION_SLAB: gsim.eshm20_bchydro.BCHydroESHM20SSlab,
-        constants.TectType.SUBDUCTION_INTERFACE: gsim.eshm20_bchydro.BCHydroESHM20SInter,
+        constants.TectType.SUBDUCTION_SLAB: ESHM20_BCHYDRO.BCHydroESHM20SSlab,
+        constants.TectType.SUBDUCTION_INTERFACE: ESHM20_BCHYDRO.BCHydroESHM20SInter,
     },
     constants.GMM.ZA_06: {
         constants.TectType.ACTIVE_SHALLOW: gsim.zhao_2006.ZhaoEtAl2006Asc,

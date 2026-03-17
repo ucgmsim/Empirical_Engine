@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 import pandas as pd
@@ -6,20 +7,59 @@ from pandas.testing import assert_frame_equal
 
 import oq_wrapper as oqw
 
-benchmark_ffps = list(
-    (Path(__file__).parent / "benchmark_data" / "data").rglob("*.parquet")
-)
-rupture_df = pd.read_parquet(
-    Path(__file__).parent / "benchmark_data" / "nzgmdb_v4p3_rupture_df.parquet"
-)
+# Keep data loading scoped or cached to avoid redundant I/O
+DATA_DIR = Path(__file__).parent / "benchmark_data"
+RUPTURE_PATH = DATA_DIR / "nzgmdb_v4p3_rupture_df.parquet"
+SKIPPED_TESTS = {
+    (
+        "BCH_16|NHM2010_BB",
+        "SUBDUCTION_",
+    ): "Backarc calculation broken upstream in version 3.25+"
+}
 
 
-@pytest.mark.parametrize("benchmark_ffp", benchmark_ffps)
-def test_gmm_benchmarks(benchmark_ffp: Path) -> None:
+def pytest_generate_tests(metafunc):
+    if "benchmark_ffp" in metafunc.fixturenames:
+        data_path = DATA_DIR / "data"
+        files = list(data_path.rglob("*.parquet"))
+
+        params = []
+        for f in files:
+            gmm_name, tect_raw = f.stem.split("TectType")
+            gmm_name = gmm_name.strip("_")
+            tect_name = tect_raw.strip("_")
+
+            test_id = f"{f.parent.name}/{f.stem}"
+
+            skip_reason = None
+            for (gmm_pat, tect_pat), reason in SKIPPED_TESTS.items():
+                if re.search(gmm_pat, gmm_name) and re.search(tect_pat, tect_name):
+                    skip_reason = reason
+                    break
+
+            if skip_reason:
+                params.append(
+                    pytest.param(
+                        f, marks=pytest.mark.skip(reason=skip_reason), id=test_id
+                    )
+                )
+            else:
+                params.append(pytest.param(f, id=test_id))
+
+        metafunc.parametrize("benchmark_ffp", params)
+
+
+@pytest.fixture(scope="module")
+def shared_rupture_df():
+    """Loads the heavy rupture dataframe once per module."""
+    return pd.read_parquet(RUPTURE_PATH)
+
+
+def test_gmm_benchmarks(benchmark_ffp: Path, shared_rupture_df: pd.DataFrame) -> None:
     im = benchmark_ffp.parent.name
     bench_df = pd.read_parquet(benchmark_ffp)
 
-    cur_rupture_df = rupture_df.loc[bench_df.index.values]
+    cur_rupture_df = shared_rupture_df.loc[bench_df.index.values]
     cur_rupture_df = cur_rupture_df.rename(columns=oqw.constants.NZGMDB_OQ_COL_MAPPING)
 
     cur_rupture_df["vs30measured"] = True
