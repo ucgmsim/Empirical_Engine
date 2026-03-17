@@ -72,8 +72,8 @@ OQ_MODEL_MAPPING = {
         constants.TectType.ACTIVE_SHALLOW: gsim.campbell_bozorgnia_2008.CampbellBozorgnia2008,
     },
     constants.GMM.BCH_16: {
-        constants.TectType.SUBDUCTION_SLAB: gsim.bchydro_2016_epistemic.BCHydroESHM20SSlab,
-        constants.TectType.SUBDUCTION_INTERFACE: gsim.bchydro_2016_epistemic.BCHydroESHM20SInter,
+        constants.TectType.SUBDUCTION_SLAB: gsim.eshm20_bchydro.BCHydroESHM20SSlab,
+        constants.TectType.SUBDUCTION_INTERFACE: gsim.eshm20_bchydro.BCHydroESHM20SInter,
     },
     constants.GMM.ZA_06: {
         constants.TectType.ACTIVE_SHALLOW: gsim.zhao_2006.ZhaoEtAl2006Asc,
