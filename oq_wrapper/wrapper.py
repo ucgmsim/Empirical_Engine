@@ -622,7 +622,7 @@ def get_oq_model(
     model: constants.GMM,
     tect_type: constants.TectType,
     epistemic_branch: constants.EpistemicBranch = constants.EpistemicBranch.CENTRAL,
-    **kwargs: dict[str, Any],
+    **kwargs: Any,
 ) -> tuple[gsim.base.GMPE, list[str]]:
     """
     Get the OpenQuake GMM model for specified GMM and tectonic type.

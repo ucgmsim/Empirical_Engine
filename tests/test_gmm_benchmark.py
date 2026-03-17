@@ -4,6 +4,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
+from pytest import Metafunc
 
 import oq_wrapper as oqw
 
@@ -18,7 +19,7 @@ SKIPPED_TESTS = {
 }
 
 
-def pytest_generate_tests(metafunc):
+def pytest_generate_tests(metafunc: Metafunc) -> None:
     if "benchmark_ffp" in metafunc.fixturenames:
         data_path = DATA_DIR / "data"
         files = list(data_path.rglob("*.parquet"))
@@ -50,7 +51,7 @@ def pytest_generate_tests(metafunc):
 
 
 @pytest.fixture(scope="module")
-def shared_rupture_df():
+def shared_rupture_df() -> pd.DataFrame:
     """Loads the heavy rupture dataframe once per module."""
     return pd.read_parquet(RUPTURE_PATH)
 
