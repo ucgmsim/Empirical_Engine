@@ -10,12 +10,6 @@ import oq_wrapper as oqw
 
 DATA_DIR = Path(__file__).parent / "benchmark_data"
 RUPTURE_PATH = DATA_DIR / "nzgmdb_v4p3_rupture_df.parquet"
-SKIPPED_TESTS = {
-    (
-        "BCH_16|NHM2010_BB",
-        "SUBDUCTION_",
-    ): "Backarc calculation broken upstream in version 3.25+"
-}
 
 
 def pytest_generate_tests(metafunc: Metafunc) -> None:
@@ -27,24 +21,9 @@ def pytest_generate_tests(metafunc: Metafunc) -> None:
         for f in files:
             gmm_name, tect_raw = f.stem.split("TectType")
             gmm_name = gmm_name.strip("_")
-            tect_name = tect_raw.strip("_")
 
             test_id = f"{f.parent.name}/{f.stem}"
-
-            skip_reason = None
-            for (gmm_pat, tect_pat), reason in SKIPPED_TESTS.items():
-                if re.search(gmm_pat, gmm_name) and re.search(tect_pat, tect_name):
-                    skip_reason = reason
-                    break
-
-            if skip_reason:
-                params.append(
-                    pytest.param(
-                        f, marks=pytest.mark.skip(reason=skip_reason), id=test_id
-                    )
-                )
-            else:
-                params.append(pytest.param(f, id=test_id))
+            params.append(pytest.param(f, id=test_id))
 
         metafunc.parametrize("benchmark_ffp", params)
 
