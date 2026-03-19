@@ -1,4 +1,3 @@
-import re
 from pathlib import Path
 
 import pandas as pd
@@ -19,9 +18,6 @@ def pytest_generate_tests(metafunc: Metafunc) -> None:
 
         params = []
         for f in files:
-            gmm_name, tect_raw = f.stem.split("TectType")
-            gmm_name = gmm_name.strip("_")
-
             test_id = f"{f.parent.name}/{f.stem}"
             params.append(pytest.param(f, id=test_id))
 
