@@ -666,6 +666,12 @@ def get_oq_model(
     ):
         kwargs = {**kwargs, **epis_mapping[epistemic_branch]}
 
+    # Prior to OQ 3.25 "Step" was default however,
+    # it was changed to None, which causes issues.
+    # See https://github.com/gem/oq-engine/pull/11312
+    if model is constants.GMM.BCH_16:
+        kwargs["faba_taper_model"] = "Step"
+
     oq_model = OQ_MODEL_MAPPING[model][tect_type](**kwargs)
 
     if (
