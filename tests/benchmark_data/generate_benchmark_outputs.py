@@ -61,8 +61,6 @@ def write_im_results(
     tect_type: oqw.constants.TectType,
     epistemic_branch: oqw.constants.EpistemicBranch | None = None,
 ) -> None:
-    im_results.index = cur_rupture_df.index
-
     file_name = f"{gmm.name}_TectType_{tect_type.name}"
     if epistemic_branch is not None:
         file_name += f"_EpistemicBranch_{epistemic_branch.name}"

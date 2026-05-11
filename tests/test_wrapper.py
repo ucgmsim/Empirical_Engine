@@ -40,7 +40,7 @@ def test_run_gmm_z1pt0_handling() -> None:
         )
 
 
-def test_backbone_epicstemic_uncertainty_handling() -> None:
+def test_backbone_epistemic_uncertainty_handling() -> None:
     """
     Check that an error is thrown if a non-central branch is selected for a model 
     that does not have defined epistemic branch mappings for non-central branches.

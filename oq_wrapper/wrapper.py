@@ -662,12 +662,11 @@ def get_oq_model(
     ):
         if (
             epis_mapping := constants.GMM_EPISTEMIC_BRANCH_KWARGS_MAPPING.get(model)
-        ) is not None:
-            kwargs = {**kwargs, **epis_mapping[epistemic_branch]}
-        else:
+        ) is None:
             raise ValueError(
                 f"Model {model.name} does not have defined epistemic branch mappings for non-central branches. "
             )
+        kwargs = {**kwargs, **epis_mapping[epistemic_branch]}
 
     # Prior to OQ 3.25 "Step" was default however,
     # it was changed to None, which causes issues.
