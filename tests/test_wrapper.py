@@ -38,3 +38,22 @@ def test_run_gmm_z1pt0_handling() -> None:
             rupture_df,
             "Ds575",
         )
+
+
+def test_backbone_epicstemic_uncertainty_handling() -> None:
+    """
+    Check that an error is thrown if a non-central branch is selected for a model 
+    that does not have defined epistemic branch mappings for non-central branches.
+    """
+    rupture_df = pd.DataFrame(
+        {"mag": [6.5], "rake": 180.0, "vs30": 400.0, "rrup": 100.0, "z1pt0": 1000.0}
+    )
+
+    with pytest.raises(ValueError, match=".*does not have defined epistemic branch mappings for non-central branches.*"):
+        _ = oqw.run_gmm(
+            oqw.constants.GMM.AS_16,
+            oqw.constants.TectType.ACTIVE_SHALLOW,
+            rupture_df,
+            "Ds575",
+            epistemic_branch=oqw.constants.EpistemicBranch.LOWER,
+        )

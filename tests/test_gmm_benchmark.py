@@ -56,13 +56,26 @@ def test_gmm_benchmarks(benchmark_ffp: Path, shared_rupture_df: pd.DataFrame) ->
 
     # Get the GMM and TectType
     gmm_name, tect_type_name = benchmark_ffp.stem.split("TectType")
+    epistemic_branch = oqw.constants.EpistemicBranch.CENTRAL
+    if "EpistemicBranch" in tect_type_name:
+        tect_type_name, epistemic_branch_name = tect_type_name.split("EpistemicBranch")
+        epistemic_branch = oqw.constants.EpistemicBranch[
+            epistemic_branch_name.strip("_")
+        ]
     gmm_name, tect_type_name = gmm_name.strip("_"), tect_type_name.strip("_")
     tect_type = oqw.constants.TectType[tect_type_name]
 
     # Single GMM model
     model = oqw.get_model_from_str(gmm_name)
     if isinstance(model, oqw.constants.GMM):
-        result_df = oqw.run_gmm(model, tect_type, cur_rupture_df, im, periods=periods)
+        result_df = oqw.run_gmm(
+            model,
+            tect_type,
+            cur_rupture_df,
+            im,
+            periods=periods,
+            epistemic_branch=epistemic_branch,
+        )
         assert_frame_equal(result_df, bench_df)
     # GMM Logic tree
     else:
