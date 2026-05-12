@@ -38,7 +38,7 @@ else:
     gsim = _gsim
 
 
-def _oq_model(model: gsim.base.MetaGSIM, **kwargs: dict[str, Any]) -> gsim.base.GMPE:
+def _oq_model(model: gsim.base.MetaGSIM, **kwargs: Any) -> gsim.base.GMPE:
     """
     Create a partial function to simplify model instantiation.
 
@@ -46,7 +46,7 @@ def _oq_model(model: gsim.base.MetaGSIM, **kwargs: dict[str, Any]) -> gsim.base.
     ----------
     model : gsim.base.GMPE
         OpenQuake ground motion model class
-    **kwargs : dict
+    **kwargs : Any
         Extra model-specific parameters, e.g.:
         - region="NZL" for models ending with _NZ
         - estimate_width=True for CB_14 to estimate fault width
@@ -175,7 +175,7 @@ def run_gmm(
     periods: Sequence[int | float] | None = None,
     frequencies: Sequence[int | float] | None = None,
     epistemic_branch: constants.EpistemicBranch = constants.EpistemicBranch.CENTRAL,
-    **kwargs: dict[str, Any],
+    **kwargs: Any,
 ) -> pd.DataFrame:
     """
     Run OpenQuake GMM for the given rupture dataframe and intensity measure.
@@ -633,7 +633,7 @@ def get_oq_model(
     epistemic_branch : constants.EpistemicBranch
         Epistemic uncertainty branch to use for the model.
         Defaults to constants.EpistemicBranch.CENTRAL.
-    **kwargs : dict
+    **kwargs : Any
         Extra model-specific parameters passed to the model constructor
 
     Returns
