@@ -75,6 +75,22 @@ GMM_EPISTEMIC_BRANCH_KWARGS_MAPPING = {
     GMM.S_22: {
         EpistemicBranch.LOWER: {"mu_branch": "Lower", "sigma_branch": "Lower"},
         EpistemicBranch.UPPER: {"mu_branch": "Upper", "sigma_branch": "Upper"},
+    },
+    GMM.A_22: {
+        EpistemicBranch.LOWER: {"epistemic": "lower"},
+        EpistemicBranch.UPPER: {"epistemic": "upper"},
+    },
+    GMM.AG_20: {
+        EpistemicBranch.LOWER: {"sigma_mu_epsilon": -1.2815},
+        EpistemicBranch.UPPER: {"sigma_mu_epsilon": 1.2815},
+    },
+    GMM.K_20: {
+        EpistemicBranch.LOWER: {"sigma_mu_epsilon": -1.2815},
+        EpistemicBranch.UPPER: {"sigma_mu_epsilon": 1.2815},
+    },
+    GMM.P_21: {
+        EpistemicBranch.LOWER: {"sigma_mu_epsilon": -1.2815},
+        EpistemicBranch.UPPER: {"sigma_mu_epsilon": 1.2815},
     }
 }
 

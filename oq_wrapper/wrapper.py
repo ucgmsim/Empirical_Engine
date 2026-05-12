@@ -38,7 +38,7 @@ else:
     gsim = _gsim
 
 
-def _oq_model(model: gsim.base.MetaGSIM, **kwargs: dict[str, Any]) -> gsim.base.GMPE:
+def _oq_model(model: gsim.base.MetaGSIM, **kwargs: Any) -> gsim.base.GMPE:
     """
     Create a partial function to simplify model instantiation.
 
@@ -46,7 +46,7 @@ def _oq_model(model: gsim.base.MetaGSIM, **kwargs: dict[str, Any]) -> gsim.base.
     ----------
     model : gsim.base.GMPE
         OpenQuake ground motion model class
-    **kwargs : dict
+    **kwargs : Any
         Extra model-specific parameters, e.g.:
         - region="NZL" for models ending with _NZ
         - estimate_width=True for CB_14 to estimate fault width
@@ -175,7 +175,7 @@ def run_gmm(
     periods: Sequence[int | float] | None = None,
     frequencies: Sequence[int | float] | None = None,
     epistemic_branch: constants.EpistemicBranch = constants.EpistemicBranch.CENTRAL,
-    **kwargs: dict[str, Any],
+    **kwargs: Any,
 ) -> pd.DataFrame:
     """
     Run OpenQuake GMM for the given rupture dataframe and intensity measure.
@@ -388,7 +388,6 @@ def run_gmm_logic_tree(
             f"IM {im} is not supported for GMM logic tree {gmm_lt.name} and tectonic type {tect_type.name}"
         )
 
-    results = []
     ind_results = {}
     for cur_model_name, cur_value in gmm_lt_config.items():
         # Epistemic uncertainy branches per GMM
@@ -403,7 +402,6 @@ def run_gmm_logic_tree(
                     periods=periods,
                     epistemic_branch=constants.EpistemicBranch(cur_epistemic_branch),
                 )
-                results.append(cur_result_df * cur_weight)
                 ind_results[f"{cur_model}_{cur_epistemic_branch}"] = (
                     cur_weight,
                     cur_result_df,
@@ -418,7 +416,6 @@ def run_gmm_logic_tree(
                 im,
                 periods=periods,
             )
-            results.append(cur_result_df * cur_weight)
             ind_results[str(cur_model)] = (cur_weight, cur_result_df)
 
     if im.startswith("pSA") and periods:
@@ -636,7 +633,7 @@ def get_oq_model(
     epistemic_branch : constants.EpistemicBranch
         Epistemic uncertainty branch to use for the model.
         Defaults to constants.EpistemicBranch.CENTRAL.
-    **kwargs : dict
+    **kwargs : Any
         Extra model-specific parameters passed to the model constructor
 
     Returns
@@ -661,9 +658,14 @@ def get_oq_model(
     # and the mappings needs to be defined in constants.GMM_EPISTEMIC_BRANCH_KWARGS_MAPPING
     if (
         epistemic_branch is not constants.EpistemicBranch.CENTRAL
-        and (epis_mapping := constants.GMM_EPISTEMIC_BRANCH_KWARGS_MAPPING.get(model))
-        is not None
+        and model not in constants.GMM_EPISTEMIC_BRANCH_SIGMA_FACTOR_MAPPING
     ):
+        if (
+            epis_mapping := constants.GMM_EPISTEMIC_BRANCH_KWARGS_MAPPING.get(model)
+        ) is None:
+            raise ValueError(
+                f"Model {model.name} does not have defined epistemic branch mappings for non-central branches. "
+            )
         kwargs = {**kwargs, **epis_mapping[epistemic_branch]}
 
     # Prior to OQ 3.25 "Step" was default however,

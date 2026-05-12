@@ -1,6 +1,7 @@
 """Generate benchmark values for testing purposes."""
 
 import logging
+import sys
 from pathlib import Path
 
 import pandas as pd
@@ -52,6 +53,23 @@ PERIODS = [
     10.0,
 ]
 
+
+def write_im_results(
+    benchmark_data_output_dir: Path,
+    im_results: pd.DataFrame,
+    gmm: oqw.constants.GMM | oqw.constants.GMMLogicTree,
+    tect_type: oqw.constants.TectType,
+    epistemic_branch: oqw.constants.EpistemicBranch | None = None,
+) -> None:
+    file_name = f"{gmm.name}_TectType_{tect_type.name}"
+    if epistemic_branch is not None:
+        file_name += f"_EpistemicBranch_{epistemic_branch.name}"
+
+    im_results.to_parquet(
+        benchmark_data_output_dir / f"{file_name}.parquet",
+    )
+
+
 rupture_df = pd.read_parquet(Path(__file__).parent / "nzgmdb_v4p3_rupture_df.parquet")
 
 # Rename the columns to be in line with what OpenQuake expects
@@ -68,13 +86,15 @@ rupture_df = rupture_df[~nan_mask]
 print(f"Dropped {nan_mask.sum()} records with nan-values")
 
 # Configure logging to capture errors and progress
-logging.basicConfig(
-    filename=Path(__file__).parent / "benchmark_generation.log",
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
+logger = logging.getLogger()
+file_handler = logging.FileHandler(Path(__file__).parent / "benchmark_generation.log")
+file_handler.setLevel(logging.INFO)
+logger.addHandler(file_handler)
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setLevel(logging.WARNING)
+logger.addHandler(console_handler)
 
-logging.info("Starting benchmark generation script.")
+logger.info("Starting benchmark generation script.")
 gmms = list(oqw.constants.GMM) + list(oqw.constants.GMMLogicTree)
 # Try to calculate "pSA", "PGA", and "PGV" for all combinations of GMM and TectType.
 # If a given model (GMM+TectType) does not support a given IM, or requires input
@@ -106,6 +126,9 @@ for gmm in tqdm(gmms):
                     N_RECORDS, random_state=RANDOM_SEED
                 )
 
+            benchmark_data_output_dir = Path(__file__).parent / "data" / im
+            benchmark_data_output_dir.mkdir(parents=True, exist_ok=True)
+
             try:
                 if isinstance(gmm, oqw.constants.GMMLogicTree):
                     im_results = oqw.run_gmm_logic_tree(
@@ -115,6 +138,12 @@ for gmm in tqdm(gmms):
                         im,
                         periods=cur_periods,
                     )
+                    write_im_results(
+                        benchmark_data_output_dir,
+                        im_results,
+                        gmm,
+                        tect_type,
+                    )
                 else:
                     im_results = oqw.run_gmm(
                         gmm,
@@ -123,21 +152,59 @@ for gmm in tqdm(gmms):
                         im,
                         periods=cur_periods,
                     )
+                    write_im_results(
+                        benchmark_data_output_dir,
+                        im_results,
+                        gmm,
+                        tect_type,
+                    )
+
+                    if (
+                        gmm in oqw.constants.GMM_EPISTEMIC_BRANCH_KWARGS_MAPPING
+                        or gmm
+                        in oqw.constants.GMM_EPISTEMIC_BRANCH_SIGMA_FACTOR_MAPPING
+                    ):
+                        im_results_lower = oqw.run_gmm(
+                            gmm,
+                            tect_type,
+                            cur_rupture_df,
+                            im,
+                            periods=cur_periods,
+                            epistemic_branch=oqw.constants.EpistemicBranch.LOWER,
+                        )
+                        write_im_results(
+                            benchmark_data_output_dir,
+                            im_results_lower,
+                            gmm,
+                            tect_type,
+                            epistemic_branch=oqw.constants.EpistemicBranch.LOWER
+                        )
+
+                        im_results_upper = oqw.run_gmm(
+                            gmm,
+                            tect_type,
+                            cur_rupture_df,
+                            im,
+                            periods=cur_periods,
+                            epistemic_branch=oqw.constants.EpistemicBranch.UPPER,
+                        )
+                        write_im_results(
+                            benchmark_data_output_dir,
+                            im_results_upper,
+                            gmm,
+                            tect_type,  
+                            epistemic_branch=oqw.constants.EpistemicBranch.UPPER
+                        )
+
             except (ValueError,) as e:
-                logging.error(
+                logger.error(
                     f"Error generating {im} for {gmm.name} and {tect_type.name}: {type(e).__name__}: {e}"
                 )
                 continue
 
-            benchmark_data_output_dir = Path(__file__).parent / "data" / im
-            benchmark_data_output_dir.mkdir(parents=True, exist_ok=True)
-            im_results.index = cur_rupture_df.index
-            im_results.to_parquet(
-                benchmark_data_output_dir
-                / f"{gmm.name}_TectType_{tect_type.name}.parquet",
-            )
-            logging.info(
+            logger.info(
                 f"Successfully generated {im} for {gmm.name} and {tect_type.name}."
             )
 
-logging.info("Benchmark generation script completed.")
+
+logger.info("Benchmark generation script completed.")

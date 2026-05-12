@@ -38,7 +38,7 @@ def estimate_width_ASK14(  # noqa: N802
         Estimated rupture width for each (dip, mag) pair. Has the same
         time as input arguments.
     """
-    return np.minimum(18 / np.sin(np.radians(dip)), 10 ** (-1.75 + 0.45 * mag))  # type: ignore
+    return np.minimum(18 / np.sin(np.radians(dip)), 10 ** (-1.75 + 0.45 * mag))  # ty: ignore
 
 
 def circ_mean(samples: TArrayLike, weights: TArrayLike) -> float:
@@ -194,11 +194,11 @@ def chiou_young_14_calc_z1p0(vs30: TArrayLike, region: str | None = None) -> TAr
     """
     if region == "Japan":
         z1p0 = (
-            -5.23 / 2 * np.log((vs30**2 + 412.39**2) / (1360**4 + 412.39**4))  # type: ignore[unsupported-operator]
+            -5.23 / 2 * np.log((vs30**2 + 412.39**2) / (1360**4 + 412.39**4))  # ty: ignore[unsupported-operator]
         )  # In meters
     else:
         z1p0 = (
-            -7.15 / 4 * np.log((vs30**4 + 570.94**4) / (1360**4 + 570.94**4))  # type: ignore[unsupported-operator]
+            -7.15 / 4 * np.log((vs30**4 + 570.94**4) / (1360**4 + 570.94**4))  # ty: ignore[unsupported-operator]
         )  # In meters
     return np.exp(z1p0) / 1000  # In km
 
@@ -225,11 +225,11 @@ def mod_chiou_young_14_calc_z1p0(
     """
     if region == "Japan":
         z1p0 = (
-            -5.23 / 2 * np.log((vs30**2 + 412.39**2) / (1360**4 + 412.39**4))  # type: ignore[unsupported-operator]
+            -5.23 / 2 * np.log((vs30**2 + 412.39**2) / (1360**4 + 412.39**4))  # ty: ignore[unsupported-operator]
         )  # In meters
     else:
         z1p0 = (
-            -7.15 / 4 * np.log((vs30**4 + 610**4) / (1360**4 + 610**4))  # type: ignore[unsupported-operator]
+            -7.15 / 4 * np.log((vs30**4 + 610**4) / (1360**4 + 610**4))  # ty: ignore[unsupported-operator]
         )  # In meters
     return np.exp(z1p0) / 1000  # In km
 
@@ -278,7 +278,7 @@ def chiou_young_08_calc_z1p0(
     """
     z1p0 = (
         np.exp(
-            28.5 - 3.82 / 8 * np.log(vs30**8 + 378.7**8)  # type: ignore[unsupported-operator]
+            28.5 - 3.82 / 8 * np.log(vs30**8 + 378.7**8)  # ty: ignore[unsupported-operator]
         )
         / 1000
     )  # In km
@@ -305,9 +305,9 @@ def chiou_young_08_calc_z2p5(
         Z2.5 values in the same format as z1p0 or z1p5 in km. Has the same type as inputs.
     """
     if z1p5 is not None:
-        return 0.636 + 1.549 * z1p5  # type: ignore[unsupported-operator]
+        return 0.636 + 1.549 * z1p5  # ty: ignore[unsupported-operator]
     elif z1p0 is not None:
-        return 0.519 + 3.595 * z1p0  # type: ignore[unsupported-operator]
+        return 0.519 + 3.595 * z1p0  # ty: ignore[unsupported-operator]
     else:
         raise ValueError("no z2p5 able to be estimated")
 
@@ -329,9 +329,9 @@ def abrahamson_gulerce_20_calc_z2p5(vs30: TArrayLike, region: str) -> TArrayLike
         The z2p5 value or values, in km. Has the same type as ``vs30``.
     """
     if region == "Cascadia":
-        ln_zref = np.clip(8.52 - 0.88 * np.log(vs30 / 200.0), 7.6, 8.52)  # type: ignore[unsupported-operator]
+        ln_zref = np.clip(8.52 - 0.88 * np.log(vs30 / 200.0), 7.6, 8.52)  # ty: ignore[unsupported-operator]
     elif region == "Japan":
-        ln_zref = np.clip(7.3 - 2.066 * np.log(vs30 / 170.0), 4.1, 7.3)  # type: ignore[unsupported-operator]
+        ln_zref = np.clip(7.3 - 2.066 * np.log(vs30 / 170.0), 4.1, 7.3)  # ty: ignore[unsupported-operator]
     else:
         raise ValueError("Does not support region %s" % region)
     return np.exp(ln_zref)  # In km
@@ -359,10 +359,10 @@ def parker_20_calc_z2p5(vs30: TArrayLike, region: str) -> TArrayLike:
         theta0, theta1, vmu, vsig = 3.94, -0.42, 200, 0.2
     else:
         raise ValueError("Does not support region %s" % region)
-    z2pt5: TArrayLike = 10 ** (
+    z2pt5: TArrayLike = 10 ** (  # ty: ignore[invalid-assignment]
         theta0
         + theta1 * (1 + erf((np.log10(vs30) - np.log10(vmu)) / (vsig * np.sqrt(2))))
-    )  # type: ignore[invalid-assignment]
+    )
     return z2pt5  # In km
 
 
