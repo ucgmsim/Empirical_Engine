@@ -359,7 +359,7 @@ def parker_20_calc_z2p5(vs30: TArrayLike, region: str) -> TArrayLike:
         theta0, theta1, vmu, vsig = 3.94, -0.42, 200, 0.2
     else:
         raise ValueError("Does not support region %s" % region)
-    z2pt5: TArrayLike = 10 ** (
+    z2pt5: TArrayLike = 10 ** (  # ty: ignore[invalid-assignment]
         theta0
         + theta1 * (1 + erf((np.log10(vs30) - np.log10(vmu)) / (vsig * np.sqrt(2))))
     )
