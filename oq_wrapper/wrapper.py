@@ -1053,13 +1053,23 @@ def _convert_from_oq_im(im: imt.IMT) -> str:
     str
         Converted IM label
 
-    Notes
-    -----
-    Examples of conversions:
-    - EAS(frequency) → EAS_frequency
-    - SA(period) → pSA_period
-    - RSD575 → Ds575
-    - RSD595 → Ds595
+    Examples
+    --------
+    >>> im = imt.EAS(frequency=5.0)
+    >>> _convert_from_oq_im(im)
+    'EAS_5.0'
+
+    >>> im = imt.SA(period=1.0)
+    >>> _convert_from_oq_im(im)
+    'pSA_1.0'
+
+    >>> im = imt.RSD575()
+    >>> _convert_from_oq_im(im)
+    'Ds575'
+
+    >>> im = imt.PGA()
+    >>> _convert_from_oq_im(im)
+    'PGA'
     """
     if im[0].startswith("EAS"):
         period = im[1]

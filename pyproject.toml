@@ -17,6 +17,9 @@ dependencies = [
   "pandas[pyarrow]",
   "pyyaml",
   "scipy>=1.7.2",
+  # Suggested minimum version that handles the indexing logic in the xarray
+  # module properly.
+  "xarray>=2022.3.0",
   "source-modelling",
 ]
 
