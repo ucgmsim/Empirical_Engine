@@ -41,7 +41,7 @@ def _pack_dataset(
     Returns
     -------
     Dataset
-        A multi-dimensional dataset extracted the dataframe, analysing the
+        A multi-dimensional dataset extracted from the dataframe, analysing the
         columns to extract the intensity measure, period and frequency.
     """
     test_column = results.columns[0]
