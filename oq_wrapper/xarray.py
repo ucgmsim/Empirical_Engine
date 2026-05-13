@@ -118,6 +118,12 @@ def run_gmm_xarray(
         are stored as data variables. The intensity measure type is stored
         in the global attributes.
 
+    Notes
+    -----
+    This function will materialise the full dataset as a copy in a dataframe. To
+    handle very large datasets, use `xr.map_blocks` to lazily iterate over
+    dataset chunks.
+
     Examples
     --------
     >>> import oq_wrapper as oqw
@@ -214,6 +220,12 @@ def run_gmm_logic_tree_xarray(
         A Dataset containing the GMM results. Statistics (mean, std_Total)
         are stored as data variables. The intensity measure type is stored
         in the global attributes.
+
+    Notes
+    -----
+    This function will materialise the full dataset as a copy in a dataframe. To
+    handle very large datasets, use `xr.map_blocks` to lazily iterate over
+    dataset chunks.
 
     Examples
     --------
