@@ -164,8 +164,9 @@ def run_gmm_xarray(
     ['model', 'period', 'station']
 
     >>> # Get the mean for model 'd' and 'a_10' at 1.0s.
-    >>> psa['mean'].sel(station='a_10', model='d').sel(period=1.0, method='nearest').item()
-    ...
+    >>> result = psa['mean'].sel(station='a_10', model='d').sel(period=1.0, method='nearest').item()
+    >>> isinstance(result, float)
+    True
 
     See Also
     --------
@@ -277,8 +278,9 @@ def run_gmm_logic_tree_xarray(
     ['model', 'period', 'station']
 
     >>> # Get the mean for model 'd' and 'a_10' at 1.0s.
-    >>> psa['mean'].sel(station='a_10', model='d').sel(period=1.0, method='nearest').item()
-    ...
+    >>> result = psa['mean'].sel(station='a_10', model='d').sel(period=1.0, method='nearest').item()
+    >>> isinstance(result, float)
+    True
 
     See Also
     --------
