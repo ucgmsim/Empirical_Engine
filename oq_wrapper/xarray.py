@@ -1,15 +1,13 @@
 """Xarray interface for running OpenQuake Ground Motion Models and Logic Trees."""
 
+import re
 from collections.abc import Sequence
 from typing import Any
 
-import numpy as np
 import pandas as pd
 import xarray as xr
-import re
 
-from . import constants, run_gmm_logic_tree
-from .wrapper import run_gmm
+from . import constants, wrapper
 
 GENERAL_RX = re.compile(
     r"""
@@ -18,7 +16,7 @@ GENERAL_RX = re.compile(
     
     (?:                         # Start of a non-capturing group for the optional value
         _                       # A literal underscore separator
-        (?P<val>[\d\.]+)        # Capture group 'val': Matches digits or periods
+        (?P<val>[\d\.eE\-\+]+)  # Capture group 'val': Matches digits, periods, or scientific notation. 
     )?                          # The '?' makes the entire '_value' portion optional
     
     _                           # A literal underscore separator before the statistic
@@ -68,6 +66,9 @@ def _pack_dataset(
 
     results.columns = pd.MultiIndex.from_frame(extracted)
     results = results.stack(level=levels)  # ty: ignore[invalid-assignment]
+    # match is None is impossible because a ValueError would have already been
+    # thrown at this point.
+    assert match is not None
     im_name = match.group("im")
 
     dset = results.to_xarray()
@@ -107,6 +108,8 @@ def run_gmm_xarray(
         Frequencies to compute for EAS
     epistemic_branch : constants.EpistemicBranch
         Epistemic branch mapping
+    **kwargs : Any
+        Options passed to `wrapper.run_gmm`
 
     Returns
     -------
@@ -154,8 +157,8 @@ def run_gmm_xarray(
     >>> sorted(psa.coords.keys())
     ['model', 'period', 'station']
 
-    >>> # Get the mean for model 'd' and 'a_32' at 1.0s.
-    >>> psa['mean'].sel(station='a_32', model='d').sel(period=1.0, method='nearest').item()
+    >>> # Get the mean for model 'd' and 'a_10' at 1.0s.
+    >>> psa['mean'].sel(station='a_10', model='d').sel(period=1.0, method='nearest').item()
     ...
 
     See Also
@@ -164,7 +167,7 @@ def run_gmm_xarray(
     """
     rupture_df = inputs.to_dataframe()
 
-    df_result = run_gmm(
+    df_result = wrapper.run_gmm(
         model=model,
         tect_type=tect_type,
         rupture_df=rupture_df,
@@ -202,6 +205,8 @@ def run_gmm_logic_tree_xarray(
         Intensity measure (e.g., 'PGA', 'pSA', 'EAS')
     periods : Sequence[float | int], optional
         Periods to compute for pSA
+    **kwargs : Any
+        Keyword arguments passed to `run_gmm_logic_tree`
 
     Returns
     -------
@@ -259,8 +264,8 @@ def run_gmm_logic_tree_xarray(
     >>> sorted(psa.coords.keys())
     ['model', 'period', 'station']
 
-    >>> # Get the mean for model 'd' and 'a_32' at 1.0s.
-    >>> psa['mean'].sel(station='a_32', model='d').sel(period=1.0, method='nearest').item()
+    >>> # Get the mean for model 'd' and 'a_10' at 1.0s.
+    >>> psa['mean'].sel(station='a_10', model='d').sel(period=1.0, method='nearest').item()
     ...
 
     See Also
@@ -269,7 +274,7 @@ def run_gmm_logic_tree_xarray(
     """
     rupture_df = inputs.to_dataframe()
 
-    df_result = run_gmm_logic_tree(
+    df_result = wrapper.run_gmm_logic_tree(
         gmm_lt,
         tect_type=tect_type,
         rupture_df=rupture_df,
