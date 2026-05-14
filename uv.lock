@@ -1554,6 +1554,7 @@ dependencies = [
     { name = "pyyaml" },
     { name = "scipy" },
     { name = "source-modelling" },
+    { name = "xarray" },
 ]
 
 [package.optional-dependencies]
@@ -1586,6 +1587,7 @@ requires-dist = [
     { name = "source-modelling" },
     { name = "tqdm", marker = "extra == 'test'", specifier = ">=4.0.0" },
     { name = "ty", marker = "extra == 'dev'" },
+    { name = "xarray", specifier = ">=2022.3.0" },
 ]
 provides-extras = ["test", "types", "dev"]
 

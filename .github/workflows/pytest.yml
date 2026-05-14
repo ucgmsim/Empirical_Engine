@@ -28,3 +28,4 @@ jobs:
       - name: Run tests
         run: |
           uv run --extra test pytest tests
+          uv run --extra test pytest --doctest-modules oq_wrapper
