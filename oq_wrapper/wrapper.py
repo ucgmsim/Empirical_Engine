@@ -59,6 +59,55 @@ def _oq_model(model: gsim.base.MetaGSIM, **kwargs: Any) -> gsim.base.GMPE:
     return model(**kwargs)
 
 
+_NSHMP2014_COPIED_ATTRS = (
+    "REQUIRES_SITES_PARAMETERS",
+    "REQUIRES_RUPTURE_PARAMETERS",
+    "REQUIRES_DISTANCES",
+    "DEFINED_FOR_INTENSITY_MEASURE_TYPES",
+    "DEFINED_FOR_STANDARD_DEVIATION_TYPES",
+    "DEFINED_FOR_TECTONIC_REGION_TYPE",
+)
+
+
+def _nshmp2014_model(
+    model_cls: gsim.base.MetaGSIM, sgn: int, **model_kwargs: Any
+) -> gsim.base.GMPE:
+    """
+    Construct a GMPE and wrap it in OQ's NSHMP2014.
+
+    NSHMP2014.__init__ derives its own REQUIRES_*/DEFINED_FOR_* attributes
+    from `vars(cls)`, which only sees attributes defined directly on the
+    named class's own body, not ones it inherits (e.g. Bradley2013Volc only
+    overrides DEFINED_FOR_TECTONIC_REGION_TYPE, so REQUIRES_SITES_PARAMETERS
+    etc. never get copied and silently fall back to NSHMP2014's own empty
+    defaults). It also constructs the underlying model itself with no
+    kwargs, so any kwarg-driven __init__ side effect (e.g. CB_14's
+    `estimate_width=True` registering `zbot` as a required parameter) is
+    lost. Constructing the underlying model separately and re-copying its
+    attributes onto the wrapper avoids both problems.
+
+    Parameters
+    ----------
+    model_cls : gsim.base.GMPE
+        Underlying GMPE class.
+    sgn : int
+        NSHMP2014 epistemic branch sign (-1, 0 or 1).
+    **model_kwargs : Any
+        Extra kwargs passed to `model_cls`'s constructor.
+
+    Returns
+    -------
+    gsim.base.GMPE
+        NSHMP2014-wrapped model.
+    """
+    underlying_model = model_cls(**model_kwargs)
+    model = gsim.nshmp_2014.NSHMP2014(gmpe_name=model_cls.__name__, sgn=sgn)
+    model.gsim = underlying_model
+    for attr in _NSHMP2014_COPIED_ATTRS:
+        setattr(model, attr, getattr(underlying_model, attr))
+    return model
+
+
 ESHM20_BCHYDRO = getattr(gsim, "eshm20_bchydro", None) or getattr(
     gsim, "bchydro_2016_epistemic"
 )
@@ -114,33 +163,69 @@ OQ_MODEL_MAPPING = {
         constants.TectType.SUBDUCTION_SLAB: gsim.nz22.atkinson_2022.Atkinson2022SSlab,
         constants.TectType.SUBDUCTION_INTERFACE: gsim.nz22.atkinson_2022.Atkinson2022SInter,
     },
+    # ASK_14/CY_14/CB_14/BSSA_14/Br_13 are wrapped in OQ's NSHMP2014 (Rezaeian
+    # et al., 2014) to provide within-model epistemic uncertainty in the median
     constants.GMM.ASK_14: {
-        constants.TectType.ACTIVE_SHALLOW: gsim.abrahamson_2014.AbrahamsonEtAl2014,
-        constants.TectType.VOLCANIC: gsim.abrahamson_2014.AbrahamsonEtAl2014,
+        constants.TectType.ACTIVE_SHALLOW: functools.partial(
+            _nshmp2014_model,
+            model_cls=gsim.abrahamson_2014.AbrahamsonEtAl2014,
+            sgn=0,
+        ),
+        constants.TectType.VOLCANIC: functools.partial(
+            _nshmp2014_model,
+            model_cls=gsim.abrahamson_2014.AbrahamsonEtAl2014,
+            sgn=0,
+        ),
     },
     constants.GMM.CY_14: {
-        constants.TectType.ACTIVE_SHALLOW: gsim.chiou_youngs_2014.ChiouYoungs2014,
-        constants.TectType.VOLCANIC: gsim.chiou_youngs_2014.ChiouYoungs2014,
+        constants.TectType.ACTIVE_SHALLOW: functools.partial(
+            _nshmp2014_model,
+            model_cls=gsim.chiou_youngs_2014.ChiouYoungs2014,
+            sgn=0,
+        ),
+        constants.TectType.VOLCANIC: functools.partial(
+            _nshmp2014_model,
+            model_cls=gsim.chiou_youngs_2014.ChiouYoungs2014,
+            sgn=0,
+        ),
     },
     constants.GMM.CB_14: {
         constants.TectType.ACTIVE_SHALLOW: functools.partial(
-            _oq_model,
-            model=gsim.campbell_bozorgnia_2014.CampbellBozorgnia2014,
+            _nshmp2014_model,
+            model_cls=gsim.campbell_bozorgnia_2014.CampbellBozorgnia2014,
             estimate_width=True,
+            sgn=0,
         ),
         constants.TectType.VOLCANIC: functools.partial(
-            _oq_model,
-            model=gsim.campbell_bozorgnia_2014.CampbellBozorgnia2014,
+            _nshmp2014_model,
+            model_cls=gsim.campbell_bozorgnia_2014.CampbellBozorgnia2014,
             estimate_width=True,
+            sgn=0,
         ),
     },
     constants.GMM.BSSA_14: {
-        constants.TectType.ACTIVE_SHALLOW: gsim.boore_2014.BooreEtAl2014,
-        constants.TectType.VOLCANIC: gsim.boore_2014.BooreEtAl2014,
+        constants.TectType.ACTIVE_SHALLOW: functools.partial(
+            _nshmp2014_model,
+            model_cls=gsim.boore_2014.BooreEtAl2014,
+            sgn=0,
+        ),
+        constants.TectType.VOLCANIC: functools.partial(
+            _nshmp2014_model,
+            model_cls=gsim.boore_2014.BooreEtAl2014,
+            sgn=0,
+        ),
     },
     constants.GMM.Br_13: {
-        constants.TectType.ACTIVE_SHALLOW: gsim.bradley_2013.Bradley2013,
-        constants.TectType.VOLCANIC: gsim.bradley_2013.Bradley2013Volc,
+        constants.TectType.ACTIVE_SHALLOW: functools.partial(
+            _nshmp2014_model,
+            model_cls=gsim.bradley_2013.Bradley2013,
+            sgn=0,
+        ),
+        constants.TectType.VOLCANIC: functools.partial(
+            _nshmp2014_model,
+            model_cls=gsim.bradley_2013.Bradley2013Volc,
+            sgn=0,
+        ),
     },
     constants.GMM.AG_20: {
         constants.TectType.SUBDUCTION_SLAB: gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SSlab,
@@ -285,32 +370,6 @@ def run_gmm(
         result_df = _run_oq_model(oq_model, rupture_ctx, oq_im_type_fn(), stddev_types)
 
     result_df.index = rupture_df.index
-
-    # Median prediction adjustment using sigma factor
-    # Used by 2022 NZ NSHM
-    if (
-        epistemic_branch is not constants.EpistemicBranch.CENTRAL
-        and model in constants.GMM_EPISTEMIC_BRANCH_SIGMA_FACTOR_MAPPING
-    ):
-        sigma_factor_mapping = constants.GMM_EPISTEMIC_BRANCH_SIGMA_FACTOR_MAPPING[
-            model
-        ]
-        mean_cols = [col for col in result_df.columns if col.endswith("_mean")]
-        std_total_cols = [
-            col for col in result_df.columns if col.endswith("_std_Total")
-        ]
-        assert len(mean_cols) == len(std_total_cols)
-        assert all(
-            [
-                c1.rstrip("_mean") == c2.rstrip("_std_Total")
-                for c1, c2 in zip(mean_cols, std_total_cols)
-            ]
-        )
-
-        result_df[mean_cols] = (
-            result_df[mean_cols].values
-            + sigma_factor_mapping[epistemic_branch] * result_df[std_total_cols].values
-        )
 
     return result_df
 
@@ -654,12 +713,9 @@ def get_oq_model(
         If the model's defined tectonic type doesn't match the specified tectonic type
         (unless tect_type is VOLCANIC)
     """
-    # Get correct epistemic uncertainty branch, only applicable for backbone models
-    # and the mappings needs to be defined in constants.GMM_EPISTEMIC_BRANCH_KWARGS_MAPPING
-    if (
-        epistemic_branch is not constants.EpistemicBranch.CENTRAL
-        and model not in constants.GMM_EPISTEMIC_BRANCH_SIGMA_FACTOR_MAPPING
-    ):
+    # Get correct epistemic uncertainty branch, only applicable for models with
+    # a mapping defined in constants.GMM_EPISTEMIC_BRANCH_KWARGS_MAPPING
+    if epistemic_branch is not constants.EpistemicBranch.CENTRAL:
         if (
             epis_mapping := constants.GMM_EPISTEMIC_BRANCH_KWARGS_MAPPING.get(model)
         ) is None:
@@ -716,6 +772,10 @@ def _get_model_pSA_periods(model: gsim.base.GMPE) -> np.ndarray:  # noqa: N802
     np.ndarray
         Array of periods supported by the model
     """
+    # NSHMP2014 wraps an underlying model and doesn't expose COEFFS itself
+    if isinstance(model, gsim.nshmp_2014.NSHMP2014):
+        model = model.gsim
+
     return np.asarray(
         [
             im.period

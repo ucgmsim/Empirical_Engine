@@ -91,29 +91,35 @@ GMM_EPISTEMIC_BRANCH_KWARGS_MAPPING = {
     GMM.P_21: {
         EpistemicBranch.LOWER: {"sigma_mu_epsilon": -1.2815},
         EpistemicBranch.UPPER: {"sigma_mu_epsilon": 1.2815},
-    }
-}
-
-GMM_EPISTEMIC_BRANCH_SIGMA_FACTOR_MAPPING = {
-    GMM.Br_13: {
-        EpistemicBranch.LOWER: -1.2815,
-        EpistemicBranch.UPPER: 1.2815,
     },
+    # ASK_14/CY_14/CB_14/BSSA_14/Br_13 don't have a native epistemic-in-the-mean
+    # model, so they're routed through OQ's NSHMP2014 wrapper (Rezaeian et al.,
+    # 2014, as used in the 2014 US NSHM), which shifts the median by a
+    # magnitude/distance-binned amount (see OQ_MODEL_MAPPING) rather than by a
+    # fraction of the model's own aleatory sigma.
     GMM.ASK_14: {
-        EpistemicBranch.LOWER: -1.2815,
-        EpistemicBranch.UPPER: 1.2815,
+        EpistemicBranch.LOWER: {"sgn": -1},
+        EpistemicBranch.UPPER: {"sgn": 1},
     },
     GMM.CY_14: {
-        EpistemicBranch.LOWER: -1.2815,
-        EpistemicBranch.UPPER: 1.2815,
+        EpistemicBranch.LOWER: {"sgn": -1},
+        EpistemicBranch.UPPER: {"sgn": 1},
     },
     GMM.CB_14: {
-        EpistemicBranch.LOWER: -1.2815,
-        EpistemicBranch.UPPER: 1.2815,
+        EpistemicBranch.LOWER: {"sgn": -1},
+        EpistemicBranch.UPPER: {"sgn": 1},
     },
     GMM.BSSA_14: {
-        EpistemicBranch.LOWER: -1.2815,
-        EpistemicBranch.UPPER: 1.2815,
+        EpistemicBranch.LOWER: {"sgn": -1},
+        EpistemicBranch.UPPER: {"sgn": 1},
+    },
+    # Br_13 (NZ-specific, CY-lineage refit) has no native Rezaeian et al. (2014)
+    # value of its own; this reuses the same magnitude/distance-binned table
+    # (which is model-agnostic) via Br_13's own GSIM. Not confirmed by Bradley
+    # (2024) or SR2022-46 -- an inferred assumption based on model lineage.
+    GMM.Br_13: {
+        EpistemicBranch.LOWER: {"sgn": -1},
+        EpistemicBranch.UPPER: {"sgn": 1},
     },
 }
 
