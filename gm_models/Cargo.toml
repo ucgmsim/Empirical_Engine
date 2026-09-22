@@ -1,0 +1,23 @@
+[package]
+name = "gm_models"
+version = "0.1.0"
+edition = "2021"
+resolver = "2"
+
+[lib]
+name = "_utils"
+crate-type = ["cdylib", "lib"]
+path = "src-rust/lib.rs"
+
+[dependencies]
+numpy = "0.27"
+pyo3 = "0.27"
+
+[dev-dependencies]
+approx = "0.5.1"
+csv = "1.4.0"
+serde = { version = "1.0.228", features = ["serde_derive"] }
+
+[build-dependencies]
+csv = "1.4.0"
+serde = { version = "1.0.228", features = ["serde_derive"] }

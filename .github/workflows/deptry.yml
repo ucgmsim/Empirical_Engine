@@ -5,6 +5,9 @@ on: [pull_request]
 jobs:
   test:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: oq_wrapper
     steps:
       - uses: actions/checkout@v4
       # Setup the minimum required python distribution
