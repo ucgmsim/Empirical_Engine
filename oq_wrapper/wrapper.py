@@ -163,7 +163,7 @@ OQ_MODEL_MAPPING = {
         constants.TectType.SUBDUCTION_SLAB: gsim.nz22.atkinson_2022.Atkinson2022SSlab,
         constants.TectType.SUBDUCTION_INTERFACE: gsim.nz22.atkinson_2022.Atkinson2022SInter,
     },
-    # ASK_14/CY_14/CB_14/BSSA_14/Br_13 are wrapped in OQ's NSHMP2014 (Rezaeian
+    # ASK_14/CY_14/CB_14/BSSA_14 are wrapped in OQ's NSHMP2014 (Rezaeian
     # et al., 2014) to provide within-model epistemic uncertainty in the median
     constants.GMM.ASK_14: {
         constants.TectType.ACTIVE_SHALLOW: functools.partial(
@@ -215,17 +215,11 @@ OQ_MODEL_MAPPING = {
             sgn=0,
         ),
     },
+    # Br_13 has its own native epistemic-in-the-mean model (sigma_mu_epsilon,
+    # see GMM_EPISTEMIC_BRANCH_KWARGS_MAPPING) so it doesn't need NSHMP2014.
     constants.GMM.Br_13: {
-        constants.TectType.ACTIVE_SHALLOW: functools.partial(
-            _nshmp2014_model,
-            model_cls=gsim.bradley_2013.Bradley2013,
-            sgn=0,
-        ),
-        constants.TectType.VOLCANIC: functools.partial(
-            _nshmp2014_model,
-            model_cls=gsim.bradley_2013.Bradley2013Volc,
-            sgn=0,
-        ),
+        constants.TectType.ACTIVE_SHALLOW: gsim.bradley_2013.Bradley2013,
+        constants.TectType.VOLCANIC: gsim.bradley_2013.Bradley2013Volc,
     },
     constants.GMM.AG_20: {
         constants.TectType.SUBDUCTION_SLAB: gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SSlab,
