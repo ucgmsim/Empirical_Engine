@@ -59,9 +59,7 @@ def _oq_model(model: gsim.base.MetaGSIM, **kwargs: Any) -> gsim.base.GMPE:
     return model(**kwargs)
 
 
-ESHM20_BCHYDRO = getattr(gsim, "eshm20_bchydro", None) or getattr(
-    gsim, "bchydro_2016_epistemic"
-)
+ESHM20_BCHYDRO = getattr(gsim, "eshm20_bchydro", None) or gsim.bchydro_2016_epistemic
 
 OQ_MODEL_MAPPING = {
     constants.GMM.AS_16: {

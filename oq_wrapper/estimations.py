@@ -468,7 +468,7 @@ def calc_z_for_model(
 
 
 def interpolate_with_pga(
-    period: float | int,
+    period: float,
     model_min_period: float,
     pga_y: pd.DataFrame,
     min_period_y: pd.DataFrame,

@@ -196,7 +196,7 @@ for gmm in tqdm(gmms):
                             epistemic_branch=oqw.constants.EpistemicBranch.UPPER
                         )
 
-            except (ValueError,) as e:
+            except ValueError as e:
                 logger.error(
                     f"Error generating {im} for {gmm.name} and {tect_type.name}: {type(e).__name__}: {e}"
                 )
