@@ -451,7 +451,7 @@ def calc_z_for_model(
         # Extra check for a global region
         # since the region the user is wanting is not specifically available for the given model
         elif None in Z_CALC_MODEL_REGION_MAPPING[model.name]:
-            z_calc_function, z_return = Z_CALC_MODEL_REGION_MAPPING[model.name][region]
+            z_calc_function, z_return = Z_CALC_MODEL_REGION_MAPPING[model.name][None]
             region = None
         else:
             raise KeyError(f"Region {region} not supported for model {model.name}")
