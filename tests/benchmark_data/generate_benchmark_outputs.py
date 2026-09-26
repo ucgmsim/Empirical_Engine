@@ -177,7 +177,7 @@ for gmm in tqdm(gmms):
                             im_results_lower,
                             gmm,
                             tect_type,
-                            epistemic_branch=oqw.constants.EpistemicBranch.LOWER
+                            epistemic_branch=oqw.constants.EpistemicBranch.LOWER,
                         )
 
                         im_results_upper = oqw.run_gmm(
@@ -192,8 +192,8 @@ for gmm in tqdm(gmms):
                             benchmark_data_output_dir,
                             im_results_upper,
                             gmm,
-                            tect_type,  
-                            epistemic_branch=oqw.constants.EpistemicBranch.UPPER
+                            tect_type,
+                            epistemic_branch=oqw.constants.EpistemicBranch.UPPER,
                         )
 
             except (ValueError,) as e:
