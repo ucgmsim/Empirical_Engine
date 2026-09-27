@@ -419,7 +419,7 @@ def run_gmm_logic_tree(
             ind_results[str(cur_model)] = (cur_weight, cur_result_df)
 
     if im.startswith("pSA") and periods:
-        im_keys = [f"pSA_{p}" for p in periods]
+        im_keys = [f"pSA_{float(p)}" for p in periods]
     elif im.startswith("pSA"):
         raise ValueError("Periods must be specified for pSA.")
     else:
@@ -835,6 +835,10 @@ def _oq_run_pSA(  # noqa: N802
         raise ValueError(
             f"Model {model_type.name} does not support pSA. Supported types are {model.DEFINED_FOR_INTENSITY_MEASURE_TYPES}"
         )
+
+    # Normalise periods to float, so column names (e.g. from extrapolation
+    # or PGA-interpolation) are consistent regardless of the input type.
+    periods = [float(period) for period in periods]
 
     # Get model periods
     model_periods = _get_model_pSA_periods(model)
