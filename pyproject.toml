@@ -36,6 +36,19 @@ extend_exclude = ["tests", "scripts/one_offs"]
 [tool.setuptools.packages.find]
 exclude = ["tests*"]
 
+[tool.ty.src]
+exclude = ["scripts/one_offs"]
+
+[tool.npdlint]
+include = ["oq_wrapper"]
+
+[tool.pytest.ini_options]
+# generate_benchmark_outputs.py regenerates tests/benchmark_data/*.parquet as a
+# module-level side effect on import (no __main__ guard); --doctest-modules
+# must never collect it.
+addopts = "--doctest-modules --ignore=tests/benchmark_data/generate_benchmark_outputs.py"
+testpaths = ["tests", "oq_wrapper"]
+
 [tool.ruff]
 exclude = ["scripts/one_offs"]
 
