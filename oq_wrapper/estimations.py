@@ -333,7 +333,7 @@ def abrahamson_gulerce_20_calc_z2p5(vs30: TArrayLike, region: str) -> TArrayLike
     elif region == "Japan":
         ln_zref = np.clip(7.3 - 2.066 * np.log(vs30 / 170.0), 4.1, 7.3)  # ty: ignore[unsupported-operator]
     else:
-        raise ValueError("Does not support region %s" % region)
+        raise ValueError(f"Does not support region {region}")
     return np.exp(ln_zref)  # In km
 
 
@@ -358,7 +358,7 @@ def parker_20_calc_z2p5(vs30: TArrayLike, region: str) -> TArrayLike:
     elif region == "Cascadia":
         theta0, theta1, vmu, vsig = 3.94, -0.42, 200, 0.2
     else:
-        raise ValueError("Does not support region %s" % region)
+        raise ValueError(f"Does not support region {region}")
     z2pt5: TArrayLike = 10 ** (  # ty: ignore[invalid-assignment]
         theta0
         + theta1 * (1 + erf((np.log10(vs30) - np.log10(vmu)) / (vsig * np.sqrt(2))))
@@ -441,9 +441,8 @@ def calc_z_for_model(
         The z value return type, either "z1pt0" or "z2pt5"
     """
     # Just in case global is defined as a string, set to None
-    if region is not None:
-        if region.lower() == "global":
-            region = None
+    if region is not None and region.lower() == "global":
+        region = None
     # Find the mapping for Z value calculation
     if model.name in Z_CALC_MODEL_REGION_MAPPING:
         if region in Z_CALC_MODEL_REGION_MAPPING[model.name]:
@@ -468,7 +467,7 @@ def calc_z_for_model(
 
 
 def interpolate_with_pga(
-    period: float | int,
+    period: float,
     model_min_period: float,
     pga_y: pd.DataFrame,
     min_period_y: pd.DataFrame,

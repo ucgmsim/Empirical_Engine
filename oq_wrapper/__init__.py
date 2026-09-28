@@ -8,11 +8,11 @@ from .wrapper import (
 )
 
 __all__ = [
-    "estimations",
+    "OQ_MODEL_MAPPING",
     "constants",
+    "estimations",
+    "get_model_from_str",
+    "load_gmm_logic_tree_config",
     "run_gmm",
     "run_gmm_logic_tree",
-    "load_gmm_logic_tree_config",
-    "OQ_MODEL_MAPPING",
-    "get_model_from_str",
 ]
