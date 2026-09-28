@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  ci:
+    uses: ucgmsim/meta-ci-action/.github/workflows/ci.yml@v2
+    with:
+      # fiona/geopandas need libgdal at `uv sync` time.
+      system-packages: "gdal-bin libgdal-dev"
+      # Empty so pytest falls through to [tool.pytest.ini_options] testpaths,
+      # which also covers oq_wrapper for its doctest examples.
+      pytest-paths: ""
+      # Coverage is disabled rather than gated at a lower number: current
+      # coverage is ~75% (oq_wrapper/estimations.py is at 30%), well under
+      # the 95% baseline. Enabling the gate now would make this check red on
+      # the default branch; raising coverage and turning this on is
+      # follow-up work.
+      enable-coverage: false
