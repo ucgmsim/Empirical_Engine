@@ -3,17 +3,21 @@ Module that contains functions used to estimate input parameters for
 empirical GMMs, such as fault width and Z-values.
 """
 
+from __future__ import annotations
+
 from collections.abc import Callable
-from typing import TypeVar
+from typing import TYPE_CHECKING, TypeVar
 
 import numpy as np
 import pandas as pd
 from scipy import interpolate
 from scipy.special import erf
 
-from source_modelling.sources import Plane
-
 from . import constants, types
+
+if TYPE_CHECKING:
+    # Only needed for type annotations; source-modelling is not a runtime dependency.
+    from source_modelling.sources import Plane
 
 TArrayLike = TypeVar("TArrayLike", bound=types.Array)
 
@@ -333,7 +337,7 @@ def abrahamson_gulerce_20_calc_z2p5(vs30: TArrayLike, region: str) -> TArrayLike
     elif region == "Japan":
         ln_zref = np.clip(7.3 - 2.066 * np.log(vs30 / 170.0), 4.1, 7.3)  # ty: ignore[unsupported-operator]
     else:
-        raise ValueError("Does not support region %s" % region)
+        raise ValueError(f"Does not support region {region}")
     return np.exp(ln_zref)  # In km
 
 
@@ -358,7 +362,7 @@ def parker_20_calc_z2p5(vs30: TArrayLike, region: str) -> TArrayLike:
     elif region == "Cascadia":
         theta0, theta1, vmu, vsig = 3.94, -0.42, 200, 0.2
     else:
-        raise ValueError("Does not support region %s" % region)
+        raise ValueError(f"Does not support region {region}")
     z2pt5: TArrayLike = 10 ** (  # ty: ignore[invalid-assignment]
         theta0
         + theta1 * (1 + erf((np.log10(vs30) - np.log10(vmu)) / (vsig * np.sqrt(2))))
@@ -416,7 +420,7 @@ Z_CALC_MODEL_REGION_MAPPING: dict[
 
 
 def interpolate_with_pga(
-    period: float | int,
+    period: float,
     model_min_period: float,
     pga_y: pd.DataFrame,
     min_period_y: pd.DataFrame,
