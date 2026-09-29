@@ -3,17 +3,21 @@ Module that contains functions used to estimate input parameters for
 empirical GMMs, such as fault width and Z-values.
 """
 
+from __future__ import annotations
+
 from collections.abc import Callable
-from typing import TypeVar
+from typing import TYPE_CHECKING, TypeVar
 
 import numpy as np
 import pandas as pd
 from scipy import interpolate
 from scipy.special import erf
 
-from source_modelling.sources import Plane
-
 from . import constants, types
+
+if TYPE_CHECKING:
+    # Only needed for type annotations; source-modelling is not a runtime dependency.
+    from source_modelling.sources import Plane
 
 TArrayLike = TypeVar("TArrayLike", bound=types.Array)
 
