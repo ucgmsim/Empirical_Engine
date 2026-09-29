@@ -14,23 +14,32 @@ dynamic = ["version"]
 dependencies = [
   "numpy>=2.0",
   "openquake.engine>=3.21",
-  "pandas[pyarrow]",
+  "pandas",
   "pyyaml",
   "scipy>=1.7.2",
   # Suggested minimum version that handles the indexing logic in the xarray
   # module properly.
   "xarray>=2022.3.0",
-  "source-modelling",
+  # Not imported by oq_wrapper, but openquake.hazardlib imports fiona when
+  # loading its gsim modules and openquake.engine does not declare it
+  # (it was previously pulled in transitively by source-modelling).
+  "fiona",
 ]
 
 [project.optional-dependencies]
-test = ["pytest", "tqdm>=4.0.0"]
-types = ["pandas-stubs", "scipy-stubs"]
+# pyarrow is needed for pd.read_parquet in the tests and examples.
+test = ["pytest", "tqdm>=4.0.0", "pyarrow"]
+# source-modelling is only imported under TYPE_CHECKING (for the Plane annotation).
+types = ["pandas-stubs", "scipy-stubs", "source-modelling"]
 dev = ["ruff", "deptry", "ty"]
 
 [tool.deptry]
 pep621_dev_dependency_groups = ["test", "dev", "types"]
 extend_exclude = ["tests", "scripts/one_offs"]
+
+[tool.deptry.per_rule_ignores]
+# fiona is an undeclared runtime import of openquake.hazardlib, see above.
+DEP002 = ["fiona"]
 
 
 [tool.setuptools.packages.find]
