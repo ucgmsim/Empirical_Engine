@@ -13,7 +13,7 @@ import pandas as pd
 from scipy import interpolate
 from scipy.special import erf
 
-from . import constants, types
+from . import types
 
 if TYPE_CHECKING:
     # Only needed for type annotations; source-modelling is not a runtime dependency.
