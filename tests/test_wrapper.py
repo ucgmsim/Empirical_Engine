@@ -89,14 +89,17 @@ def test_run_gmm_logic_tree_integer_periods() -> None:
 
 def test_backbone_epistemic_uncertainty_handling() -> None:
     """
-    Check that an error is thrown if a non-central branch is selected for a model 
+    Check that an error is thrown if a non-central branch is selected for a model
     that does not have defined epistemic branch mappings for non-central branches.
     """
     rupture_df = pd.DataFrame(
         {"mag": [6.5], "rake": 180.0, "vs30": 400.0, "rrup": 100.0, "z1pt0": 1000.0}
     )
 
-    with pytest.raises(ValueError, match=".*does not have defined epistemic branch mappings for non-central branches.*"):
+    with pytest.raises(
+        ValueError,
+        match=".*does not have defined epistemic branch mappings for non-central branches.*",
+    ):
         _ = oqw.run_gmm(
             oqw.constants.GMM.AS_16,
             oqw.constants.TectType.ACTIVE_SHALLOW,

@@ -3,17 +3,21 @@ Module that contains functions used to estimate input parameters for
 empirical GMMs, such as fault width and Z-values.
 """
 
+from __future__ import annotations
+
 from collections.abc import Callable
-from typing import TypeVar
+from typing import TYPE_CHECKING, TypeVar
 
 import numpy as np
 import pandas as pd
 from scipy import interpolate
 from scipy.special import erf
 
-from source_modelling.sources import Plane
+from . import types
 
-from . import constants, types
+if TYPE_CHECKING:
+    # Only needed for type annotations; source-modelling is not a runtime dependency.
+    from source_modelling.sources import Plane
 
 TArrayLike = TypeVar("TArrayLike", bound=types.Array)
 
@@ -333,7 +337,7 @@ def abrahamson_gulerce_20_calc_z2p5(vs30: TArrayLike, region: str) -> TArrayLike
     elif region == "Japan":
         ln_zref = np.clip(7.3 - 2.066 * np.log(vs30 / 170.0), 4.1, 7.3)  # ty: ignore[unsupported-operator]
     else:
-        raise ValueError("Does not support region %s" % region)
+        raise ValueError(f"Does not support region {region}")
     return np.exp(ln_zref)  # In km
 
 
@@ -358,7 +362,7 @@ def parker_20_calc_z2p5(vs30: TArrayLike, region: str) -> TArrayLike:
     elif region == "Cascadia":
         theta0, theta1, vmu, vsig = 3.94, -0.42, 200, 0.2
     else:
-        raise ValueError("Does not support region %s" % region)
+        raise ValueError(f"Does not support region {region}")
     z2pt5: TArrayLike = 10 ** (  # ty: ignore[invalid-assignment]
         theta0
         + theta1 * (1 + erf((np.log10(vs30) - np.log10(vmu)) / (vsig * np.sqrt(2))))
@@ -415,60 +419,8 @@ Z_CALC_MODEL_REGION_MAPPING: dict[
 }
 
 
-def calc_z_for_model(
-    model: constants.GMM, vs30: TArrayLike, region: str | None = None
-) -> tuple[TArrayLike, str]:
-    """
-    Calculates the z value for a given model, region and Vs30 value / values
-
-    Parameters
-    ----------
-    model : constants.GMM
-        The model to calculate the z value for
-    vs30 : array-like (list, numpy array, pandas series, float, ...)
-        The Vs30 value or values, in meters per second
-    region : Union[str, None]
-        The region to use, use None to define a Global region, default is None.
-        Use full region names, e.g. "NewZealand", "Cascadia", "Japan", "Taiwan"
-        If the specific region is not supported for the given model it will attempt to use the Global model
-        Otherwise a KeyError will be raised.
-
-    Returns
-    -------
-    z_value: array-like (list, numpy array, pandas series, float, ...)
-        The z value or values, in km. Has the same type as ``vs30``.
-    z_return: str
-        The z value return type, either "z1pt0" or "z2pt5"
-    """
-    # Just in case global is defined as a string, set to None
-    if region is not None:
-        if region.lower() == "global":
-            region = None
-    # Find the mapping for Z value calculation
-    if model.name in Z_CALC_MODEL_REGION_MAPPING:
-        if region in Z_CALC_MODEL_REGION_MAPPING[model.name]:
-            z_calc_function, z_return = Z_CALC_MODEL_REGION_MAPPING[model.name][region]
-        # Extra check for a global region
-        # since the region the user is wanting is not specifically available for the given model
-        elif None in Z_CALC_MODEL_REGION_MAPPING[model.name]:
-            z_calc_function, z_return = Z_CALC_MODEL_REGION_MAPPING[model.name][region]
-            region = None
-        else:
-            raise KeyError(f"Region {region} not supported for model {model.name}")
-    else:
-        raise KeyError(f"Model {model.name} is not supported")
-
-    # Calculate the z value using the function
-    if region is None:
-        z_value: TArrayLike = z_calc_function(vs30)
-    else:
-        z_value: TArrayLike = z_calc_function(vs30, region)
-    assert isinstance(z_return, str)
-    return z_value, z_return
-
-
 def interpolate_with_pga(
-    period: float | int,
+    period: float,
     model_min_period: float,
     pga_y: pd.DataFrame,
     min_period_y: pd.DataFrame,

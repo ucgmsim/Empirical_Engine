@@ -20,6 +20,8 @@ from openquake.hazardlib import gsim as _gsim
 
 from . import constants, estimations
 
+logger = logging.getLogger(__name__)
+
 # NOTE: OpenQuake hack!
 #
 # The gsim module members are dynamically initialised, so it will
@@ -59,9 +61,7 @@ def _oq_model(model: gsim.base.MetaGSIM, **kwargs: Any) -> gsim.base.GMPE:
     return model(**kwargs)
 
 
-ESHM20_BCHYDRO = getattr(gsim, "eshm20_bchydro", None) or getattr(
-    gsim, "bchydro_2016_epistemic"
-)
+ESHM20_BCHYDRO = getattr(gsim, "eshm20_bchydro", None) or gsim.bchydro_2016_epistemic
 
 OQ_MODEL_MAPPING = {
     constants.GMM.AS_16: {
@@ -237,21 +237,19 @@ def run_gmm(
 
     # OQ's single new-style context which contains all site, distance and rupture's information
     rupture_ctx = contexts.RuptureContext(
-        tuple(
-            [
-                # Openquake requiring occurrence_rate attribute to exist
-                ("occurrence_rate", None),
-                # sids is the number of sites provided (OQ term)
-                # This term needs to be repeated for the number of rows in the df
-                ("sids", [1] * rupture_df.shape[0]),
-                *(
-                    (
-                        column,
-                        rupture_df.loc[:, column].values,
-                    )
-                    for column in rupture_df.columns.values
-                ),
-            ]
+        (
+            # Openquake requiring occurrence_rate attribute to exist
+            ("occurrence_rate", None),
+            # sids is the number of sites provided (OQ term)
+            # This term needs to be repeated for the number of rows in the df
+            ("sids", [1] * rupture_df.shape[0]),
+            *(
+                (
+                    column,
+                    rupture_df.loc[:, column].values,
+                )
+                for column in rupture_df.columns.values
+            ),
         )
     )
 
@@ -301,10 +299,8 @@ def run_gmm(
         ]
         assert len(mean_cols) == len(std_total_cols)
         assert all(
-            [
-                c1.rstrip("_mean") == c2.rstrip("_std_Total")
-                for c1, c2 in zip(mean_cols, std_total_cols)
-            ]
+            c1.removesuffix("_mean") == c2.removesuffix("_std_Total")
+            for c1, c2 in zip(mean_cols, std_total_cols)
         )
 
         result_df[mean_cols] = (
@@ -779,9 +775,9 @@ def _oq_run_EAS(  # noqa: N802
         im = imt.EAS(frequency=frequency)
         try:
             result = _run_oq_model(model, rupture_ctx, im, stddev_types)
-        except Exception as e:
+        except Exception:
             # Any other exceptions that we cannot handle.
-            logging.exception(e)
+            logger.exception("Failed to run OpenQuake model")
             raise
 
         results.append(result)
@@ -878,11 +874,11 @@ def _oq_run_pSA(  # noqa: N802
                 )
             else:
                 # KeyError that we cannot handle
-                logging.exception(ke)
+                logger.exception("Failed to run OpenQuake model")
                 raise
-        except Exception as e:
+        except Exception:
             # Any other exceptions that we cannot handle
-            logging.exception(e)
+            logger.exception("Failed to run OpenQuake model")
             raise
 
         # extrapolate pSA value up based on maximum available period
