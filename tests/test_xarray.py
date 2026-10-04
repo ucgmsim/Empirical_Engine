@@ -10,18 +10,18 @@ from oq_wrapper import xarray as oqwx
 def _site_inputs(num_stations: int = 4, num_models: int = 2) -> xr.Dataset:
     rng = np.random.default_rng(seed=0)
     return xr.Dataset(
-        data_vars=dict(
-            rrup=("station", np.linspace(1, 100, num=num_stations)),
-            vs30=(
+        data_vars={
+            "rrup": ("station", np.linspace(1, 100, num=num_stations)),
+            "vs30": (
                 ("model", "station"),
                 rng.uniform(500, 1500, size=(num_models, num_stations)),
             ),
-            mag=8.3,
-        ),
-        coords=dict(
-            station=[f"a_{i}" for i in range(1, num_stations + 1)],
-            model=[f"m_{i}" for i in range(num_models)],
-        ),
+            "mag": 8.3,
+        },
+        coords={
+            "station": [f"a_{i}" for i in range(1, num_stations + 1)],
+            "model": [f"m_{i}" for i in range(num_models)],
+        },
     )
 
 
@@ -35,8 +35,13 @@ def test_run_gmm_xarray_plain_im_has_no_extra_dimension() -> None:
         "PGA",
     )
 
-    assert sorted(result.data_vars) == ["mean", "std_Inter", "std_Intra", "std_Total"]
-    assert sorted(result.coords) == ["model", "station"]
+    assert sorted(map(str, result.data_vars)) == [
+        "mean",
+        "std_Inter",
+        "std_Intra",
+        "std_Total",
+    ]
+    assert sorted(map(str, result.coords)) == ["model", "station"]
     assert result.attrs["intensity_measure"] == "PGA"
 
     value = result["mean"].sel(station="a_2", model="m_1").item()
@@ -54,8 +59,13 @@ def test_run_gmm_xarray_psa_adds_period_dimension() -> None:
         periods=[1.0, 3.0],
     )
 
-    assert sorted(result.data_vars) == ["mean", "std_Inter", "std_Intra", "std_Total"]
-    assert sorted(result.coords) == ["model", "period", "station"]
+    assert sorted(map(str, result.data_vars)) == [
+        "mean",
+        "std_Inter",
+        "std_Intra",
+        "std_Total",
+    ]
+    assert sorted(map(str, result.coords)) == ["model", "period", "station"]
     assert result.attrs["intensity_measure"] == "pSA"
     assert result["period"].values.tolist() == [1.0, 3.0]
 
@@ -73,25 +83,25 @@ def test_run_gmm_logic_tree_xarray_broadcasts_dimensions() -> None:
     rng = np.random.default_rng(seed=0)
     num_stations = 3
     inputs = xr.Dataset(
-        dict(
-            rrup=("station", np.linspace(1, 100, num=num_stations)),
-            rjb=("station", rng.uniform(1, 100, size=(num_stations,))),
-            rx=("station", rng.uniform(1, 100, size=(num_stations,))),
-            ry=("station", rng.uniform(1, 100, size=(num_stations,))),
-            hyp=("station", rng.uniform(1, 100, size=(num_stations,))),
-            epi=("station", rng.uniform(1, 100, size=(num_stations,))),
-            ztor=0.0,
-            dip=60.0,
-            rake=15.0,
-            hypo_depth=5.0,
-            zbot=10.0,
-            vs30measured=False,
-            vs30=("station", rng.uniform(500, 1500, size=(num_stations,))),
-            z1pt0=("station", rng.uniform(0.5, 1.5, size=(num_stations,))),
-            z2pt5=("station", rng.uniform(0.5, 1.5, size=(num_stations,))),
-            mag=6.5,
-        ),
-        coords=dict(station=[f"a_{i}" for i in range(1, num_stations + 1)]),
+        {
+            "rrup": ("station", np.linspace(1, 100, num=num_stations)),
+            "rjb": ("station", rng.uniform(1, 100, size=(num_stations,))),
+            "rx": ("station", rng.uniform(1, 100, size=(num_stations,))),
+            "ry": ("station", rng.uniform(1, 100, size=(num_stations,))),
+            "hyp": ("station", rng.uniform(1, 100, size=(num_stations,))),
+            "epi": ("station", rng.uniform(1, 100, size=(num_stations,))),
+            "ztor": 0.0,
+            "dip": 60.0,
+            "rake": 15.0,
+            "hypo_depth": 5.0,
+            "zbot": 10.0,
+            "vs30measured": False,
+            "vs30": ("station", rng.uniform(500, 1500, size=(num_stations,))),
+            "z1pt0": ("station", rng.uniform(0.5, 1.5, size=(num_stations,))),
+            "z2pt5": ("station", rng.uniform(0.5, 1.5, size=(num_stations,))),
+            "mag": 6.5,
+        },
+        coords={"station": [f"a_{i}" for i in range(1, num_stations + 1)]},
     )
 
     result = oqwx.run_gmm_logic_tree_xarray(
@@ -102,8 +112,8 @@ def test_run_gmm_logic_tree_xarray_broadcasts_dimensions() -> None:
         periods=[1.0],
     )
 
-    assert sorted(result.data_vars) == ["mean", "std_Total"]
-    assert sorted(result.coords) == ["period", "station"]
+    assert sorted(map(str, result.data_vars)) == ["mean", "std_Total"]
+    assert sorted(map(str, result.coords)) == ["period", "station"]
     assert result.attrs["intensity_measure"] == "pSA"
 
     value = result["mean"].sel(station="a_2").sel(period=1.0, method="nearest").item()
@@ -128,7 +138,7 @@ def test_pack_dataset_extracts_eas_frequency_dimension() -> None:
 
     dset = oqwx._pack_dataset(results)
 
-    assert sorted(dset.data_vars) == ["mean", "std_Total"]
+    assert sorted(map(str, dset.data_vars)) == ["mean", "std_Total"]
     assert dset.attrs["intensity_measure"] == "EAS"
     assert sorted(dset["frequency"].values.tolist()) == [1.0, 2.0]
     assert dset["mean"].sel(station="a", frequency=1.0).item() == -2.1
