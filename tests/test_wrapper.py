@@ -46,23 +46,23 @@ def test_run_gmm_logic_tree_integer_periods() -> None:
     extrapolated periods share the same column naming as in-range periods.
     """
     rupture_df = pd.DataFrame(
-        dict(
-            mag=[6.0, 7.0],
-            dip=[60.0, 45.0],
-            rake=[0.0, 90.0],
-            ztor=[0.0, 1.0],
-            rrup=[10.0, 30.0],
-            rjb=[8.0, 25.0],
-            rx=[5.0, 10.0],
-            ry=[3.0, 4.0],
-            vs30=[400.0, 600.0],
-            z1pt0=[0.2, 0.1],
-            z2pt5=[1.0, 1.0],
-            hypo_depth=[8.0, 10.0],
-            zbot=[15.0, 15.0],
-            vs30measured=[True, True],
-            backarc=[False, False],
-        )
+        {
+            "mag": [6.0, 7.0],
+            "dip": [60.0, 45.0],
+            "rake": [0.0, 90.0],
+            "ztor": [0.0, 1.0],
+            "rrup": [10.0, 30.0],
+            "rjb": [8.0, 25.0],
+            "rx": [5.0, 10.0],
+            "ry": [3.0, 4.0],
+            "vs30": [400.0, 600.0],
+            "z1pt0": [0.2, 0.1],
+            "z2pt5": [1.0, 1.0],
+            "hypo_depth": [8.0, 10.0],
+            "zbot": [15.0, 15.0],
+            "vs30measured": [True, True],
+            "backarc": [False, False],
+        }
     )
 
     result_df = oqw.run_gmm_logic_tree(
