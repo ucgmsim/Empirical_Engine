@@ -72,9 +72,10 @@ class EpistemicBranch(StrEnum):
 
 
 GMM_EPISTEMIC_BRANCH_KWARGS_MAPPING = {
+    # sigma_branch stays Central, Bradley (2024) excludes epistemic uncertainty in sigma
     GMM.S_22: {
-        EpistemicBranch.LOWER: {"mu_branch": "Lower", "sigma_branch": "Lower"},
-        EpistemicBranch.UPPER: {"mu_branch": "Upper", "sigma_branch": "Upper"},
+        EpistemicBranch.LOWER: {"mu_branch": "Lower"},
+        EpistemicBranch.UPPER: {"mu_branch": "Upper"},
     },
     GMM.A_22: {
         EpistemicBranch.LOWER: {"epistemic": "lower"},
@@ -92,28 +93,31 @@ GMM_EPISTEMIC_BRANCH_KWARGS_MAPPING = {
         EpistemicBranch.LOWER: {"sigma_mu_epsilon": -1.2815},
         EpistemicBranch.UPPER: {"sigma_mu_epsilon": 1.2815},
     },
-}
-
-GMM_EPISTEMIC_BRANCH_SIGMA_FACTOR_MAPPING = {
-    GMM.Br_13: {
-        EpistemicBranch.LOWER: -1.2815,
-        EpistemicBranch.UPPER: 1.2815,
-    },
+    # ASK_14/CY_14/CB_14/BSSA_14/Br_13 use OQ's native `sigma_mu_epsilon`, which adds
+    # sigma_mu_epsilon * get_epistemic_sigma(ctx) to the mean. get_epistemic_sigma
+    # (abrahamson_2014.py) is the USGS-2014 sqrt rule recalibrated to NZ SMDB v1.0,
+    # treated as a one-sigma Std[mu], so z=1.2815 per Bradley (2024) Eq. 1.
+    # Known OQ quirks: CB_14 applies the shift twice for SA with T < 0.25 s, and
+    # get_epistemic_sigma puts M < 5 into the M >= 7 bin.
     GMM.ASK_14: {
-        EpistemicBranch.LOWER: -1.2815,
-        EpistemicBranch.UPPER: 1.2815,
+        EpistemicBranch.LOWER: {"sigma_mu_epsilon": -1.2815},
+        EpistemicBranch.UPPER: {"sigma_mu_epsilon": 1.2815},
     },
     GMM.CY_14: {
-        EpistemicBranch.LOWER: -1.2815,
-        EpistemicBranch.UPPER: 1.2815,
+        EpistemicBranch.LOWER: {"sigma_mu_epsilon": -1.2815},
+        EpistemicBranch.UPPER: {"sigma_mu_epsilon": 1.2815},
     },
     GMM.CB_14: {
-        EpistemicBranch.LOWER: -1.2815,
-        EpistemicBranch.UPPER: 1.2815,
+        EpistemicBranch.LOWER: {"sigma_mu_epsilon": -1.2815},
+        EpistemicBranch.UPPER: {"sigma_mu_epsilon": 1.2815},
     },
     GMM.BSSA_14: {
-        EpistemicBranch.LOWER: -1.2815,
-        EpistemicBranch.UPPER: 1.2815,
+        EpistemicBranch.LOWER: {"sigma_mu_epsilon": -1.2815},
+        EpistemicBranch.UPPER: {"sigma_mu_epsilon": 1.2815},
+    },
+    GMM.Br_13: {
+        EpistemicBranch.LOWER: {"sigma_mu_epsilon": -1.2815},
+        EpistemicBranch.UPPER: {"sigma_mu_epsilon": 1.2815},
     },
 }
 

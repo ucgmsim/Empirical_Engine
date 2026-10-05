@@ -159,11 +159,7 @@ for gmm in tqdm(gmms):
                         tect_type,
                     )
 
-                    if (
-                        gmm in oqw.constants.GMM_EPISTEMIC_BRANCH_KWARGS_MAPPING
-                        or gmm
-                        in oqw.constants.GMM_EPISTEMIC_BRANCH_SIGMA_FACTOR_MAPPING
-                    ):
+                    if gmm in oqw.constants.GMM_EPISTEMIC_BRANCH_KWARGS_MAPPING:
                         im_results_lower = oqw.run_gmm(
                             gmm,
                             tect_type,

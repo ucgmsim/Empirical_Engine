@@ -285,30 +285,6 @@ def run_gmm(
 
     result_df.index = rupture_df.index
 
-    # Median prediction adjustment using sigma factor
-    # Used by 2022 NZ NSHM
-    if (
-        epistemic_branch is not constants.EpistemicBranch.CENTRAL
-        and model in constants.GMM_EPISTEMIC_BRANCH_SIGMA_FACTOR_MAPPING
-    ):
-        sigma_factor_mapping = constants.GMM_EPISTEMIC_BRANCH_SIGMA_FACTOR_MAPPING[
-            model
-        ]
-        mean_cols = [col for col in result_df.columns if col.endswith("_mean")]
-        std_total_cols = [
-            col for col in result_df.columns if col.endswith("_std_Total")
-        ]
-        assert len(mean_cols) == len(std_total_cols)
-        assert all(
-            c1.removesuffix("_mean") == c2.removesuffix("_std_Total")
-            for c1, c2 in zip(mean_cols, std_total_cols)
-        )
-
-        result_df[mean_cols] = (
-            result_df[mean_cols].values
-            + sigma_factor_mapping[epistemic_branch] * result_df[std_total_cols].values
-        )
-
     return result_df
 
 
@@ -655,12 +631,9 @@ def get_oq_model(
         If the model's defined tectonic type doesn't match the specified tectonic type
         (unless tect_type is VOLCANIC)
     """
-    # Get correct epistemic uncertainty branch, only applicable for backbone models
-    # and the mappings needs to be defined in constants.GMM_EPISTEMIC_BRANCH_KWARGS_MAPPING
-    if (
-        epistemic_branch is not constants.EpistemicBranch.CENTRAL
-        and model not in constants.GMM_EPISTEMIC_BRANCH_SIGMA_FACTOR_MAPPING
-    ):
+    # Get correct epistemic uncertainty branch, only applicable for models with
+    # a mapping defined in constants.GMM_EPISTEMIC_BRANCH_KWARGS_MAPPING
+    if epistemic_branch is not constants.EpistemicBranch.CENTRAL:
         if (
             epis_mapping := constants.GMM_EPISTEMIC_BRANCH_KWARGS_MAPPING.get(model)
         ) is None:
