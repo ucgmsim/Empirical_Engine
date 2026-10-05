@@ -72,9 +72,10 @@ class EpistemicBranch(StrEnum):
 
 
 GMM_EPISTEMIC_BRANCH_KWARGS_MAPPING = {
+    # sigma_branch stays Central, Bradley (2024) excludes epistemic uncertainty in sigma
     GMM.S_22: {
-        EpistemicBranch.LOWER: {"mu_branch": "Lower", "sigma_branch": "Lower"},
-        EpistemicBranch.UPPER: {"mu_branch": "Upper", "sigma_branch": "Upper"},
+        EpistemicBranch.LOWER: {"mu_branch": "Lower"},
+        EpistemicBranch.UPPER: {"mu_branch": "Upper"},
     },
     GMM.A_22: {
         EpistemicBranch.LOWER: {"epistemic": "lower"},
@@ -92,43 +93,28 @@ GMM_EPISTEMIC_BRANCH_KWARGS_MAPPING = {
         EpistemicBranch.LOWER: {"sigma_mu_epsilon": -1.2815},
         EpistemicBranch.UPPER: {"sigma_mu_epsilon": 1.2815},
     },
-    # ASK_14/CY_14/CB_14/BSSA_14 don't have a native epistemic-in-the-mean model,
-    # so they're routed through OQ's NSHMP2014 wrapper (Rezaeian et al., 2014, as
-    # used in the 2014 US NSHM), which shifts the median by a magnitude/distance-
-    # binned amount (see OQ_MODEL_MAPPING).
-    #
-    # Rezaeian et al. (2014)'s tabulated value is the 5th/95th-percentile offset
-    # (i.e. z=1.645, the extended Pearson-Tukey convention implied by its
-    # 0.185/0.63/0.185 branch weights -- Keefer and Bodily, 1983), i.e.
-    # sigma_ept = 1.645 * Std[mu]. NZ NSHM 2022 (Bradley, 2024, Eq. 1) instead
-    # uses the 10th/90th percentile (z=1.2815) uniformly across the logic tree,
-    # matching the z=1.2815 already used natively below for S_22/A_22/AG_20/
-    # K_20/P_21/Br_13 and the 0.3/0.4/0.3 weights baked into
-    # nshm_2022_config.yaml. NSHMP2014's `sgn` is a free scalar multiplier (not
-    # restricted to {-1, 0, 1}), so it's rescaled here to reproduce z=1.2815
-    # from Rezaeian's z=1.645 table: 1.2815 / 1.645.
+    # ASK_14/CY_14/CB_14/BSSA_14/Br_13 use OQ's native `sigma_mu_epsilon`, which adds
+    # sigma_mu_epsilon * get_epistemic_sigma(ctx) to the mean. get_epistemic_sigma
+    # (abrahamson_2014.py) is the USGS-2014 sqrt rule recalibrated to NZ SMDB v1.0,
+    # treated as a one-sigma Std[mu], so z=1.2815 per Bradley (2024) Eq. 1.
+    # Known OQ quirks: CB_14 applies the shift twice for SA with T < 0.25 s, and
+    # get_epistemic_sigma puts M < 5 into the M >= 7 bin.
     GMM.ASK_14: {
-        EpistemicBranch.LOWER: {"sgn": -1.2815 / 1.645},
-        EpistemicBranch.UPPER: {"sgn": 1.2815 / 1.645},
+        EpistemicBranch.LOWER: {"sigma_mu_epsilon": -1.2815},
+        EpistemicBranch.UPPER: {"sigma_mu_epsilon": 1.2815},
     },
     GMM.CY_14: {
-        EpistemicBranch.LOWER: {"sgn": -1.2815 / 1.645},
-        EpistemicBranch.UPPER: {"sgn": 1.2815 / 1.645},
+        EpistemicBranch.LOWER: {"sigma_mu_epsilon": -1.2815},
+        EpistemicBranch.UPPER: {"sigma_mu_epsilon": 1.2815},
     },
     GMM.CB_14: {
-        EpistemicBranch.LOWER: {"sgn": -1.2815 / 1.645},
-        EpistemicBranch.UPPER: {"sgn": 1.2815 / 1.645},
+        EpistemicBranch.LOWER: {"sigma_mu_epsilon": -1.2815},
+        EpistemicBranch.UPPER: {"sigma_mu_epsilon": 1.2815},
     },
     GMM.BSSA_14: {
-        EpistemicBranch.LOWER: {"sgn": -1.2815 / 1.645},
-        EpistemicBranch.UPPER: {"sgn": 1.2815 / 1.645},
+        EpistemicBranch.LOWER: {"sigma_mu_epsilon": -1.2815},
+        EpistemicBranch.UPPER: {"sigma_mu_epsilon": 1.2815},
     },
-    # Br_13 (NZ-specific, CY-lineage refit) has its own native epistemic-in-the-
-    # mean model in OQ (Bradley2013's `sigma_mu_epsilon` kwarg, computed from NZ
-    # SMDB v1.0 earthquake counts via the same USGS-2014 square-root rule as
-    # Rezaeian et al. 2014) -- same convention as AG_20/K_20/P_21 above, used
-    # directly with z=1.2815 (no rescaling needed, unlike ASK_14/CY_14/CB_14/
-    # BSSA_14's borrowed US table).
     GMM.Br_13: {
         EpistemicBranch.LOWER: {"sigma_mu_epsilon": -1.2815},
         EpistemicBranch.UPPER: {"sigma_mu_epsilon": 1.2815},
