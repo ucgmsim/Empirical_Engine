@@ -7,6 +7,7 @@ The two key functions for running GMMs are:
 
 import functools
 import logging
+import operator
 import typing
 import warnings
 from collections.abc import Callable, Sequence
@@ -424,15 +425,19 @@ def run_gmm_logic_tree(
     std_im_keys = [f"{key}_std_Total" for key in im_keys]
 
     # Compute weighted mean and standard deviation
-    lt_mean = sum([w * df[mean_im_keys] for (w, df) in ind_results.values()])
-    lt_within_model_var = sum(
-        [w * df[std_im_keys] ** 2 for (w, df) in ind_results.values()]
+    # functools.reduce (rather than sum) keeps the results typed as DataFrames
+    lt_mean: pd.DataFrame = functools.reduce(
+        operator.add, [w * df[mean_im_keys] for (w, df) in ind_results.values()]
     )
-    lt_between_model_var = sum(
-        [w * (df[mean_im_keys] - lt_mean) ** 2 for (w, df) in ind_results.values()]
+    lt_within_model_var: pd.DataFrame = functools.reduce(
+        operator.add, [w * df[std_im_keys] ** 2 for (w, df) in ind_results.values()]
+    )
+    lt_between_model_var: pd.DataFrame = functools.reduce(
+        operator.add,
+        [w * (df[mean_im_keys] - lt_mean) ** 2 for (w, df) in ind_results.values()],
     )
     lt_between_model_var.columns = std_im_keys
-    lt_std = np.sqrt(lt_within_model_var + lt_between_model_var)
+    lt_std = (lt_within_model_var + lt_between_model_var) ** 0.5
 
     result_df = pd.merge(lt_mean, lt_std, left_index=True, right_index=True)
     if return_ind_results:
@@ -460,9 +465,9 @@ def get_model_from_str(model_name: str) -> constants.GMM | constants.GMMLogicTre
     ValueError
         If the model name is not recognized
     """
-    if model_name in constants.GMM:
+    if model_name in constants.GMM.__members__:
         return constants.GMM[model_name]
-    elif model_name in constants.GMMLogicTree:
+    elif model_name in constants.GMMLogicTree.__members__:
         return constants.GMMLogicTree[model_name]
     else:
         raise ValueError(f"Model {model_name} not recognized.")
