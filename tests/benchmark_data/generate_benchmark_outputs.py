@@ -1,10 +1,14 @@
 """Generate benchmark values for testing purposes."""
 
+import hashlib
+import json
 import logging
 import sys
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
+from pandas.testing import assert_frame_equal
 from tqdm import tqdm
 
 import oq_wrapper as oqw
@@ -65,8 +69,39 @@ def write_im_results(
     if epistemic_branch is not None:
         file_name += f"_EpistemicBranch_{epistemic_branch.name}"
 
-    im_results.to_parquet(
-        benchmark_data_output_dir / f"{file_name}.parquet",
+    ffp = benchmark_data_output_dir / f"{file_name}.parquet"
+    # Only rewrite if the values changed (same tolerance as the benchmark test),
+    # so a different pandas/pyarrow version doesn't touch every file
+    if ffp.exists():
+        try:
+            assert_frame_equal(im_results, pd.read_parquet(ffp))
+            return
+        except AssertionError:
+            pass
+    im_results.to_parquet(ffp)
+
+
+def write_manifest(data_dir: Path) -> None:
+    """Write a per-column hash of every benchmark file, so diffs show what changed.
+
+    Hashes are of the values cast to float32 (~7 significant digits), so
+    float noise from a different environment doesn't change them.
+    """
+    manifest = {}
+    for ffp in sorted(data_dir.rglob("*.parquet")):
+        df = pd.read_parquet(ffp)
+        key = ffp.relative_to(data_dir).with_suffix("").as_posix()
+        manifest[f"{key}:__shape__"] = f"{df.shape[0]}x{df.shape[1]}"
+        manifest[f"{key}:__index__"] = hashlib.sha1(
+            pd.util.hash_pandas_object(df.index).to_numpy().tobytes()
+        ).hexdigest()[:12]
+        for col in df.columns:
+            # ponytail: a value sitting on a float32 rounding boundary can still flip its hash
+            manifest[f"{key}:{col}"] = hashlib.sha1(
+                df[col].to_numpy(np.float32).tobytes()
+            ).hexdigest()[:12]
+    (data_dir.parent / "benchmark_manifest.json").write_text(
+        json.dumps(manifest, indent=1) + "\n"
     )
 
 
@@ -207,4 +242,5 @@ for gmm in tqdm(gmms):
             )
 
 
+write_manifest(Path(__file__).parent / "data")
 logger.info("Benchmark generation script completed.")
