@@ -9,7 +9,13 @@ name = "oq-wrapper"
 authors = [{ name = "ucgmsim" }]
 description = "Wrapper for OpenQuake engine to run empirical GMMs"
 readme = "README.md"
-requires-python = ">=3.11"
+# Python 3.15 is blocked by openquake-engine's dependencies:
+#   - h5py: no cp315 wheels yet (expected with h5py 3.17,
+#     https://github.com/h5py/h5py/issues/2972); the sdist needs a system HDF5.
+#   - fiona (imported by several openquake GSIMs): no cp315 wheels, no release
+#     since 1.10.1 (2024-09), and the sdist needs a system GDAL.
+# Lift the cap once both ship cp315 wheels (or openquake drops fiona).
+requires-python = ">=3.11,<3.15"
 dynamic = ["version"]
 dependencies = [
   "numpy>=2.0",
