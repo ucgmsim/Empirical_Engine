@@ -39,6 +39,12 @@ dev = ["ruff", "deptry", "ty"]
 # get_epistemic_sigma's M < 5 binning (gem/oq-engine#11901).
 openquake-engine = { git = "https://github.com/claudio525/oq-engine.git", branch = "epistemic_std_fix" }
 
+[tool.uv]
+# OQ >= 3.27 depends on the gdal Python bindings, which have no Linux wheels and need
+# a matching system libgdal (CI's apt libgdal is too old). Only OQ's secondary perils
+# module (openquake.sep) uses them, so drop gdal.
+override-dependencies = ["gdal; sys_platform == 'never'"]
+
 [tool.deptry]
 pep621_dev_dependency_groups = ["test", "dev", "types"]
 extend_exclude = ["tests", "scripts/one_offs"]
