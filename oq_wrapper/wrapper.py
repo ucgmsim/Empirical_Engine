@@ -143,17 +143,18 @@ OQ_MODEL_MAPPING = {
         constants.TectType.ACTIVE_SHALLOW: gsim.bradley_2013.Bradley2013,
         constants.TectType.VOLCANIC: gsim.bradley_2013.Bradley2013Volc,
     },
+    # NZ NSHM 2022 versions (add the backarc term for slab, requires `backarc`)
     constants.GMM.AG_20: {
-        constants.TectType.SUBDUCTION_SLAB: gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SSlab,
-        constants.TectType.SUBDUCTION_INTERFACE: gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SInter,
+        constants.TectType.SUBDUCTION_SLAB: gsim.nz22.nz_nshm2022_abrahamson_gulerce_2020.NZNSHM2022_AbrahamsonGulerce2020SSlab,
+        constants.TectType.SUBDUCTION_INTERFACE: gsim.nz22.nz_nshm2022_abrahamson_gulerce_2020.NZNSHM2022_AbrahamsonGulerce2020SInter,
     },
     constants.GMM.P_20: {
         constants.TectType.SUBDUCTION_SLAB: gsim.parker_2020.ParkerEtAl2020SSlab,
         constants.TectType.SUBDUCTION_INTERFACE: gsim.parker_2020.ParkerEtAl2020SInter,
     },
     constants.GMM.K_20: {
-        constants.TectType.SUBDUCTION_SLAB: gsim.kuehn_2020.KuehnEtAl2020SSlab,
-        constants.TectType.SUBDUCTION_INTERFACE: gsim.kuehn_2020.KuehnEtAl2020SInter,
+        constants.TectType.SUBDUCTION_SLAB: gsim.nz22.nz_nshm2022_kuehn_2020.NZNSHM2022_KuehnEtAl2020SSlab,
+        constants.TectType.SUBDUCTION_INTERFACE: gsim.nz22.nz_nshm2022_kuehn_2020.NZNSHM2022_KuehnEtAl2020SInter,
     },
     constants.GMM.P_21: {
         constants.TectType.SUBDUCTION_SLAB: gsim.nz22.nz_nshm2022_parker.NZNSHM2022_ParkerEtAl2020SSlab,
