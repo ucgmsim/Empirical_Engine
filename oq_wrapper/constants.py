@@ -97,8 +97,6 @@ GMM_EPISTEMIC_BRANCH_KWARGS_MAPPING = {
     # sigma_mu_epsilon * get_epistemic_sigma(ctx) to the mean. get_epistemic_sigma
     # (abrahamson_2014.py) is the USGS-2014 sqrt rule recalibrated to NZ SMDB v1.0,
     # treated as a one-sigma Std[mu], so z=1.2815 per Bradley (2024) Eq. 1.
-    # Known OQ quirks: CB_14 applies the shift twice for SA with T < 0.25 s, and
-    # get_epistemic_sigma puts M < 5 into the M >= 7 bin.
     GMM.ASK_14: {
         EpistemicBranch.LOWER: {"sigma_mu_epsilon": -1.2815},
         EpistemicBranch.UPPER: {"sigma_mu_epsilon": 1.2815},

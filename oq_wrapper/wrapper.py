@@ -535,6 +535,17 @@ def prepare_model_inputs(
         ),
     )
     _handle_missing_property(rupture_df, model, "ASK_14", "ry0", col_to_rename="ry")
+    # Mainshocks by default (OQ >= 3.27 aftershock term), crjb is only used
+    # for aftershocks
+    _handle_missing_property(
+        rupture_df, model, "ASK_14", "is_aftershock", value_factory=lambda: False
+    )
+    _handle_missing_property(
+        rupture_df, model, "ASK_14", "crjb", value_factory=lambda: np.nan
+    )
+    _handle_missing_property(
+        rupture_df, model, "Br_13", "is_aftershock", value_factory=lambda: False
+    )
 
     _handle_missing_property(
         rupture_df, model, "BCH_16", "xvf", value_factory=lambda: 0

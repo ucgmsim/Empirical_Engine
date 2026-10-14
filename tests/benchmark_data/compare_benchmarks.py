@@ -1,4 +1,4 @@
-"""Summarise value changes in the benchmark files between a base ref and HEAD.
+"""Summarise value changes in the benchmark files between a base ref and the working tree.
 
 Prints a markdown report, used by the benchmark-diff workflow as a PR comment.
 Run from the repo root, e.g. `python tests/benchmark_data/compare_benchmarks.py origin/master`.
@@ -23,8 +23,9 @@ def git(*args: str) -> bytes:
 
 def main(base: str) -> str:
     merge_base = git("merge-base", base, "HEAD").decode().strip()
+    # Diff against the working tree, so uncommitted (tracked) changes are included
     name_status = git(
-        "diff", "--name-status", "--no-renames", merge_base, "HEAD", "--", DATA_DIR
+        "diff", "--name-status", "--no-renames", merge_base, "--", DATA_DIR
     )
 
     rows, other, n_unchanged = [], [], 0
