@@ -90,3 +90,11 @@ pytest
 `tests/test_wrapper.py` covers the wrapper functions directly, and
 `tests/test_gmm_benchmark.py` runs regression benchmarks against reference outputs
 in `tests/benchmark_data/` (generated via `tests/benchmark_data/generate_benchmark_outputs.py`).
+
+### Reviewing benchmark changes
+
+The benchmark files are binary parquet, so their git diffs aren't readable. Three things help with this:
+
+- `generate_benchmark_outputs.py` only rewrites a benchmark file if its values changed, using the same tolerance as the benchmark test. A different pandas/pyarrow version or float noise therefore doesn't touch every file.
+- It also writes `tests/benchmark_data/benchmark_manifest.json`, with one hash per file and column (values rounded to float32). Its diff shows which files and columns changed, and `git log -p` on it shows the history.
+- On PRs that change `tests/benchmark_data/data/`, the `Benchmark diff` workflow posts (and updates) a PR comment listing the changed files, with the number of changed columns/rows and the max change in the mean and std columns. To get the same report locally, run `python tests/benchmark_data/compare_benchmarks.py origin/master` from the repo root.
