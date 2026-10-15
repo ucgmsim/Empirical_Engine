@@ -1860,7 +1860,7 @@ wheels = [
 [[package]]
 name = "openquake-engine"
 version = "3.27.0"
-source = { git = "https://github.com/claudio525/oq-engine.git?branch=epistemic_std_fix#05dcd930b86d375e78ee8356e09fb353f26d3558" }
+source = { git = "https://github.com/claudio525/oq-engine.git?rev=epistemic_std_fix#05dcd930b86d375e78ee8356e09fb353f26d3558" }
 dependencies = [
     { name = "alpha-shapes" },
     { name = "decorator" },
@@ -1989,7 +1989,7 @@ requires-dist = [
     { name = "deptry", marker = "extra == 'dev'" },
     { name = "fiona" },
     { name = "numpy", specifier = ">=2.0" },
-    { name = "openquake-engine", git = "https://github.com/claudio525/oq-engine.git?branch=epistemic_std_fix" },
+    { name = "openquake-engine", git = "https://github.com/claudio525/oq-engine.git?rev=epistemic_std_fix" },
     { name = "pandas" },
     { name = "pandas-stubs", marker = "extra == 'types'" },
     { name = "pyarrow", marker = "extra == 'test'" },

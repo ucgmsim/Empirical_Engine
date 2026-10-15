@@ -13,7 +13,7 @@ requires-python = ">=3.11"
 dynamic = ["version"]
 dependencies = [
   "numpy>=2.0",
-  "openquake.engine>=3.21",
+  "openquake.engine @ git+https://github.com/claudio525/oq-engine.git@epistemic_std_fix",
   "pandas",
   "pyyaml",
   "scipy>=1.7.2",
@@ -32,12 +32,6 @@ test = ["pytest", "tqdm>=4.0.0", "pyarrow"]
 # source-modelling is only imported under TYPE_CHECKING (for the Plane annotation).
 types = ["pandas-stubs", "scipy-stubs", "source-modelling"]
 dev = ["ruff", "deptry", "ty"]
-
-[tool.uv.sources]
-# Until a release includes both fixes to the sigma_mu_epsilon epistemic shift used by
-# ASK14/BSSA14/CB14/CY14/Bradley2013: the CB14 double shift (OQ master 31dc3af) and
-# get_epistemic_sigma's M < 5 binning (gem/oq-engine#11901).
-openquake-engine = { git = "https://github.com/claudio525/oq-engine.git", branch = "epistemic_std_fix" }
 
 [tool.uv]
 # OQ >= 3.27 depends on the gdal Python bindings, which have no Linux wheels and need
