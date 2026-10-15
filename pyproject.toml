@@ -13,7 +13,7 @@ requires-python = ">=3.11"
 dynamic = ["version"]
 dependencies = [
   "numpy>=2.0",
-  "openquake.engine>=3.21",
+  "openquake.engine @ git+https://github.com/claudio525/oq-engine.git@epistemic_std_fix",
   "pandas",
   "pyyaml",
   "scipy>=1.7.2",
@@ -32,6 +32,12 @@ test = ["pytest", "tqdm>=4.0.0", "pyarrow"]
 # source-modelling is only imported under TYPE_CHECKING (for the Plane annotation).
 types = ["pandas-stubs", "scipy-stubs", "source-modelling"]
 dev = ["ruff", "deptry", "ty"]
+
+[tool.uv]
+# OQ >= 3.27 depends on the gdal Python bindings, which have no Linux wheels and need
+# a matching system libgdal (CI's apt libgdal is too old). Only OQ's secondary perils
+# module (openquake.sep) uses them, so drop gdal.
+override-dependencies = ["gdal; sys_platform == 'never'"]
 
 [tool.deptry]
 pep621_dev_dependency_groups = ["test", "dev", "types"]

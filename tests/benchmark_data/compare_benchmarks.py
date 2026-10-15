@@ -1,4 +1,4 @@
-"""Summarise value changes in the benchmark files between a base ref and HEAD.
+"""Summarise value changes in the benchmark files between a base ref and the working tree.
 
 Prints a markdown report, used by the benchmark-diff workflow as a PR comment.
 Run from the repo root, e.g. `python tests/benchmark_data/compare_benchmarks.py origin/master`.
@@ -23,8 +23,9 @@ def git(*args: str) -> bytes:
 
 def main(base: str) -> str:
     merge_base = git("merge-base", base, "HEAD").decode().strip()
+    # Diff against the working tree, so uncommitted (tracked) changes are included
     name_status = git(
-        "diff", "--name-status", "--no-renames", merge_base, "HEAD", "--", DATA_DIR
+        "diff", "--name-status", "--no-renames", merge_base, "--", DATA_DIR
     )
 
     rows, other, n_unchanged = [], [], 0
@@ -43,18 +44,35 @@ def main(base: str) -> str:
             )
             continue
 
+        # Residuals assume ln means; linear IMs are never negative
+        for df in (old, new):
+            assert (df.filter(regex="_mean$") < 0).to_numpy().any(), (
+                f"{name}: mean columns don't look like ln values (none negative)"
+            )
+
         close = np.isclose(new, old, rtol=RTOL, atol=ATOL, equal_nan=True)
         changed_cols = old.columns[~close.all(axis=0)]
         if changed_cols.empty:
             n_unchanged += 1
             continue
 
-        abs_diff = (new[changed_cols] - old[changed_cols]).abs().max()
-        is_mean = abs_diff.index.str.endswith("_mean")
+        diff = old[changed_cols] - new[changed_cols]
+        is_mean = changed_cols.str.endswith("_mean")
+        # Signed ln residual (old - new) with the largest magnitude
+        residuals = diff.loc[:, is_mean].to_numpy().ravel()
+        max_residual = (
+            f"{residuals[np.nanargmax(np.abs(residuals))]:+.3g}"
+            if is_mean.any()
+            else "-"
+        )
+        max_std_diff = (
+            f"{diff.loc[:, ~is_mean].abs().max().max():.3g}"
+            if (~is_mean).any()
+            else "-"
+        )
         rows.append(
             f"| `{name}` | {len(changed_cols)}/{len(old.columns)} "
-            f"| {abs_diff[is_mean].max() if is_mean.any() else 0:.3g} "
-            f"| {abs_diff[~is_mean].max() if (~is_mean).any() else 0:.3g} "
+            f"| {max_residual} | {max_std_diff} "
             f"| {(~close).any(axis=1).sum()}/{len(old)} |"
         )
 
@@ -72,7 +90,14 @@ def main(base: str) -> str:
     if rows:
         report += [
             "",
-            "| File | Changed columns | Max \\|Δ\\| mean | Max \\|Δ\\| std | Changed rows |",
+            (
+                "*Max ln residual*: the signed residual lnIM<sub>old</sub> − "
+                "lnIM<sub>new</sub> with the largest magnitude, over the changed `_mean` "
+                "columns. *Max \\|Δ\\| std*: the largest absolute difference in the "
+                "changed standard deviation columns (ln units)."
+            ),
+            "",
+            "| File | Changed columns | Max ln residual | Max \\|Δ\\| std | Changed rows |",
             "|---|---|---|---|---|",
             *rows,
         ]
