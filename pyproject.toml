@@ -13,7 +13,7 @@ requires-python = ">=3.11"
 dynamic = ["version"]
 dependencies = [
   "numpy>=2.0",
-  "openquake.engine @ git+https://github.com/claudio525/oq-engine.git@epistemic_std_fix",
+  "openquake.engine @ git+https://github.com/gem/oq-engine.git@master",
   "pandas",
   "pyyaml",
   "scipy>=1.7.2",
