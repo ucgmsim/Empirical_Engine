@@ -317,7 +317,7 @@ def abrahamson_gulerce_20_calc_z2p5(vs30: TArrayLike, region: str) -> TArrayLike
     vs30 : array-like (list, numpy array, pandas series, float, ...)
         The Vs30 value or values, in meters per second
     region : str
-        The region to use, can only be in ["Japan", "Cascadia"]
+        The region to use, can only be "Cascadia"
 
     Returns
     -------
@@ -340,7 +340,7 @@ def parker_20_calc_z2p5(vs30: TArrayLike, region: str) -> TArrayLike:
     vs30 : array-like (list, numpy array, pandas series, float, ...)
         The Vs30 value or values, in meters per second
     region : str
-        The region to use, can only be in ["Japan", "Cascadia"]
+        The region to use, can only be "Japan"
 
     Returns
     -------
@@ -398,10 +398,8 @@ Z_CALC_MODEL_REGION_MAPPING: dict[
     },
     "AG_20": {
         "Cascadia": (abrahamson_gulerce_20_calc_z2p5, "z2pt5"),
-        "Japan": (abrahamson_gulerce_20_calc_z2p5, "z2pt5"),
     },
     "P_20": {
-        "Cascadia": (parker_20_calc_z2p5, "z2pt5"),
         "Japan": (parker_20_calc_z2p5, "z2pt5"),
     },
 }

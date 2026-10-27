@@ -167,9 +167,8 @@ def test_chiou_young_08_calc_z2p5() -> None:
 @pytest.mark.parametrize(
     "region, soft_vs30, stiff_vs30, ln_range",
     [
-        # ln(Z2.5) is clipped to [7.6, 8.52] for Cascadia, [4.1, 7.3] for Japan
+        # ln(Z2.5) is clipped to [7.6, 8.52] for Cascadia
         ("Cascadia", [100.0, 200.0], [600.0, 1500.0], 8.52 - 7.6),
-        ("Japan", [100.0, 170.0], [850.0, 1500.0], 7.3 - 4.1),
     ],
 )
 def test_abrahamson_gulerce_20_calc_z2p5_clipping(
@@ -201,7 +200,7 @@ def test_subduction_z2p5_unsupported_region(func) -> None:  # noqa: ANN001
 
 @pytest.mark.parametrize(
     "region, theta1, vmu",
-    [("Japan", -0.8, 500.0), ("Cascadia", -0.42, 200.0)],
+    [("Japan", -0.8, 500.0)],
 )
 def test_parker_20_calc_z2p5(region: str, theta1: float, vmu: float) -> None:
     result = estimations.parker_20_calc_z2p5(VS30, region)
@@ -268,16 +267,6 @@ def test_parker_20_calc_z2p5(region: str, theta1: float, vmu: float) -> None:
             estimations.abrahamson_gulerce_20_calc_z2p5,
             "Cascadia",
             abrahamson_gulerce_2020.get_reference_basin_depth("CAS", VS30) / 1000,
-        ),
-        (
-            estimations.abrahamson_gulerce_20_calc_z2p5,
-            "Japan",
-            abrahamson_gulerce_2020.get_reference_basin_depth("JPN", VS30) / 1000,
-        ),
-        (
-            estimations.parker_20_calc_z2p5,
-            "Cascadia",
-            parker_2020._get_z2pt5_ref(3.94, -0.42, VS30, 200, 0.2) / 1000,
         ),
         (
             estimations.parker_20_calc_z2p5,
