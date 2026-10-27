@@ -1,0 +1,30 @@
+name: Benchmark diff
+
+on:
+  pull_request:
+    paths:
+      - "tests/benchmark_data/data/**"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  benchmark-diff:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v6
+      - name: Compare benchmark values against the base branch
+        env:
+          BASE_REF: origin/${{ github.base_ref }}
+        run: >
+          uv run --no-project --with pandas --with pyarrow
+          python tests/benchmark_data/compare_benchmarks.py "$BASE_REF" > benchmark_diff.md
+      - name: Comment on the PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: gh pr comment "$PR_NUMBER" --edit-last --create-if-none --body-file benchmark_diff.md

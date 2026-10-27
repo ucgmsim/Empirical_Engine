@@ -198,11 +198,11 @@ def chiou_young_14_calc_z1p0(vs30: TArrayLike, region: str | None = None) -> TAr
     """
     if region == "Japan":
         z1p0 = (
-            -5.23 / 2 * np.log((vs30**2 + 412.39**2) / (1360**4 + 412.39**4))  # ty: ignore[unsupported-operator]
+            -5.23 / 2 * np.log((vs30**2 + 412.39**2) / (1360**4 + 412.39**4))
         )  # In meters
     else:
         z1p0 = (
-            -7.15 / 4 * np.log((vs30**4 + 570.94**4) / (1360**4 + 570.94**4))  # ty: ignore[unsupported-operator]
+            -7.15 / 4 * np.log((vs30**4 + 570.94**4) / (1360**4 + 570.94**4))
         )  # In meters
     return np.exp(z1p0) / 1000  # In km
 
@@ -229,12 +229,10 @@ def mod_chiou_young_14_calc_z1p0(
     """
     if region == "Japan":
         z1p0 = (
-            -5.23 / 2 * np.log((vs30**2 + 412.39**2) / (1360**4 + 412.39**4))  # ty: ignore[unsupported-operator]
+            -5.23 / 2 * np.log((vs30**2 + 412.39**2) / (1360**4 + 412.39**4))
         )  # In meters
     else:
-        z1p0 = (
-            -7.15 / 4 * np.log((vs30**4 + 610**4) / (1360**4 + 610**4))  # ty: ignore[unsupported-operator]
-        )  # In meters
+        z1p0 = -7.15 / 4 * np.log((vs30**4 + 610**4) / (1360**4 + 610**4))  # In meters
     return np.exp(z1p0) / 1000  # In km
 
 
@@ -280,12 +278,7 @@ def chiou_young_08_calc_z1p0(
     array-like (list, numpy array, pandas series, float, ...)
         The z1p0 value or values, in km. Has the same type as ``vs30``.
     """
-    z1p0 = (
-        np.exp(
-            28.5 - 3.82 / 8 * np.log(vs30**8 + 378.7**8)  # ty: ignore[unsupported-operator]
-        )
-        / 1000
-    )  # In km
+    z1p0 = np.exp(28.5 - 3.82 / 8 * np.log(vs30**8 + 378.7**8)) / 1000  # In km
     return z1p0
 
 

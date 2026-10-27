@@ -20,6 +20,7 @@ jobs:
 
       - name: Run Git dependency check
         run: |
+          import re
           import tomllib
           from pathlib import Path
           import sys
@@ -37,7 +38,8 @@ jobs:
               if section in config and "dependencies" in config[section]:
                   deps = config[section]["dependencies"]
                   for dep in deps:
-                      if "git+https://" in dep and not dep.endswith(".git"):
+                      # Allow a trailing @<branch/tag/commit> after the .git
+                      if "git+https://" in dep and not re.search(r"\.git(@\S+)?$", dep):
                           issues.append(dep)
 
           if issues:
