@@ -176,7 +176,7 @@ def kuehn_20_calc_z(vs30: TArrayLike, region: str) -> TArrayLike:
     ln_z_ref = constants["c_z_1"] + (constants["c_z_2"] - constants["c_z_1"]) * np.exp(
         diff
     ) / (1 + np.exp(diff))
-    return ln_z_ref
+    return np.exp(ln_z_ref) / 1000
 
 
 def chiou_young_14_calc_z1p0(vs30: TArrayLike, region: str | None = None) -> TArrayLike:
@@ -198,7 +198,7 @@ def chiou_young_14_calc_z1p0(vs30: TArrayLike, region: str | None = None) -> TAr
     """
     if region == "Japan":
         z1p0 = (
-            -5.23 / 2 * np.log((vs30**2 + 412.39**2) / (1360**4 + 412.39**4))
+            -5.23 / 2 * np.log((vs30**2 + 412.39**2) / (1360**2 + 412.39**2))
         )  # In meters
     else:
         z1p0 = (
@@ -211,8 +211,9 @@ def mod_chiou_young_14_calc_z1p0(
     vs30: TArrayLike, region: str | None = None
 ) -> TArrayLike:
     """
-    Calculates the z1p0 value for the Chiou and Youngs (2014) model
-    Modified for a different coefficient for the global model
+    Calculates the reference z1p0 value for the Abrahamson et al. (2014) model,
+    Equations 18 (global) and 19 (Japan). These are modified versions of the
+    Chiou and Youngs (2014) relationships.
 
     Parameters
     ----------
@@ -228,11 +229,9 @@ def mod_chiou_young_14_calc_z1p0(
         The z1p0 value or values, in km. Has the same type as ``vs30``.
     """
     if region == "Japan":
-        z1p0 = (
-            -5.23 / 2 * np.log((vs30**2 + 412.39**2) / (1360**4 + 412.39**4))
-        )  # In meters
+        z1p0 = -5.23 / 2 * np.log((vs30**2 + 412**2) / (1360**2 + 412**2))  # In meters
     else:
-        z1p0 = -7.15 / 4 * np.log((vs30**4 + 610**4) / (1360**4 + 610**4))  # In meters
+        z1p0 = -7.67 / 4 * np.log((vs30**4 + 610**4) / (1360**4 + 610**4))  # In meters
     return np.exp(z1p0) / 1000  # In km
 
 
@@ -256,9 +255,9 @@ def campbell_bozorgina_14_calc_z2p5(
         The z2p5 value or values, in km. Has the same type as ``vs30``.
     """
     if region == "Japan":
-        z2p5 = np.exp(7.089 - 1.144 * np.log(vs30))
+        z2p5 = np.exp(5.359 - 1.102 * np.log(vs30))  # Eq. 34
     else:
-        z2p5 = np.exp(5.359 - 1.102 * np.log(vs30))
+        z2p5 = np.exp(7.089 - 1.144 * np.log(vs30))  # Eq. 33
     return z2p5  # In km
 
 
@@ -327,11 +326,9 @@ def abrahamson_gulerce_20_calc_z2p5(vs30: TArrayLike, region: str) -> TArrayLike
     """
     if region == "Cascadia":
         ln_zref = np.clip(8.52 - 0.88 * np.log(vs30 / 200.0), 7.6, 8.52)  # ty: ignore[unsupported-operator]
-    elif region == "Japan":
-        ln_zref = np.clip(7.3 - 2.066 * np.log(vs30 / 170.0), 4.1, 7.3)  # ty: ignore[unsupported-operator]
     else:
         raise ValueError(f"Does not support region {region}")
-    return np.exp(ln_zref)  # In km
+    return np.exp(ln_zref) / 1000  # In km
 
 
 def parker_20_calc_z2p5(vs30: TArrayLike, region: str) -> TArrayLike:
@@ -352,15 +349,13 @@ def parker_20_calc_z2p5(vs30: TArrayLike, region: str) -> TArrayLike:
     """
     if region == "Japan":
         theta0, theta1, vmu, vsig = 3.05, -0.8, 500, 0.33
-    elif region == "Cascadia":
-        theta0, theta1, vmu, vsig = 3.94, -0.42, 200, 0.2
     else:
         raise ValueError(f"Does not support region {region}")
     z2pt5: TArrayLike = 10 ** (
         theta0
         + theta1 * (1 + erf((np.log10(vs30) - np.log10(vmu)) / (vsig * np.sqrt(2))))
     )
-    return z2pt5  # In km
+    return z2pt5 / 1000  # In km
 
 
 # Dictionary of models, mapping to their supported regions (None is global)
