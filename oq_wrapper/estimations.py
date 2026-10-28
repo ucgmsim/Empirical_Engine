@@ -355,7 +355,7 @@ def parker_20_calc_z2p5(vs30: TArrayLike, region: str) -> TArrayLike:
         theta0
         + theta1 * (1 + erf((np.log10(vs30) - np.log10(vmu)) / (vsig * np.sqrt(2))))
     )
-    return z2pt5 / 1000  # In km
+    return z2pt5 / 1000  # In km  # ty: ignore[invalid-return-type]
 
 
 # Dictionary of models, mapping to their supported regions (None is global)
