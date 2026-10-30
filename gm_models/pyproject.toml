@@ -9,13 +9,13 @@ description = "Native (Rust) reimplementations of empirical ground motion models
 readme = "README.md"
 requires-python = ">=3.11"
 dynamic = ["version"]
-dependencies = ["numpy>=2.0"]
+dependencies = ["numpy>=2.0", "pandas[pyarrow]"]
 
 [tool.setuptools_scm]
 root = ".."
 
 [project.optional-dependencies]
-test = ["pytest", "pandas[pyarrow]"]
+test = ["pytest"]
 types = ["pandas-stubs"]
 dev = ["ruff", "deptry", "ty"]
 
@@ -58,6 +58,30 @@ convention = "numpy"
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["D104"]
 "tests/**.py" = ["D"]
+
+[tool.numpydoc_validation]
+checks = [
+  "GL05",
+  "GL08",
+  "GL10",
+  "PR01",
+  "PR02",
+  "PR03",
+  "PR04",
+  "PR05",
+  "PR06",
+  "PR07",
+  "RT01",
+  "RT02",
+  "RT03",
+  "RT04",
+  "YD01",
+]
+# remember to use single quotes for regex in TOML
+exclude = [ # don't report on objects that match any of these regex
+  '\.undocumented_method$',
+  '\.__repr__$',
+]
 
 [tool.uv]
 cache-keys = [

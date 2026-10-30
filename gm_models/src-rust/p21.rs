@@ -452,8 +452,7 @@ mod tests {
     fn oq_engine_data_dir() -> Option<PathBuf> {
         let base = env::var("OQ_ENGINE_PATH").ok()?;
         Some(
-            PathBuf::from(base)
-                .join("openquake/hazardlib/tests/gsim/data/nz22/NZNSH2022_PARKER20"),
+            PathBuf::from(base).join("openquake/hazardlib/tests/gsim/data/nz22/NZNSH2022_PARKER20"),
         )
     }
 
@@ -537,7 +536,11 @@ mod tests {
                 );
             }
         }
-        assert!(n_checked > 0, "no rows/columns were checked in {}", path.display());
+        assert!(
+            n_checked > 0,
+            "no rows/columns were checked in {}",
+            path.display()
+        );
         eprintln!(
             "{}: checked {n_checked} mean values, max discrepancy {max_discrep:.4}%",
             path.display()
@@ -572,7 +575,11 @@ mod tests {
                 );
             }
         }
-        assert!(n_checked > 0, "no rows/columns were checked in {}", path.display());
+        assert!(
+            n_checked > 0,
+            "no rows/columns were checked in {}",
+            path.display()
+        );
         eprintln!(
             "{}: checked {n_checked} stddev values, max discrepancy {max_discrep:.4}%",
             path.display()
@@ -596,10 +603,12 @@ mod tests {
         };
     }
 
-    hazardlib_test!(interface_mean_matches_hazardlib, |dir: PathBuf| check_mean_csv(
-        &dir.join("PARKER2021_INTERFACE_GLO_GNS_MEAN.csv"),
-        TectType::Interface
-    ));
+    hazardlib_test!(interface_mean_matches_hazardlib, |dir: PathBuf| {
+        check_mean_csv(
+            &dir.join("PARKER2021_INTERFACE_GLO_GNS_MEAN.csv"),
+            TectType::Interface,
+        )
+    });
     hazardlib_test!(slab_mean_matches_hazardlib, |dir: PathBuf| check_mean_csv(
         &dir.join("PARKER2021_SLAB_GLO_GNS_MEAN.csv"),
         TectType::Slab

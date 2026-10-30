@@ -91,7 +91,7 @@ GMM_EPISTEMIC_BRANCH_KWARGS_MAPPING = {
     GMM.P_21: {
         EpistemicBranch.LOWER: {"sigma_mu_epsilon": -1.2815},
         EpistemicBranch.UPPER: {"sigma_mu_epsilon": 1.2815},
-    }
+    },
 }
 
 GMM_EPISTEMIC_BRANCH_SIGMA_FACTOR_MAPPING = {

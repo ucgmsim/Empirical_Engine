@@ -70,6 +70,29 @@ def _run_one(
     sigma_mu_epsilon: float,
     modified_sigma: bool,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Run the compiled `_utils` extension once, for a single IM/period.
+
+    Parameters
+    ----------
+    tect_type : TectType
+        Tectonic type (subduction interface or slab).
+    rupture_df : pd.DataFrame
+        Rupture/site dataframe, already column-validated.
+    im : str
+        Intensity measure passed through to the extension: ``"PGA"``,
+        ``"PGV"``, or ``"SA"``.
+    period : float
+        Period in seconds, used only when `im` is ``"SA"``.
+    sigma_mu_epsilon : float
+        Epistemic uncertainty offset for the "modified sigma" branch.
+    modified_sigma : bool
+        Whether to use the NZ "modified sigma" standard-deviation model.
+
+    Returns
+    -------
+    tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]
+        ``(mean, std_total, std_inter, std_intra)``, mean in ln space.
+    """
     mag = rupture_df["mag"].to_numpy(dtype=np.float64)
     rrup = rupture_df["rrup"].to_numpy(dtype=np.float64)
     vs30 = rupture_df["vs30"].to_numpy(dtype=np.float64)

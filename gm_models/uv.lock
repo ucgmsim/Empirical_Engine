@@ -67,6 +67,7 @@ source = { editable = "." }
 dependencies = [
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "numpy", version = "2.5.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "pandas", extra = ["pyarrow"] },
 ]
 
 [package.optional-dependencies]
@@ -76,7 +77,6 @@ dev = [
     { name = "ty" },
 ]
 test = [
-    { name = "pandas", extra = ["pyarrow"] },
     { name = "pytest" },
 ]
 types = [
@@ -87,7 +87,7 @@ types = [
 requires-dist = [
     { name = "deptry", marker = "extra == 'dev'" },
     { name = "numpy", specifier = ">=2.0" },
-    { name = "pandas", extras = ["pyarrow"], marker = "extra == 'test'" },
+    { name = "pandas", extras = ["pyarrow"] },
     { name = "pandas-stubs", marker = "extra == 'types'" },
     { name = "pytest", marker = "extra == 'test'" },
     { name = "ruff", marker = "extra == 'dev'" },

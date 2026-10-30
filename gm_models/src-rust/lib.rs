@@ -40,7 +40,7 @@ mod _utils {
     /// Returns `(mean, std_total, std_inter, std_intra)`, mean in ln space.
     #[pyfunction]
     #[pyo3(signature = (mag, rrup, vs30, im, period, sigma_mu_epsilon, modified_sigma))]
-    #[allow(clippy::too_many_arguments)]
+    #[allow(clippy::too_many_arguments, clippy::type_complexity)]
     fn _p21_interface<'py>(
         py: Python<'py>,
         mag: PyReadonlyArray1<f64>,
@@ -103,7 +103,7 @@ mod _utils {
     /// Returns `(mean, std_total, std_inter, std_intra)`, mean in ln space.
     #[pyfunction]
     #[pyo3(signature = (mag, rrup, vs30, hypo_depth, backarc, im, period, sigma_mu_epsilon, modified_sigma))]
-    #[allow(clippy::too_many_arguments)]
+    #[allow(clippy::too_many_arguments, clippy::type_complexity)]
     fn _p21_slab<'py>(
         py: Python<'py>,
         mag: PyReadonlyArray1<f64>,

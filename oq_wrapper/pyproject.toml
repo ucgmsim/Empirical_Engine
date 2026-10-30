@@ -40,6 +40,9 @@ exclude = ["tests*"]
 [tool.ruff]
 exclude = ["scripts/one_offs"]
 
+[tool.ty.src]
+exclude = ["scripts/one_offs"]
+
 [tool.ruff.lint]
 extend-select = [
   # isort imports

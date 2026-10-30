@@ -1,0 +1,18 @@
+name: CI
+
+on: [pull_request]
+
+jobs:
+  ci-oq-wrapper:
+    uses: ucgmsim/meta-ci-action/.github/workflows/ci.yml@main
+    with:
+      working-directory: oq_wrapper
+      package-dir: oq_wrapper
+      system-packages: "gdal-bin libgdal-dev"
+      pytest-paths: "tests oq_wrapper --doctest-modules"
+
+  ci-gm-models:
+    uses: ucgmsim/meta-ci-action/.github/workflows/ci.yml@main
+    with:
+      working-directory: gm_models
+      package-dir: gm_models
