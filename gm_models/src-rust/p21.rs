@@ -12,16 +12,26 @@
 //! is omitted entirely, and the linear site term's region-dependent
 //! `s1`/`s2` split collapses to a single `s2` coefficient (see
 //! `linear_amplification`).
+//!
+//! Equation numbers ("Eq. N") refer to Parker et al. (2022), "NGA-Subduction
+//! global ground motion models with regional adjustment factors", Earthquake
+//! Spectra 38(1). The NZ-specific backarc term and modified sigma model are not
+//! in that paper (see Bradley et al., 2024, BSSA, for the NZ NSHM2022 GMCM).
 
 use crate::coeffs::{Coeffs, PGA_COEFFS, PGV_COEFFS, SA_COEFFS, SA_PERIODS};
 use crate::nz22_const::{PERIODS, PERIODS_AG20, RHO_BS, RHO_WS, THETA7S, THETA8S};
 
+/// b4 in Eq. 2.
 const B4: f64 = 0.1;
+/// f3 in Eq. 9.
 const F3: f64 = 0.05;
+/// Constants 200 and 760 in Eq. 10.
 const VB: f64 = 200.0;
 const VREF_FNL: f64 = 760.0;
+/// Vref in Eq. 8.
 const VREF: f64 = 760.0;
 
+/// Global mc (Table 3).
 const MB_DEFAULT_INTERFACE: f64 = 7.9;
 const MB_DEFAULT_SLAB: f64 = 7.6;
 
@@ -145,7 +155,7 @@ fn interp_coeffs(below: &Coeffs, above: &Coeffs, ratio: f64) -> Coeffs {
     }
 }
 
-fn coeffs_for(im: Im) -> Coeffs {
+pub fn coeffs_for(im: Im) -> Coeffs {
     match im {
         Im::Pga => PGA_COEFFS,
         Im::Pgv => PGV_COEFFS,
@@ -163,6 +173,7 @@ fn select(tect_type: TectType, c: &Coeffs) -> (f64, f64, f64, f64, f64, f64) {
     }
 }
 
+/// Magnitude scaling FM, Eq. 5.
 fn magnitude_scaling(c6: f64, c4: f64, c5: f64, mag: f64, m_b: f64) -> f64 {
     let m_diff = mag - m_b;
     if m_diff > 0.0 {
@@ -172,6 +183,7 @@ fn magnitude_scaling(c6: f64, c4: f64, c5: f64, mag: f64, m_b: f64) -> f64 {
     }
 }
 
+/// Near-source saturation term h, Eq. 4a (interface) and Eq. 4b (slab).
 fn path_term_h(tect_type: TectType, mag: f64, m_b: f64) -> f64 {
     match tect_type {
         TectType::Interface => 10f64.powf(-0.82 + 0.252 * mag),
@@ -186,13 +198,15 @@ fn path_term_h(tect_type: TectType, mag: f64, m_b: f64) -> f64 {
     }
 }
 
+/// Path term FP, Eq. 2, with R and Rref from Eqs. 3a and 3b.
 fn path_term(c1: f64, a0: f64, mag: f64, rrup: f64, h: f64) -> f64 {
     let r = (rrup.powi(2) + h.powi(2)).sqrt();
     let r_rref = (r / (1.0 + h.powi(2)).sqrt()).ln();
     c1 * r.ln() + (B4 * mag) * r_rref + a0 * r
 }
 
-/// Depth scaling (subduction slab only; always 0 for interface).
+/// Depth scaling FD, Eq. 6, with db1 = 20 km (subduction slab only; always 0
+/// for interface).
 fn depth_scaling(hypo_depth: f64, d: f64, m: f64, db: f64) -> f64 {
     if hypo_depth <= 20.0 {
         m * (20.0 - db) + d
@@ -203,14 +217,15 @@ fn depth_scaling(hypo_depth: f64, d: f64, m: f64, db: f64) -> f64 {
     }
 }
 
-/// Linear site term. With `region=None`, hazardlib's `s1 == s2`, which
-/// collapses the three-branch piecewise form into a single clamp.
+/// Linear site term Flin, Eq. 8. With `region=None`, hazardlib's `s1 == s2`,
+/// which collapses the three-branch piecewise form into a single clamp.
 fn linear_amplification(vs30: f64, s2: f64, v2: f64) -> f64 {
     s2 * (vs30.min(v2) / VREF).ln()
 }
 
-/// Non-linear site term (NZ version — no `period >= 3` cutoff, unlike the
-/// base `parker_2020._non_linear_term`; see the NZ source's docstring).
+/// Non-linear site term Fnl, Eq. 9 (with f1 = 0) and f2 from Eq. 10.
+/// NZ version: no `period >= 3` cutoff, unlike the base
+/// `parker_2020._non_linear_term` (see the NZ source's docstring).
 fn non_linear_term(f4: f64, f5: f64, vs30: f64, pgar: f64) -> f64 {
     f4 * ((f5 * (vs30.min(VREF_FNL) - VB)).exp() - (f5 * (VREF_FNL - VB)).exp())
         * ((pgar + F3) / F3).ln()
@@ -266,8 +281,8 @@ fn backarc_term(tect_type: TectType, period: f64, rrup: f64, backarc: bool) -> f
     (theta7 + theta8 * (dist / 40.0).ln()) * w_epi_factor
 }
 
-/// NZ-NSHM2022-specific epistemic sigma_mu adjustment (global model only —
-/// the only configuration in scope here).
+/// Epistemic standard deviation sigma_e(T), Eq. 27, with the NZ-NSHM2022
+/// coefficients (global model only, the only configuration in scope here).
 fn sigma_epistemic(tect_type: TectType, period: f64) -> f64 {
     let (se1, se2, t1, t2) = match tect_type {
         TectType::Slab => (0.35, 0.22, 0.15, 2.0),
@@ -284,11 +299,13 @@ fn sigma_epistemic(tect_type: TectType, period: f64) -> f64 {
     }
 }
 
-/// Original (linear) standard-deviation model (`modified_sigma=False`).
+/// Original (linear) standard-deviation model (`modified_sigma=False`):
+/// phi^2(Rrup) from Eq. 19 plus DeltaVar(Vs30) from Eq. 20, then phi (Eq. 18)
+/// and total sigma (Eq. 17).
 fn stddevs_original(c: &Coeffs, rrup: f64, vs30: f64) -> (f64, f64, f64) {
     let (r1, r2, v1, v2) = (200.0, 500.0, 200.0, 500.0);
 
-    let mut phi_rv = if rrup <= r1 {
+    let mut phi2_rv = if rrup <= r1 {
         c.phi21
     } else if rrup >= r2 {
         c.phi22
@@ -298,17 +315,22 @@ fn stddevs_original(c: &Coeffs, rrup: f64, vs30: f64) -> (f64, f64, f64) {
 
     let clamped_r_ratio = || (r2 / rrup.max(r1).min(r2)).ln() / (r2 / r1).ln();
     if vs30 <= v1 {
-        phi_rv += c.phi2v * clamped_r_ratio();
+        phi2_rv += c.phi2v * clamped_r_ratio();
     } else if vs30 < v2 {
-        phi_rv += c.phi2v * ((v2 / vs30.min(v2)).ln() / (v2 / v1).ln()) * clamped_r_ratio();
+        phi2_rv += c.phi2v * ((v2 / vs30.min(v2)).ln() / (v2 / v1).ln()) * clamped_r_ratio();
     }
 
-    let phi_tot = phi_rv.sqrt();
+    let phi_tot = phi2_rv.sqrt();
     let total = (c.tau.powi(2) + phi_tot.powi(2)).sqrt();
     (total, c.tau, phi_tot)
 }
 
 /// NZ "modified sigma" nonlinear standard-deviation model (`modified_sigma=True`).
+/// The linear within-event variance is Eq. 19 (without Eq. 20's DeltaVar), and
+/// f2 is Eq. 10. The nonlinear propagation follows Abrahamson and Gulerce
+/// (2022), Earthquake Spectra 38(4), "AG22 Eq. N" below, with rho_W/rho_B from
+/// their Table E6. Their Eq. 28 (d f_site / d ln PGA) is replaced by the
+/// derivative of Parker's Eq. 9.
 #[allow(clippy::too_many_arguments)]
 fn stddevs_nonlinear(
     c: &Coeffs,
@@ -338,6 +360,7 @@ fn stddevs_nonlinear(
 
     let phi_lin = phi2_rv.sqrt();
     let phi_lin_pga = phi2_rv_pga.sqrt();
+    // AG22 Eq. 26
     let phi_b = (phi_lin.powi(2) - phi_amp.powi(2)).sqrt();
     let phi_b_pga = (phi_lin_pga.powi(2) - phi_amp.powi(2)).sqrt();
 
@@ -353,9 +376,12 @@ fn stddevs_nonlinear(
         )
     };
 
+    // Eq. 10
     let f2 = c.f4 * ((c.f5 * (vs30.min(VREF_FNL) - VB)).exp() - (c.f5 * (VREF_FNL - VB)).exp());
+    // d Fnl / d ln(PGAr) from Eq. 9, in place of AG22 Eq. 28
     let partial_f_pga = f2 * pgar / (pgar + F3);
 
+    // AG22 Eqs. 27 and 29
     let phi2_nl = phi_lin.powi(2)
         + partial_f_pga.powi(2) * phi_b_pga.powi(2)
         + 2.0 * partial_f_pga * phi_b_pga * phi_b * rho_w;
@@ -367,14 +393,17 @@ fn stddevs_nonlinear(
 }
 
 /// Computes mean + standard deviations for a single site/rupture pair.
+///
+/// `c` must be `coeffs_for(im)`; it is passed in so callers looping over
+/// sites look it up once rather than per site.
 pub fn compute(
     tect_type: TectType,
     im: Im,
+    c: &Coeffs,
     inp: &Inputs,
     sigma_mu_epsilon: f64,
     modified_sigma: bool,
 ) -> MeanStd {
-    let c = coeffs_for(im);
     let c_pga = PGA_COEFFS;
     let period = im.period();
 
@@ -383,7 +412,7 @@ pub fn compute(
         TectType::Slab => MB_DEFAULT_SLAB,
     };
 
-    let (c0, c1, a0, c4, c5, c6) = select(tect_type, &c);
+    let (c0, c1, a0, c4, c5, c6) = select(tect_type, c);
     let (c0_pga, c1_pga, a0_pga, c4_pga, c5_pga, c6_pga) = select(tect_type, &c_pga);
 
     let fm = magnitude_scaling(c6, c4, c5, inp.mag, m_b);
@@ -408,22 +437,25 @@ pub fn compute(
 
     let flin = linear_amplification(inp.vs30, c.s2, c.v2);
 
-    // Reference-rock PGA (backarc already folded into fp_pga).
+    // Reference-rock PGA, Eq. 1 with PGA coefficients and FS = 0 (backarc
+    // already folded into fp_pga).
     let pgar = (fp_pga + fm_pga + c0_pga + fd_pga).exp();
     let fnl = non_linear_term(c.f4, c.f5, inp.vs30, pgar);
 
     let fba = backarc_term(tect_type, period, inp.rrup, inp.backarc);
 
-    // Basin term (fb) omitted: always 0 in this configuration (no z2pt5).
+    // Eq. 1, with FS = Flin + Fnl from Eq. 7. Basin term (Fb) omitted: always 0
+    // in this configuration (no z2pt5). fba is the NZ backarc addition.
     let mut mean = fp + fnl + flin + fm + c0 + fd + fba;
+    // Epistemic adjustment of c0 by epsilon * sigma_e (Eq. 27 and text).
     if sigma_mu_epsilon != 0.0 {
         mean += sigma_mu_epsilon * sigma_epistemic(tect_type, period);
     }
 
     let (total, inter, intra) = if modified_sigma {
-        stddevs_nonlinear(&c, &c_pga, period, pgar, inp.rrup, inp.vs30)
+        stddevs_nonlinear(c, &c_pga, period, pgar, inp.rrup, inp.vs30)
     } else {
-        stddevs_original(&c, inp.rrup, inp.vs30)
+        stddevs_original(c, inp.rrup, inp.vs30)
     };
 
     MeanStd {
@@ -522,7 +554,9 @@ mod tests {
             for (col_idx, header) in headers.iter().enumerate().skip(row.value_start) {
                 let im = im_for_header(header);
                 let expected: f64 = record[col_idx].parse().unwrap();
-                let predicted = compute(tect_type, im, &row.inputs, 0.0, false).mean.exp();
+                let predicted = compute(tect_type, im, &coeffs_for(im), &row.inputs, 0.0, false)
+                    .mean
+                    .exp();
                 let discrep = (predicted / expected * 100.0 - 100.0).abs();
                 max_discrep = max_discrep.max(discrep);
                 n_checked += 1;
@@ -560,7 +594,15 @@ mod tests {
             for (col_idx, header) in headers.iter().enumerate().skip(row.value_start) {
                 let im = im_for_header(header);
                 let expected: f64 = record[col_idx].parse().unwrap();
-                let predicted = compute(tect_type, im, &row.inputs, 0.0, modified_sigma).total;
+                let predicted = compute(
+                    tect_type,
+                    im,
+                    &coeffs_for(im),
+                    &row.inputs,
+                    0.0,
+                    modified_sigma,
+                )
+                .total;
                 let discrep = (predicted / expected * 100.0 - 100.0).abs();
                 max_discrep = max_discrep.max(discrep);
                 n_checked += 1;

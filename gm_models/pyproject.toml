@@ -26,7 +26,7 @@ pep621_dev_dependency_groups = ["test", "dev", "types"]
 find = { where = ["."], include = ["gm_models"], exclude = ["tests", "src-rust"] }
 
 [[tool.setuptools-rust.ext-modules]]
-target = "gm_models._utils"
+target = "gm_models._core"
 binding = "PyO3"
 
 [tool.ruff.lint]

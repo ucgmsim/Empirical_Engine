@@ -15,7 +15,8 @@ import pandas as pd
 import pytest
 from pytest import Metafunc
 
-from gm_models.p21 import EpistemicBranch, TectType, run_p21
+from gm_models.constants import EpistemicBranch, TectType
+from gm_models.p21 import run_p21
 
 OQ_WRAPPER_TESTS_DIR = Path(__file__).parent.parent.parent / "oq_wrapper" / "tests"
 BENCHMARK_DATA_DIR = OQ_WRAPPER_TESTS_DIR / "benchmark_data"

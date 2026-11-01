@@ -1,4 +1,4 @@
-"""Type stubs for the compiled `gm_models._utils` Rust extension."""
+"""Type stubs for the compiled `gm_models._core` Rust extension."""
 
 import numpy as np
 import numpy.typing as npt

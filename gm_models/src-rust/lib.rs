@@ -7,7 +7,7 @@ pub mod p21;
 use pyo3::prelude::*;
 
 #[pymodule]
-mod _utils {
+mod _core {
     use crate::p21;
 
     use numpy::{IntoPyArray, PyArray1, PyReadonlyArray1};
@@ -63,6 +63,7 @@ mod _utils {
         check_len("rrup", rrup.len(), n)?;
         check_len("vs30", vs30.len(), n)?;
         let im = parse_im(im, period)?;
+        let coeffs = p21::coeffs_for(im);
 
         let mut mean = Vec::with_capacity(n);
         let mut total = Vec::with_capacity(n);
@@ -79,6 +80,7 @@ mod _utils {
             let result = p21::compute(
                 p21::TectType::Interface,
                 im,
+                &coeffs,
                 &inputs,
                 sigma_mu_epsilon,
                 modified_sigma,
@@ -132,6 +134,7 @@ mod _utils {
         check_len("hypo_depth", hypo_depth.len(), n)?;
         check_len("backarc", backarc.len(), n)?;
         let im = parse_im(im, period)?;
+        let coeffs = p21::coeffs_for(im);
 
         let mut mean = Vec::with_capacity(n);
         let mut total = Vec::with_capacity(n);
@@ -148,6 +151,7 @@ mod _utils {
             let result = p21::compute(
                 p21::TectType::Slab,
                 im,
+                &coeffs,
                 &inputs,
                 sigma_mu_epsilon,
                 modified_sigma,

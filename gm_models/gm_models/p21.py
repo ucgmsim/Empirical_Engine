@@ -1,65 +1,23 @@
 """Python scaffolding around the Rust P_21 (NZ NSHM2022 Parker et al. 2020) implementation.
 
 Column/input validation, epistemic-branch handling, and result assembly live
-here; the actual GMPE math lives in the compiled `gm_models._utils` Rust
+here; the actual GMPE math lives in the compiled `gm_models._core` Rust
 extension (see `src-rust/p21.rs`).
 """
 
-from __future__ import annotations
-
 from collections.abc import Sequence
-from enum import StrEnum
 
 import numpy as np
 import pandas as pd
 
-from gm_models import _utils
-
-
-class TectType(StrEnum):
-    """Tectonic type supported by P_21."""
-
-    SUBDUCTION_INTERFACE = "SUBDUCTION_INTERFACE"
-    SUBDUCTION_SLAB = "SUBDUCTION_SLAB"
-
-
-class EpistemicBranch(StrEnum):
-    """Epistemic uncertainty branch, mirroring `oq_wrapper.constants.EpistemicBranch`."""
-
-    LOWER = "LOWER"
-    CENTRAL = "CENTRAL"
-    UPPER = "UPPER"
-
-
-# Matches oq_wrapper.constants.GMM_EPISTEMIC_BRANCH_KWARGS_MAPPING[GMM.P_21].
-_SIGMA_MU_EPSILON = {
-    EpistemicBranch.LOWER: -1.2815,
-    EpistemicBranch.CENTRAL: 0.0,
-    EpistemicBranch.UPPER: 1.2815,
-}
+from gm_models import _core
+from gm_models.constants import P21_SIGMA_MU_EPSILON, EpistemicBranch, TectType
+from gm_models.utils import validate_columns
 
 _REQUIRED_COLUMNS = {
     TectType.SUBDUCTION_INTERFACE: {"mag", "rrup", "vs30"},
     TectType.SUBDUCTION_SLAB: {"mag", "rrup", "vs30", "hypo_depth", "backarc"},
 }
-
-
-def _validate_columns(tect_type: TectType, rupture_df: pd.DataFrame) -> None:
-    """Raise ``ValueError`` if `rupture_df` is missing required columns.
-
-    Parameters
-    ----------
-    tect_type : TectType
-        Tectonic type being run, which determines the required columns.
-    rupture_df : pd.DataFrame
-        Input rupture/site dataframe to validate.
-    """
-    required = _REQUIRED_COLUMNS[tect_type]
-    missing = required - set(rupture_df.columns)
-    if missing:
-        raise ValueError(
-            f"rupture_df is missing required columns for {tect_type}: {sorted(missing)}"
-        )
 
 
 def _run_one(
@@ -70,7 +28,7 @@ def _run_one(
     sigma_mu_epsilon: float,
     modified_sigma: bool,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Run the compiled `_utils` extension once, for a single IM/period.
+    """Run the compiled `_core` extension once, for a single IM/period.
 
     Parameters
     ----------
@@ -98,13 +56,13 @@ def _run_one(
     vs30 = rupture_df["vs30"].to_numpy(dtype=np.float64)
 
     if tect_type is TectType.SUBDUCTION_INTERFACE:
-        return _utils._p21_interface(
+        return _core._p21_interface(
             mag, rrup, vs30, im, period, sigma_mu_epsilon, modified_sigma
         )
 
     hypo_depth = rupture_df["hypo_depth"].to_numpy(dtype=np.float64)
     backarc = rupture_df["backarc"].to_numpy(dtype=np.bool_)
-    return _utils._p21_slab(
+    return _core._p21_slab(
         mag,
         rrup,
         vs30,
@@ -153,8 +111,8 @@ def run_p21(
         `rupture_df`'s index. Mean is in natural-log space, matching
         `oq_wrapper.run_gmm`'s output contract.
     """
-    _validate_columns(tect_type, rupture_df)
-    sigma_mu_epsilon = _SIGMA_MU_EPSILON[epistemic_branch]
+    validate_columns(rupture_df, _REQUIRED_COLUMNS[tect_type])
+    sigma_mu_epsilon = P21_SIGMA_MU_EPSILON[epistemic_branch]
 
     columns: dict[str, np.ndarray] = {}
     if im == "pSA":
