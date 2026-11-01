@@ -7,6 +7,7 @@ The two key functions for running GMMs are:
 
 import functools
 import logging
+import operator
 import typing
 import warnings
 from collections.abc import Callable, Sequence
@@ -19,6 +20,8 @@ from openquake.hazardlib import contexts, imt
 from openquake.hazardlib import gsim as _gsim
 
 from . import constants, estimations
+
+logger = logging.getLogger(__name__)
 
 # NOTE: OpenQuake hack!
 #
@@ -59,9 +62,7 @@ def _oq_model(model: gsim.base.MetaGSIM, **kwargs: Any) -> gsim.base.GMPE:
     return model(**kwargs)
 
 
-ESHM20_BCHYDRO = getattr(gsim, "eshm20_bchydro", None) or getattr(
-    gsim, "bchydro_2016_epistemic"
-)
+ESHM20_BCHYDRO = getattr(gsim, "eshm20_bchydro", None) or gsim.bchydro_2016_epistemic
 
 OQ_MODEL_MAPPING = {
     constants.GMM.AS_16: {
@@ -142,17 +143,18 @@ OQ_MODEL_MAPPING = {
         constants.TectType.ACTIVE_SHALLOW: gsim.bradley_2013.Bradley2013,
         constants.TectType.VOLCANIC: gsim.bradley_2013.Bradley2013Volc,
     },
+    # NZ NSHM 2022 versions (add the backarc term for slab, requires `backarc`)
     constants.GMM.AG_20: {
-        constants.TectType.SUBDUCTION_SLAB: gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SSlab,
-        constants.TectType.SUBDUCTION_INTERFACE: gsim.abrahamson_gulerce_2020.AbrahamsonGulerce2020SInter,
+        constants.TectType.SUBDUCTION_SLAB: gsim.nz22.nz_nshm2022_abrahamson_gulerce_2020.NZNSHM2022_AbrahamsonGulerce2020SSlab,
+        constants.TectType.SUBDUCTION_INTERFACE: gsim.nz22.nz_nshm2022_abrahamson_gulerce_2020.NZNSHM2022_AbrahamsonGulerce2020SInter,
     },
     constants.GMM.P_20: {
         constants.TectType.SUBDUCTION_SLAB: gsim.parker_2020.ParkerEtAl2020SSlab,
         constants.TectType.SUBDUCTION_INTERFACE: gsim.parker_2020.ParkerEtAl2020SInter,
     },
     constants.GMM.K_20: {
-        constants.TectType.SUBDUCTION_SLAB: gsim.kuehn_2020.KuehnEtAl2020SSlab,
-        constants.TectType.SUBDUCTION_INTERFACE: gsim.kuehn_2020.KuehnEtAl2020SInter,
+        constants.TectType.SUBDUCTION_SLAB: gsim.nz22.nz_nshm2022_kuehn_2020.NZNSHM2022_KuehnEtAl2020SSlab,
+        constants.TectType.SUBDUCTION_INTERFACE: gsim.nz22.nz_nshm2022_kuehn_2020.NZNSHM2022_KuehnEtAl2020SInter,
     },
     constants.GMM.P_21: {
         constants.TectType.SUBDUCTION_SLAB: gsim.nz22.nz_nshm2022_parker.NZNSHM2022_ParkerEtAl2020SSlab,
@@ -237,21 +239,19 @@ def run_gmm(
 
     # OQ's single new-style context which contains all site, distance and rupture's information
     rupture_ctx = contexts.RuptureContext(
-        tuple(
-            [
-                # Openquake requiring occurrence_rate attribute to exist
-                ("occurrence_rate", None),
-                # sids is the number of sites provided (OQ term)
-                # This term needs to be repeated for the number of rows in the df
-                ("sids", [1] * rupture_df.shape[0]),
-                *(
-                    (
-                        column,
-                        rupture_df.loc[:, column].values,
-                    )
-                    for column in rupture_df.columns.values
-                ),
-            ]
+        (
+            # Openquake requiring occurrence_rate attribute to exist
+            ("occurrence_rate", None),
+            # sids is the number of sites provided (OQ term)
+            # This term needs to be repeated for the number of rows in the df
+            ("sids", [1] * rupture_df.shape[0]),
+            *(
+                (
+                    column,
+                    rupture_df.loc[:, column].values,
+                )
+                for column in rupture_df.columns.values
+            ),
         )
     )
 
@@ -285,32 +285,6 @@ def run_gmm(
         result_df = _run_oq_model(oq_model, rupture_ctx, oq_im_type_fn(), stddev_types)
 
     result_df.index = rupture_df.index
-
-    # Median prediction adjustment using sigma factor
-    # Used by 2022 NZ NSHM
-    if (
-        epistemic_branch is not constants.EpistemicBranch.CENTRAL
-        and model in constants.GMM_EPISTEMIC_BRANCH_SIGMA_FACTOR_MAPPING
-    ):
-        sigma_factor_mapping = constants.GMM_EPISTEMIC_BRANCH_SIGMA_FACTOR_MAPPING[
-            model
-        ]
-        mean_cols = [col for col in result_df.columns if col.endswith("_mean")]
-        std_total_cols = [
-            col for col in result_df.columns if col.endswith("_std_Total")
-        ]
-        assert len(mean_cols) == len(std_total_cols)
-        assert all(
-            [
-                c1.rstrip("_mean") == c2.rstrip("_std_Total")
-                for c1, c2 in zip(mean_cols, std_total_cols)
-            ]
-        )
-
-        result_df[mean_cols] = (
-            result_df[mean_cols].values
-            + sigma_factor_mapping[epistemic_branch] * result_df[std_total_cols].values
-        )
 
     return result_df
 
@@ -419,7 +393,7 @@ def run_gmm_logic_tree(
             ind_results[str(cur_model)] = (cur_weight, cur_result_df)
 
     if im.startswith("pSA") and periods:
-        im_keys = [f"pSA_{p}" for p in periods]
+        im_keys = [f"pSA_{float(p)}" for p in periods]
     elif im.startswith("pSA"):
         raise ValueError("Periods must be specified for pSA.")
     else:
@@ -428,15 +402,19 @@ def run_gmm_logic_tree(
     std_im_keys = [f"{key}_std_Total" for key in im_keys]
 
     # Compute weighted mean and standard deviation
-    lt_mean = sum([w * df[mean_im_keys] for (w, df) in ind_results.values()])
-    lt_within_model_var = sum(
-        [w * df[std_im_keys] ** 2 for (w, df) in ind_results.values()]
+    # functools.reduce (rather than sum) keeps the results typed as DataFrames
+    lt_mean: pd.DataFrame = functools.reduce(
+        operator.add, [w * df[mean_im_keys] for (w, df) in ind_results.values()]
     )
-    lt_between_model_var = sum(
-        [w * (df[mean_im_keys] - lt_mean) ** 2 for (w, df) in ind_results.values()]
+    lt_within_model_var: pd.DataFrame = functools.reduce(
+        operator.add, [w * df[std_im_keys] ** 2 for (w, df) in ind_results.values()]
+    )
+    lt_between_model_var: pd.DataFrame = functools.reduce(
+        operator.add,
+        [w * (df[mean_im_keys] - lt_mean) ** 2 for (w, df) in ind_results.values()],
     )
     lt_between_model_var.columns = std_im_keys
-    lt_std = np.sqrt(lt_within_model_var + lt_between_model_var)
+    lt_std = (lt_within_model_var + lt_between_model_var) ** 0.5
 
     result_df = pd.merge(lt_mean, lt_std, left_index=True, right_index=True)
     if return_ind_results:
@@ -464,9 +442,9 @@ def get_model_from_str(model_name: str) -> constants.GMM | constants.GMMLogicTre
     ValueError
         If the model name is not recognized
     """
-    if model_name in constants.GMM:
+    if model_name in constants.GMM.__members__:
         return constants.GMM[model_name]
-    elif model_name in constants.GMMLogicTree:
+    elif model_name in constants.GMMLogicTree.__members__:
         return constants.GMMLogicTree[model_name]
     else:
         raise ValueError(f"Model {model_name} not recognized.")
@@ -558,6 +536,17 @@ def prepare_model_inputs(
         ),
     )
     _handle_missing_property(rupture_df, model, "ASK_14", "ry0", col_to_rename="ry")
+    # Mainshocks by default (OQ >= 3.27 aftershock term), crjb is only used
+    # for aftershocks
+    _handle_missing_property(
+        rupture_df, model, "ASK_14", "is_aftershock", value_factory=lambda: False
+    )
+    _handle_missing_property(
+        rupture_df, model, "ASK_14", "crjb", value_factory=lambda: np.nan
+    )
+    _handle_missing_property(
+        rupture_df, model, "Br_13", "is_aftershock", value_factory=lambda: False
+    )
 
     _handle_missing_property(
         rupture_df, model, "BCH_16", "xvf", value_factory=lambda: 0
@@ -654,12 +643,9 @@ def get_oq_model(
         If the model's defined tectonic type doesn't match the specified tectonic type
         (unless tect_type is VOLCANIC)
     """
-    # Get correct epistemic uncertainty branch, only applicable for backbone models
-    # and the mappings needs to be defined in constants.GMM_EPISTEMIC_BRANCH_KWARGS_MAPPING
-    if (
-        epistemic_branch is not constants.EpistemicBranch.CENTRAL
-        and model not in constants.GMM_EPISTEMIC_BRANCH_SIGMA_FACTOR_MAPPING
-    ):
+    # Get correct epistemic uncertainty branch, only applicable for models with
+    # a mapping defined in constants.GMM_EPISTEMIC_BRANCH_KWARGS_MAPPING
+    if epistemic_branch is not constants.EpistemicBranch.CENTRAL:
         if (
             epis_mapping := constants.GMM_EPISTEMIC_BRANCH_KWARGS_MAPPING.get(model)
         ) is None:
@@ -779,9 +765,9 @@ def _oq_run_EAS(  # noqa: N802
         im = imt.EAS(frequency=frequency)
         try:
             result = _run_oq_model(model, rupture_ctx, im, stddev_types)
-        except Exception as e:
+        except Exception:
             # Any other exceptions that we cannot handle.
-            logging.exception(e)
+            logger.exception("Failed to run OpenQuake model")
             raise
 
         results.append(result)
@@ -836,6 +822,10 @@ def _oq_run_pSA(  # noqa: N802
             f"Model {model_type.name} does not support pSA. Supported types are {model.DEFINED_FOR_INTENSITY_MEASURE_TYPES}"
         )
 
+    # Normalise periods to float, so column names (e.g. from extrapolation
+    # or PGA-interpolation) are consistent regardless of the input type.
+    periods = [float(period) for period in periods]
+
     # Get model periods
     model_periods = _get_model_pSA_periods(model)
     max_model_period = max(model_periods)
@@ -874,11 +864,11 @@ def _oq_run_pSA(  # noqa: N802
                 )
             else:
                 # KeyError that we cannot handle
-                logging.exception(ke)
+                logger.exception("Failed to run OpenQuake model")
                 raise
-        except Exception as e:
+        except Exception:
             # Any other exceptions that we cannot handle
-            logging.exception(e)
+            logger.exception("Failed to run OpenQuake model")
             raise
 
         # extrapolate pSA value up based on maximum available period

@@ -3,17 +3,21 @@ Module that contains functions used to estimate input parameters for
 empirical GMMs, such as fault width and Z-values.
 """
 
+from __future__ import annotations
+
 from collections.abc import Callable
-from typing import TypeVar
+from typing import TYPE_CHECKING, TypeVar
 
 import numpy as np
 import pandas as pd
 from scipy import interpolate
 from scipy.special import erf
 
-from source_modelling.sources import Plane
+from . import types
 
-from . import constants, types
+if TYPE_CHECKING:
+    # Only needed for type annotations; source-modelling is not a runtime dependency.
+    from source_modelling.sources import Plane
 
 TArrayLike = TypeVar("TArrayLike", bound=types.Array)
 
@@ -172,7 +176,7 @@ def kuehn_20_calc_z(vs30: TArrayLike, region: str) -> TArrayLike:
     ln_z_ref = constants["c_z_1"] + (constants["c_z_2"] - constants["c_z_1"]) * np.exp(
         diff
     ) / (1 + np.exp(diff))
-    return ln_z_ref
+    return np.exp(ln_z_ref) / 1000
 
 
 def chiou_young_14_calc_z1p0(vs30: TArrayLike, region: str | None = None) -> TArrayLike:
@@ -194,11 +198,11 @@ def chiou_young_14_calc_z1p0(vs30: TArrayLike, region: str | None = None) -> TAr
     """
     if region == "Japan":
         z1p0 = (
-            -5.23 / 2 * np.log((vs30**2 + 412.39**2) / (1360**4 + 412.39**4))  # ty: ignore[unsupported-operator]
+            -5.23 / 2 * np.log((vs30**2 + 412.39**2) / (1360**2 + 412.39**2))
         )  # In meters
     else:
         z1p0 = (
-            -7.15 / 4 * np.log((vs30**4 + 570.94**4) / (1360**4 + 570.94**4))  # ty: ignore[unsupported-operator]
+            -7.15 / 4 * np.log((vs30**4 + 570.94**4) / (1360**4 + 570.94**4))
         )  # In meters
     return np.exp(z1p0) / 1000  # In km
 
@@ -207,8 +211,9 @@ def mod_chiou_young_14_calc_z1p0(
     vs30: TArrayLike, region: str | None = None
 ) -> TArrayLike:
     """
-    Calculates the z1p0 value for the Chiou and Youngs (2014) model
-    Modified for a different coefficient for the global model
+    Calculates the reference z1p0 value for the Abrahamson et al. (2014) model,
+    Equations 18 (global) and 19 (Japan). These are modified versions of the
+    Chiou and Youngs (2014) relationships.
 
     Parameters
     ----------
@@ -224,13 +229,9 @@ def mod_chiou_young_14_calc_z1p0(
         The z1p0 value or values, in km. Has the same type as ``vs30``.
     """
     if region == "Japan":
-        z1p0 = (
-            -5.23 / 2 * np.log((vs30**2 + 412.39**2) / (1360**4 + 412.39**4))  # ty: ignore[unsupported-operator]
-        )  # In meters
+        z1p0 = -5.23 / 2 * np.log((vs30**2 + 412**2) / (1360**2 + 412**2))  # In meters
     else:
-        z1p0 = (
-            -7.15 / 4 * np.log((vs30**4 + 610**4) / (1360**4 + 610**4))  # ty: ignore[unsupported-operator]
-        )  # In meters
+        z1p0 = -7.67 / 4 * np.log((vs30**4 + 610**4) / (1360**4 + 610**4))  # In meters
     return np.exp(z1p0) / 1000  # In km
 
 
@@ -254,9 +255,9 @@ def campbell_bozorgina_14_calc_z2p5(
         The z2p5 value or values, in km. Has the same type as ``vs30``.
     """
     if region == "Japan":
-        z2p5 = np.exp(7.089 - 1.144 * np.log(vs30))
+        z2p5 = np.exp(5.359 - 1.102 * np.log(vs30))  # Eq. 34
     else:
-        z2p5 = np.exp(5.359 - 1.102 * np.log(vs30))
+        z2p5 = np.exp(7.089 - 1.144 * np.log(vs30))  # Eq. 33
     return z2p5  # In km
 
 
@@ -276,12 +277,7 @@ def chiou_young_08_calc_z1p0(
     array-like (list, numpy array, pandas series, float, ...)
         The z1p0 value or values, in km. Has the same type as ``vs30``.
     """
-    z1p0 = (
-        np.exp(
-            28.5 - 3.82 / 8 * np.log(vs30**8 + 378.7**8)  # ty: ignore[unsupported-operator]
-        )
-        / 1000
-    )  # In km
+    z1p0 = np.exp(28.5 - 3.82 / 8 * np.log(vs30**8 + 378.7**8)) / 1000  # In km
     return z1p0
 
 
@@ -321,7 +317,7 @@ def abrahamson_gulerce_20_calc_z2p5(vs30: TArrayLike, region: str) -> TArrayLike
     vs30 : array-like (list, numpy array, pandas series, float, ...)
         The Vs30 value or values, in meters per second
     region : str
-        The region to use, can only be in ["Japan", "Cascadia"]
+        The region to use, can only be "Cascadia"
 
     Returns
     -------
@@ -330,11 +326,9 @@ def abrahamson_gulerce_20_calc_z2p5(vs30: TArrayLike, region: str) -> TArrayLike
     """
     if region == "Cascadia":
         ln_zref = np.clip(8.52 - 0.88 * np.log(vs30 / 200.0), 7.6, 8.52)  # ty: ignore[unsupported-operator]
-    elif region == "Japan":
-        ln_zref = np.clip(7.3 - 2.066 * np.log(vs30 / 170.0), 4.1, 7.3)  # ty: ignore[unsupported-operator]
     else:
-        raise ValueError("Does not support region %s" % region)
-    return np.exp(ln_zref)  # In km
+        raise ValueError(f"Does not support region {region}")
+    return np.exp(ln_zref) / 1000  # In km
 
 
 def parker_20_calc_z2p5(vs30: TArrayLike, region: str) -> TArrayLike:
@@ -346,7 +340,7 @@ def parker_20_calc_z2p5(vs30: TArrayLike, region: str) -> TArrayLike:
     vs30 : array-like (list, numpy array, pandas series, float, ...)
         The Vs30 value or values, in meters per second
     region : str
-        The region to use, can only be in ["Japan", "Cascadia"]
+        The region to use, can only be "Japan"
 
     Returns
     -------
@@ -355,15 +349,13 @@ def parker_20_calc_z2p5(vs30: TArrayLike, region: str) -> TArrayLike:
     """
     if region == "Japan":
         theta0, theta1, vmu, vsig = 3.05, -0.8, 500, 0.33
-    elif region == "Cascadia":
-        theta0, theta1, vmu, vsig = 3.94, -0.42, 200, 0.2
     else:
-        raise ValueError("Does not support region %s" % region)
-    z2pt5: TArrayLike = 10 ** (  # ty: ignore[invalid-assignment]
+        raise ValueError(f"Does not support region {region}")
+    z2pt5: TArrayLike = 10 ** (
         theta0
         + theta1 * (1 + erf((np.log10(vs30) - np.log10(vmu)) / (vsig * np.sqrt(2))))
     )
-    return z2pt5  # In km
+    return z2pt5 / 1000  # In km  # ty: ignore[invalid-return-type]
 
 
 # Dictionary of models, mapping to their supported regions (None is global)
@@ -406,69 +398,15 @@ Z_CALC_MODEL_REGION_MAPPING: dict[
     },
     "AG_20": {
         "Cascadia": (abrahamson_gulerce_20_calc_z2p5, "z2pt5"),
-        "Japan": (abrahamson_gulerce_20_calc_z2p5, "z2pt5"),
     },
     "P_20": {
-        "Cascadia": (parker_20_calc_z2p5, "z2pt5"),
         "Japan": (parker_20_calc_z2p5, "z2pt5"),
     },
 }
 
 
-def calc_z_for_model(
-    model: constants.GMM, vs30: TArrayLike, region: str | None = None
-) -> tuple[TArrayLike, str]:
-    """
-    Calculates the z value for a given model, region and Vs30 value / values
-
-    Parameters
-    ----------
-    model : constants.GMM
-        The model to calculate the z value for
-    vs30 : array-like (list, numpy array, pandas series, float, ...)
-        The Vs30 value or values, in meters per second
-    region : Union[str, None]
-        The region to use, use None to define a Global region, default is None.
-        Use full region names, e.g. "NewZealand", "Cascadia", "Japan", "Taiwan"
-        If the specific region is not supported for the given model it will attempt to use the Global model
-        Otherwise a KeyError will be raised.
-
-    Returns
-    -------
-    z_value: array-like (list, numpy array, pandas series, float, ...)
-        The z value or values, in km. Has the same type as ``vs30``.
-    z_return: str
-        The z value return type, either "z1pt0" or "z2pt5"
-    """
-    # Just in case global is defined as a string, set to None
-    if region is not None:
-        if region.lower() == "global":
-            region = None
-    # Find the mapping for Z value calculation
-    if model.name in Z_CALC_MODEL_REGION_MAPPING:
-        if region in Z_CALC_MODEL_REGION_MAPPING[model.name]:
-            z_calc_function, z_return = Z_CALC_MODEL_REGION_MAPPING[model.name][region]
-        # Extra check for a global region
-        # since the region the user is wanting is not specifically available for the given model
-        elif None in Z_CALC_MODEL_REGION_MAPPING[model.name]:
-            z_calc_function, z_return = Z_CALC_MODEL_REGION_MAPPING[model.name][region]
-            region = None
-        else:
-            raise KeyError(f"Region {region} not supported for model {model.name}")
-    else:
-        raise KeyError(f"Model {model.name} is not supported")
-
-    # Calculate the z value using the function
-    if region is None:
-        z_value: TArrayLike = z_calc_function(vs30)
-    else:
-        z_value: TArrayLike = z_calc_function(vs30, region)
-    assert isinstance(z_return, str)
-    return z_value, z_return
-
-
 def interpolate_with_pga(
-    period: float | int,
+    period: float,
     model_min_period: float,
     pga_y: pd.DataFrame,
     min_period_y: pd.DataFrame,

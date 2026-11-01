@@ -50,11 +50,11 @@ def _pack_dataset(
 
     match (match := GENERAL_RX.match(test_column)) and match.groupdict():
         case {"im": "pSA"}:
-            extracted = extracted.rename(columns=dict(val="period"))
+            extracted = extracted.rename(columns={"val": "period"})
             extracted["period"] = pd.to_numeric(extracted["period"])
             levels.append("period")
         case {"im": "EAS"}:
-            extracted = extracted.rename(columns=dict(val="frequency"))
+            extracted = extracted.rename(columns={"val": "frequency"})
             extracted["frequency"] = pd.to_numeric(extracted["frequency"])
             levels.append("frequency")
         case None:

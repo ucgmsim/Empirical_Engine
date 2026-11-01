@@ -10,37 +10,67 @@ name = "oq-wrapper"
 authors = [{ name = "ucgmsim" }]
 description = "Wrapper for OpenQuake engine to run empirical GMMs"
 readme = "README.md"
-requires-python = ">=3.11"
+# Python 3.15 is blocked by openquake-engine's dependencies:
+#   - h5py: no cp315 wheels yet (expected with h5py 3.17,
+#     https://github.com/h5py/h5py/issues/2972); the sdist needs a system HDF5.
+#   - fiona (imported by several openquake GSIMs): no cp315 wheels, no release
+#     since 1.10.1 (2024-09), and the sdist needs a system GDAL.
+# Lift the cap once both ship cp315 wheels (or openquake drops fiona).
+requires-python = ">=3.11,<3.15"
 dynamic = ["version"]
 dependencies = [
   "numpy>=2.0",
-  "openquake.engine>=3.21",
-  "pandas[pyarrow]",
+  "openquake.engine @ git+https://github.com/gem/oq-engine.git@master",
+  "pandas",
   "pyyaml",
   "scipy>=1.7.2",
   # Suggested minimum version that handles the indexing logic in the xarray
   # module properly.
   "xarray>=2022.3.0",
-  "source-modelling",
+  # Not imported by oq_wrapper, but openquake.hazardlib imports fiona when
+  # loading its gsim modules and openquake.engine does not declare it
+  # (it was previously pulled in transitively by source-modelling).
+  "fiona",
 ]
 
 [project.optional-dependencies]
-test = ["pytest", "tqdm>=4.0.0"]
-types = ["pandas-stubs", "scipy-stubs"]
+# pyarrow is needed for pd.read_parquet in the tests and examples.
+test = ["pytest", "tqdm>=4.0.0", "pyarrow"]
+# source-modelling is only imported under TYPE_CHECKING (for the Plane annotation).
+types = ["pandas-stubs", "scipy-stubs", "source-modelling"]
 dev = ["ruff", "deptry", "ty"]
+
+[tool.uv]
+# OQ >= 3.27 depends on the gdal Python bindings, which have no Linux wheels and need
+# a matching system libgdal (CI's apt libgdal is too old). Only OQ's secondary perils
+# module (openquake.sep) uses them, so drop gdal.
+override-dependencies = ["gdal; sys_platform == 'never'"]
 
 [tool.deptry]
 pep621_dev_dependency_groups = ["test", "dev", "types"]
 extend_exclude = ["tests", "scripts/one_offs"]
 
+[tool.deptry.per_rule_ignores]
+# fiona is an undeclared runtime import of openquake.hazardlib, see above.
+DEP002 = ["fiona"]
+
 
 [tool.setuptools.packages.find]
 exclude = ["tests*"]
 
-[tool.ruff]
+[tool.ty.src]
 exclude = ["scripts/one_offs"]
 
-[tool.ty.src]
+[tool.npdlint]
+include = ["oq_wrapper"]
+
+[tool.pytest.ini_options]
+# generate_benchmark_outputs.py regenerates tests/benchmark_data/*.parquet when
+# run as a script; it is not a test module, so --doctest-modules never collects it.
+addopts = "--doctest-modules --ignore=tests/benchmark_data/generate_benchmark_outputs.py"
+testpaths = ["tests", "oq_wrapper"]
+
+[tool.ruff]
 exclude = ["scripts/one_offs"]
 
 [tool.ruff.lint]
