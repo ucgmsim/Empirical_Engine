@@ -1,0 +1,40 @@
+name: hazardlib verification
+
+# Checks gm_models' P21 against hazardlib's reference data on oq-engine
+# master. A failure here may come from an upstream change to that data rather
+# than from this repo; compare the "Upstream reference data version" step
+# against the last green run.
+on:
+  pull_request:
+  schedule:
+    - cron: "0 18 * * 0" # weekly, so upstream drift shows up without a PR
+
+jobs:
+  p21-vs-hazardlib:
+    name: P21 vs hazardlib reference data (oq-engine master)
+    runs-on: ubuntu-latest
+    env:
+      DATA_DIR: openquake/hazardlib/tests/gsim/data/nz22/NZNSH2022_PARKER20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: gem/oq-engine
+          ref: master
+          path: oq-engine
+          fetch-depth: 0
+          filter: blob:none # history for the log step without downloading every blob
+          sparse-checkout: ${{ env.DATA_DIR }}
+      - name: Upstream reference data version
+        run: |
+          git -C oq-engine log -1 --format='oq-engine master: %h (%cs)'
+          git -C oq-engine log -1 --format='reference data last changed: %h (%cs) %s' -- "$DATA_DIR"
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: gm_models
+      - name: cargo test (hazardlib verification)
+        working-directory: gm_models
+        env:
+          OQ_ENGINE_PATH: ${{ github.workspace }}/oq-engine
+        run: cargo test -- --ignored

@@ -15,10 +15,12 @@ assembly live in Python (`gm_models/`).
 
 Two layers, see the top-level plan for detail:
 
-1. **hazardlib verification** (`cargo test`): compares directly against
+1. **hazardlib verification** (`cargo test -- --ignored`): compares directly against
    hazardlib's own independently-sourced reference tables. Requires
-   `OQ_ENGINE_PATH` to point at a local `oq-engine` checkout; tests are
-   skipped (not silently passed) if it's unset.
+   `OQ_ENGINE_PATH` to point at a local `oq-engine` checkout; the tests are
+   `#[ignore]`d so a plain `cargo test` lists them as ignored. CI runs them
+   against oq-engine master in `hazardlib-verification.yml`, so a failure
+   there can come from an upstream change to the reference data.
 2. **oq_wrapper benchmark parity** (`pytest tests/`): compares the full
    Python-facing output against `oq_wrapper`'s existing benchmark parquet
    fixtures, to check this is a safe drop-in replacement.
@@ -27,6 +29,6 @@ Two layers, see the top-level plan for detail:
 
 ```sh
 uv sync --extra test   # builds the Rust extension via setuptools-rust
-cargo test              # Layer 1 (set OQ_ENGINE_PATH first)
+OQ_ENGINE_PATH=<oq-engine checkout> cargo test -- --ignored   # Layer 1
 uv run --extra test pytest tests -v   # Layer 2
 ```

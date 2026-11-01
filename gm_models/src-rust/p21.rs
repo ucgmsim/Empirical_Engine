@@ -471,8 +471,11 @@ pub fn compute(
 /// CSVs, generated from Grace Parker's original R implementation — see
 /// `nznshm2022_parker2020_test.py`'s test data), read from a local
 /// `oq-engine` checkout rather than vendored into this repo (see the
-/// gm_models plan for why). Set `OQ_ENGINE_PATH` to that checkout's root;
-/// tests are skipped (with a message, not silently) if it's unset.
+/// gm_models plan for why). These tests are `#[ignore]`d so a plain
+/// `cargo test` reports them as ignored rather than passed; run them with
+/// `OQ_ENGINE_PATH=<oq-engine checkout root> cargo test -- --ignored`.
+/// CI runs them against oq-engine master (`hazardlib-verification.yml`), so a
+/// failure there may come from an upstream data change, not from this code.
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -481,11 +484,10 @@ mod tests {
 
     const MAX_DISCREP_PERCENTAGE: f64 = 0.1;
 
-    fn oq_engine_data_dir() -> Option<PathBuf> {
-        let base = env::var("OQ_ENGINE_PATH").ok()?;
-        Some(
-            PathBuf::from(base).join("openquake/hazardlib/tests/gsim/data/nz22/NZNSH2022_PARKER20"),
-        )
+    fn oq_engine_data_dir() -> PathBuf {
+        let base = env::var("OQ_ENGINE_PATH")
+            .expect("OQ_ENGINE_PATH must be set to an oq-engine checkout root");
+        PathBuf::from(base).join("openquake/hazardlib/tests/gsim/data/nz22/NZNSH2022_PARKER20")
     }
 
     fn header_index(headers: &csv::StringRecord, name: &str) -> usize {
@@ -631,16 +633,9 @@ mod tests {
     macro_rules! hazardlib_test {
         ($name:ident, $check:expr) => {
             #[test]
+            #[ignore = "needs OQ_ENGINE_PATH; run with `cargo test -- --ignored`"]
             fn $name() {
-                let Some(dir) = oq_engine_data_dir() else {
-                    eprintln!(
-                        "OQ_ENGINE_PATH not set; skipping hazardlib verification test '{}'. \
-                         Set it to a local oq-engine checkout root to run this test.",
-                        stringify!($name)
-                    );
-                    return;
-                };
-                $check(dir);
+                $check(oq_engine_data_dir());
             }
         };
     }

@@ -81,7 +81,7 @@ def run_p21(
     im: str,
     periods: Sequence[float] | None = None,
     epistemic_branch: EpistemicBranch = EpistemicBranch.CENTRAL,
-    modified_sigma: bool = False,
+    modified_sigma: bool = True,
 ) -> pd.DataFrame:
     """Run the P_21 (NZ NSHM2022 Parker et al. 2020) model, global (GLO) region.
 
@@ -100,8 +100,8 @@ def run_p21(
         Epistemic uncertainty branch. Defaults to `EpistemicBranch.CENTRAL`.
     modified_sigma : bool
         Whether to use the NZ "modified sigma" nonlinear standard-deviation
-        model instead of the original (linear) one. Defaults to False,
-        matching `oq_wrapper`'s default for P_21 in the NSHM2022 logic tree.
+        model instead of the original (linear) one. Defaults to True, as in
+        the NSHM 2022 GMCM logic tree (Bradley et al. 2024) and `oq_wrapper`.
 
     Returns
     -------
