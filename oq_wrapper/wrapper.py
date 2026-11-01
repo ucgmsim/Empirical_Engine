@@ -109,12 +109,6 @@ OQ_MODEL_MAPPING = {
         constants.TectType.ACTIVE_SHALLOW: gsim.nz22.stafford_2022.Stafford2022,
         constants.TectType.VOLCANIC: gsim.nz22.stafford_2022.Stafford2022,
     },
-    constants.GMM.A_22: {
-        constants.TectType.ACTIVE_SHALLOW: gsim.nz22.atkinson_2022.Atkinson2022Crust,
-        constants.TectType.VOLCANIC: gsim.nz22.atkinson_2022.Atkinson2022Crust,
-        constants.TectType.SUBDUCTION_SLAB: gsim.nz22.atkinson_2022.Atkinson2022SSlab,
-        constants.TectType.SUBDUCTION_INTERFACE: gsim.nz22.atkinson_2022.Atkinson2022SInter,
-    },
     constants.GMM.ASK_14: {
         constants.TectType.ACTIVE_SHALLOW: gsim.abrahamson_2014.AbrahamsonEtAl2014,
         constants.TectType.VOLCANIC: gsim.abrahamson_2014.AbrahamsonEtAl2014,
@@ -144,6 +138,30 @@ OQ_MODEL_MAPPING = {
         constants.TectType.VOLCANIC: gsim.bradley_2013.Bradley2013Volc,
     },
     # NZ NSHM 2022 versions (add the backarc term for slab, requires `backarc`)
+    # modified_sigma: nonlinear site response sigma reduction, as in the NSHM 2022 GMCM LT
+    # (Bradley et al. 2024)
+    constants.GMM.A_22: {
+        constants.TectType.ACTIVE_SHALLOW: functools.partial(
+            _oq_model,
+            model=gsim.nz22.atkinson_2022.Atkinson2022Crust,
+            modified_sigma=True,
+        ),
+        constants.TectType.VOLCANIC: functools.partial(
+            _oq_model,
+            model=gsim.nz22.atkinson_2022.Atkinson2022Crust,
+            modified_sigma=True,
+        ),
+        constants.TectType.SUBDUCTION_SLAB: functools.partial(
+            _oq_model,
+            model=gsim.nz22.atkinson_2022.Atkinson2022SSlab,
+            modified_sigma=True,
+        ),
+        constants.TectType.SUBDUCTION_INTERFACE: functools.partial(
+            _oq_model,
+            model=gsim.nz22.atkinson_2022.Atkinson2022SInter,
+            modified_sigma=True,
+        ),
+    },
     constants.GMM.AG_20: {
         constants.TectType.SUBDUCTION_SLAB: gsim.nz22.nz_nshm2022_abrahamson_gulerce_2020.NZNSHM2022_AbrahamsonGulerce2020SSlab,
         constants.TectType.SUBDUCTION_INTERFACE: gsim.nz22.nz_nshm2022_abrahamson_gulerce_2020.NZNSHM2022_AbrahamsonGulerce2020SInter,
@@ -153,12 +171,28 @@ OQ_MODEL_MAPPING = {
         constants.TectType.SUBDUCTION_INTERFACE: gsim.parker_2020.ParkerEtAl2020SInter,
     },
     constants.GMM.K_20: {
-        constants.TectType.SUBDUCTION_SLAB: gsim.nz22.nz_nshm2022_kuehn_2020.NZNSHM2022_KuehnEtAl2020SSlab,
-        constants.TectType.SUBDUCTION_INTERFACE: gsim.nz22.nz_nshm2022_kuehn_2020.NZNSHM2022_KuehnEtAl2020SInter,
+        constants.TectType.SUBDUCTION_SLAB: functools.partial(
+            _oq_model,
+            model=gsim.nz22.nz_nshm2022_kuehn_2020.NZNSHM2022_KuehnEtAl2020SSlab,
+            modified_sigma=True,
+        ),
+        constants.TectType.SUBDUCTION_INTERFACE: functools.partial(
+            _oq_model,
+            model=gsim.nz22.nz_nshm2022_kuehn_2020.NZNSHM2022_KuehnEtAl2020SInter,
+            modified_sigma=True,
+        ),
     },
     constants.GMM.P_21: {
-        constants.TectType.SUBDUCTION_SLAB: gsim.nz22.nz_nshm2022_parker.NZNSHM2022_ParkerEtAl2020SSlab,
-        constants.TectType.SUBDUCTION_INTERFACE: gsim.nz22.nz_nshm2022_parker.NZNSHM2022_ParkerEtAl2020SInter,
+        constants.TectType.SUBDUCTION_SLAB: functools.partial(
+            _oq_model,
+            model=gsim.nz22.nz_nshm2022_parker.NZNSHM2022_ParkerEtAl2020SSlab,
+            modified_sigma=True,
+        ),
+        constants.TectType.SUBDUCTION_INTERFACE: functools.partial(
+            _oq_model,
+            model=gsim.nz22.nz_nshm2022_parker.NZNSHM2022_ParkerEtAl2020SInter,
+            modified_sigma=True,
+        ),
     },
     constants.GMM.GA_11: {
         constants.TectType.ACTIVE_SHALLOW: gsim.gulerce_abrahamson_2011.GulerceAbrahamson2011
