@@ -59,7 +59,6 @@ class GMM(StrEnum):
 class GMMLogicTree(StrEnum):
     """Logic tree for GMMs."""
 
-    NHM2010_BB = "NHM2010_BB"
     NSHM2022 = "NSHM2022"
 
 
@@ -123,7 +122,6 @@ GMM_EPISTEMIC_BRANCH_KWARGS_MAPPING = {
 GMM_LT_CONFIG_DIR = Path(__file__).parent / "gmm_logic_tree_configs"
 
 GMM_LT_CONFIG_MAPPING = {
-    GMMLogicTree.NHM2010_BB: GMM_LT_CONFIG_DIR / "nhm_2010_bb_config.yaml",
     GMMLogicTree.NSHM2022: GMM_LT_CONFIG_DIR / "nshm_2022_config.yaml",
 }
 
