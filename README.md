@@ -73,7 +73,7 @@ psa_result, ind_results = oqw.run_gmm_logic_tree(
 `run_gmm_logic_tree` computes the weighted mean and standard deviation (within- +
 between-model variance) across all GMMs configured for the given logic tree,
 tectonic type and IM. Set `return_ind_results=True` to also get back a dict of each
-individual model's result and weight. Available logic trees: `NHM2010_BB`, `NSHM2022`,
+individual model's result and weight. Available logic trees: `NSHM2022`,
 configured in `oq_wrapper/gmm_logic_tree_configs/*.yaml` (see
 `constants.GMM_LT_CONFIG_MAPPING`).
 
