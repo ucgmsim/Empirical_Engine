@@ -15,15 +15,21 @@ assembly live in Python (`gm_models/`).
 
 Two layers, see the top-level plan for detail:
 
-1. **hazardlib verification** (`cargo test -- --ignored`): compares directly against
-   hazardlib's own independently-sourced reference tables. Requires
+1. **OpenQuake verification** (`cargo test -- --ignored`): compares directly against
+   OpenQuake's (`openquake.hazardlib`) own independently-sourced reference tables. Requires
    `OQ_ENGINE_PATH` to point at a local `oq-engine` checkout; the tests are
    `#[ignore]`d so a plain `cargo test` lists them as ignored. CI runs them
-   against oq-engine master in `hazardlib-verification.yml`, so a failure
+   against oq-engine master in `openquake-verification.yml`, so a failure
    there can come from an upstream change to the reference data.
 2. **oq_wrapper benchmark parity** (`pytest tests/`): compares the full
    Python-facing output against `oq_wrapper`'s existing benchmark parquet
    fixtures, to check this is a safe drop-in replacement.
+
+A plain `cargo test` also runs property tests (`proptest`) over the supported input domain, which need no external data.
+
+## Benchmarks
+
+`cargo bench` runs the criterion benchmarks in `benches/` and writes an HTML report to `target/criterion/report/index.html`. `cargo bench -- --profile-time 5` also writes flamegraphs (via `pprof`).
 
 ## Building
 

@@ -1,4 +1,4 @@
-//! Transcribed verbatim from `openquake.hazardlib.gsim.nz22.const`
+//! Transcribed verbatim from OpenQuake's `openquake.hazardlib.gsim.nz22.const`
 //! (`openquake/hazardlib/gsim/nz22/const.py`).
 
 /// Correlation-coefficient periods from AG20, used to interpolate `rho_W`/`rho_B`
@@ -20,8 +20,8 @@ pub static RHO_BS: [f64; 24] = [
 
 /// Periods for the backarc-term theta7/theta8 interpolation. Note
 /// `PERIODS[0] == 0.0` is a placeholder duplicating `PERIODS[1]`'s
-/// theta7/theta8 value; hazardlib's own interpolation table drops it
-/// (`periods[1:]`), which is what `crate::p21::interp_theta` reproduces.
+/// theta7/theta8 value; OpenQuake's own interpolation table drops it
+/// (`periods[1:]`), which is what `crate::p21::backarc_term` reproduces.
 pub static PERIODS: [f64; 23] = [
     0.0, 0.02, 0.05, 0.075, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.75, 1.0, 1.5, 2.0, 2.5,
     3.0, 4.0, 5.0, 6.0, 7.5, 10.0,

@@ -23,12 +23,11 @@ _REQUIRED_COLUMNS = {
 def _run_one(
     tect_type: TectType,
     rupture_df: pd.DataFrame,
-    im: str,
-    period: float,
+    im: _core.IM,
     sigma_mu_epsilon: float,
     modified_sigma: bool,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Run the compiled `_core` extension once, for a single IM/period.
+    """Run the compiled `_core` extension once, for a single IM.
 
     Parameters
     ----------
@@ -36,11 +35,8 @@ def _run_one(
         Tectonic type (subduction interface or slab).
     rupture_df : pd.DataFrame
         Rupture/site dataframe, already column-validated.
-    im : str
-        Intensity measure passed through to the extension: ``"PGA"``,
-        ``"PGV"``, or ``"SA"``.
-    period : float
-        Period in seconds, used only when `im` is ``"SA"``.
+    im : _core.IM
+        Intensity measure.
     sigma_mu_epsilon : float
         Epistemic uncertainty offset for the "modified sigma" branch.
     modified_sigma : bool
@@ -57,7 +53,7 @@ def _run_one(
 
     if tect_type is TectType.SUBDUCTION_INTERFACE:
         return _core._p21_interface(
-            mag, rrup, vs30, im, period, sigma_mu_epsilon, modified_sigma
+            mag, rrup, vs30, im, sigma_mu_epsilon, modified_sigma
         )
 
     hypo_depth = rupture_df["hypo_depth"].to_numpy(dtype=np.float64)
@@ -69,7 +65,6 @@ def _run_one(
         hypo_depth,
         backarc,
         im,
-        period,
         sigma_mu_epsilon,
         modified_sigma,
     )
@@ -122,8 +117,7 @@ def run_p21(
             mean, total, inter, intra = _run_one(
                 tect_type,
                 rupture_df,
-                "SA",
-                float(period),
+                _core.IM.SA(period=float(period)),
                 sigma_mu_epsilon,
                 modified_sigma,
             )
@@ -134,7 +128,11 @@ def run_p21(
             columns[f"{prefix}_std_Intra"] = intra
     elif im in ("PGA", "PGV"):
         mean, total, inter, intra = _run_one(
-            tect_type, rupture_df, im, 0.0, sigma_mu_epsilon, modified_sigma
+            tect_type,
+            rupture_df,
+            _core.IM.PGA() if im == "PGA" else _core.IM.PGV(),
+            sigma_mu_epsilon,
+            modified_sigma,
         )
         columns[f"{im}_mean"] = mean
         columns[f"{im}_std_Total"] = total

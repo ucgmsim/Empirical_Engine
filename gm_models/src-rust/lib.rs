@@ -1,29 +1,24 @@
 pub mod coeffs {
     include!(concat!(env!("OUT_DIR"), "/p21_coefficients.rs"));
 }
+pub mod error;
+pub mod im;
 pub mod nz22_const;
 pub mod p21;
+pub mod utils;
 
 use pyo3::prelude::*;
 
 #[pymodule]
 mod _core {
+    use crate::coeffs::Coeffs;
+    #[pymodule_export]
+    use crate::im::IM;
     use crate::p21;
 
     use numpy::{IntoPyArray, PyArray1, PyReadonlyArray1};
     use pyo3::exceptions::PyValueError;
     use pyo3::prelude::*;
-
-    fn parse_im(im: &str, period: f64) -> PyResult<p21::Im> {
-        match im {
-            "PGA" => Ok(p21::Im::Pga),
-            "PGV" => Ok(p21::Im::Pgv),
-            "SA" => Ok(p21::Im::Sa(period)),
-            other => Err(PyValueError::new_err(format!(
-                "Unknown IM '{other}': expected one of 'PGA', 'PGV', 'SA'"
-            ))),
-        }
-    }
 
     fn check_len(name: &str, len: usize, expected: usize) -> PyResult<()> {
         if len != expected {
@@ -39,15 +34,14 @@ mod _core {
     ///
     /// Returns `(mean, std_total, std_inter, std_intra)`, mean in ln space.
     #[pyfunction]
-    #[pyo3(signature = (mag, rrup, vs30, im, period, sigma_mu_epsilon, modified_sigma))]
+    #[pyo3(signature = (mag, rrup, vs30, im, sigma_mu_epsilon, modified_sigma))]
     #[allow(clippy::too_many_arguments, clippy::type_complexity)]
     fn _p21_interface<'py>(
         py: Python<'py>,
         mag: PyReadonlyArray1<f64>,
         rrup: PyReadonlyArray1<f64>,
         vs30: PyReadonlyArray1<f64>,
-        im: &str,
-        period: f64,
+        im: IM,
         sigma_mu_epsilon: f64,
         modified_sigma: bool,
     ) -> PyResult<(
@@ -62,8 +56,7 @@ mod _core {
         let n = mag.len();
         check_len("rrup", rrup.len(), n)?;
         check_len("vs30", vs30.len(), n)?;
-        let im = parse_im(im, period)?;
-        let coeffs = p21::coeffs_for(im);
+        let coeffs = Coeffs::for_im(im)?;
 
         let mut mean = Vec::with_capacity(n);
         let mut total = Vec::with_capacity(n);
@@ -84,7 +77,7 @@ mod _core {
                 &inputs,
                 sigma_mu_epsilon,
                 modified_sigma,
-            );
+            )?;
             mean.push(result.mean);
             total.push(result.total);
             inter.push(result.inter);
@@ -104,7 +97,7 @@ mod _core {
     ///
     /// Returns `(mean, std_total, std_inter, std_intra)`, mean in ln space.
     #[pyfunction]
-    #[pyo3(signature = (mag, rrup, vs30, hypo_depth, backarc, im, period, sigma_mu_epsilon, modified_sigma))]
+    #[pyo3(signature = (mag, rrup, vs30, hypo_depth, backarc, im, sigma_mu_epsilon, modified_sigma))]
     #[allow(clippy::too_many_arguments, clippy::type_complexity)]
     fn _p21_slab<'py>(
         py: Python<'py>,
@@ -113,8 +106,7 @@ mod _core {
         vs30: PyReadonlyArray1<f64>,
         hypo_depth: PyReadonlyArray1<f64>,
         backarc: PyReadonlyArray1<bool>,
-        im: &str,
-        period: f64,
+        im: IM,
         sigma_mu_epsilon: f64,
         modified_sigma: bool,
     ) -> PyResult<(
@@ -133,8 +125,7 @@ mod _core {
         check_len("vs30", vs30.len(), n)?;
         check_len("hypo_depth", hypo_depth.len(), n)?;
         check_len("backarc", backarc.len(), n)?;
-        let im = parse_im(im, period)?;
-        let coeffs = p21::coeffs_for(im);
+        let coeffs = Coeffs::for_im(im)?;
 
         let mut mean = Vec::with_capacity(n);
         let mut total = Vec::with_capacity(n);
@@ -155,7 +146,7 @@ mod _core {
                 &inputs,
                 sigma_mu_epsilon,
                 modified_sigma,
-            );
+            )?;
             mean.push(result.mean);
             total.push(result.total);
             inter.push(result.inter);

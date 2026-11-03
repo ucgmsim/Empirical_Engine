@@ -1,7 +1,7 @@
 """Layer 2: compare gm_models.p21 against oq_wrapper's existing P_21 benchmark fixtures.
 
 This does not prove the model is *correct* (see the Rust `cargo test`
-hazardlib-verification suite in `src-rust/p21.rs` for that, Layer 1) — it
+OpenQuake-verification suite in `src-rust/p21.rs` for that, Layer 1) — it
 proves this reimplementation is a safe drop-in replacement for
 `oq_wrapper`'s own P_21, matching its wrapper-level output contract exactly
 (column names, units, epistemic-branch wiring) against the same fixtures

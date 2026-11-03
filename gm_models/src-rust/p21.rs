@@ -1,7 +1,7 @@
 //! NZ NSHM2022 modification of Parker et al. (2020) subduction GMPE
 //! ("P_21" in `oq_wrapper`), global (GLO) region only.
 //!
-//! Transcribed from `openquake.hazardlib.gsim.nz22.nz_nshm2022_parker`
+//! Transcribed from OpenQuake's `openquake.hazardlib.gsim.nz22.nz_nshm2022_parker`
 //! (backarc term, "modified sigma" model, epistemic sigma_mu adjustment)
 //! and `openquake.hazardlib.gsim.parker_2020` (magnitude/path/depth/site
 //! terms, original sigma model), specialised to
@@ -17,9 +17,16 @@
 //! global ground motion models with regional adjustment factors", Earthquake
 //! Spectra 38(1). The NZ-specific backarc term and modified sigma model are not
 //! in that paper (see Bradley et al., 2024, BSSA, for the NZ NSHM2022 GMCM).
+//!
+//! OpenQuake uses `period = 0.0` for both PGA and PGV. Where that convention
+//! changes the result for PGV (backarc term, rho_W/rho_B), the `match` on
+//! [`IM`] says so explicitly.
 
 use crate::coeffs::{Coeffs, PGA_COEFFS, PGV_COEFFS, SA_COEFFS, SA_PERIODS};
+use crate::error::GMMError;
+use crate::im::IM;
 use crate::nz22_const::{PERIODS, PERIODS_AG20, RHO_BS, RHO_WS, THETA7S, THETA8S};
+use crate::utils::log_interp;
 
 /// b4 in Eq. 2.
 const B4: f64 = 0.1;
@@ -42,23 +49,6 @@ pub enum TectType {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum Im {
-    Pga,
-    Pgv,
-    Sa(f64),
-}
-
-impl Im {
-    /// hazardlib's `imt.period` convention: 0.0 for PGA/PGV, the period for SA.
-    fn period(self) -> f64 {
-        match self {
-            Im::Pga | Im::Pgv => 0.0,
-            Im::Sa(period) => period,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
 pub struct Inputs {
     pub mag: f64,
     pub rrup: f64,
@@ -78,88 +68,74 @@ pub struct MeanStd {
     pub intra: f64,
 }
 
-/// Coefficient-table lookup, reproducing hazardlib's `CoeffsTable.__getitem__`
-/// (`opt=0` path — see `openquake/hazardlib/gsim/coeffs_table.py:237-307`):
-/// exact match if the period is tabulated; otherwise linear interpolation in
-/// `ln(period)` between the nearest tabulated period below and above; and,
-/// only for periods below the smallest tabulated SA period, linear (not
-/// log-linear) interpolation between PGA (treated as period 0) and the
-/// smallest tabulated SA period. All periods `oq_wrapper` requests for this
-/// model fall within `[SA_PERIODS[0], SA_PERIODS[last]]`, so the
-/// below-smallest-period branch is exercised only at exactly the smallest
-/// native period (where it degenerates to an exact match).
-fn coeffs_for_period(period: f64) -> Coeffs {
-    if let Some(idx) = SA_PERIODS.iter().position(|&p| p == period) {
-        return SA_COEFFS[idx];
-    }
-
-    let mut max_below: Option<usize> = None;
-    let mut min_above: Option<usize> = None;
-    for (i, &p) in SA_PERIODS.iter().enumerate() {
-        if p < period && (max_below.is_none() || p > SA_PERIODS[max_below.unwrap()]) {
-            max_below = Some(i);
-        } else if p > period && (min_above.is_none() || p < SA_PERIODS[min_above.unwrap()]) {
-            min_above = Some(i);
+impl Coeffs {
+    /// Coefficients for `im`. Fails only for SA periods above the largest
+    /// tabulated period.
+    pub fn for_im(im: IM) -> Result<Self, GMMError> {
+        match im {
+            IM::PGA {} => Ok(PGA_COEFFS),
+            IM::PGV {} => Ok(PGV_COEFFS),
+            IM::SA { period } => Self::for_period(period),
         }
     }
 
-    match (max_below, min_above) {
-        (None, Some(above_idx)) => {
-            let ratio = period / SA_PERIODS[above_idx];
-            interp_coeffs(&PGA_COEFFS, &SA_COEFFS[above_idx], ratio)
+    /// Coefficient-table lookup, reproducing OpenQuake's `CoeffsTable.__getitem__`
+    /// (`opt=0` path, see `openquake/hazardlib/gsim/coeffs_table.py:237-307`):
+    /// exact match if the period is tabulated; otherwise linear interpolation in
+    /// `ln(period)` between the nearest tabulated periods below and above; and,
+    /// only for periods below the smallest tabulated SA period, linear (not
+    /// log-linear) interpolation between PGA (treated as period 0) and the
+    /// smallest tabulated SA period.
+    fn for_period(period: f64) -> Result<Self, GMMError> {
+        let max = SA_PERIODS[SA_PERIODS.len() - 1];
+        if period.is_nan() || period > max {
+            return Err(GMMError::UnsupportedPeriod { period, max });
         }
-        (Some(below_idx), Some(above_idx)) => {
-            let below_p = SA_PERIODS[below_idx];
-            let above_p = SA_PERIODS[above_idx];
-            let ratio = (period.ln() - below_p.ln()) / (above_p.ln() - below_p.ln());
-            interp_coeffs(&SA_COEFFS[below_idx], &SA_COEFFS[above_idx], ratio)
+        // First index with SA_PERIODS[i] >= period; SA_PERIODS is ascending.
+        let i = SA_PERIODS.partition_point(|&p| p < period);
+        if SA_PERIODS[i] == period {
+            return Ok(SA_COEFFS[i]);
         }
-        _ => panic!(
-            "period {period} is outside the supported range [{}, {}]",
-            SA_PERIODS[0],
-            SA_PERIODS[SA_PERIODS.len() - 1]
-        ),
+        if i == 0 {
+            return Ok(PGA_COEFFS.interp(&SA_COEFFS[0], period / SA_PERIODS[0]));
+        }
+        let (below, above) = (SA_PERIODS[i - 1].ln(), SA_PERIODS[i].ln());
+        let ratio = (period.ln() - below) / (above - below);
+        Ok(SA_COEFFS[i - 1].interp(&SA_COEFFS[i], ratio))
     }
-}
 
-fn interp_coeffs(below: &Coeffs, above: &Coeffs, ratio: f64) -> Coeffs {
-    macro_rules! lerp {
-        ($f:ident) => {
-            (above.$f - below.$f) * ratio + below.$f
-        };
-    }
-    Coeffs {
-        c0: lerp!(c0),
-        c0slab: lerp!(c0slab),
-        c1: lerp!(c1),
-        c1slab: lerp!(c1slab),
-        a0: lerp!(a0),
-        a0slab: lerp!(a0slab),
-        c4: lerp!(c4),
-        c5: lerp!(c5),
-        c6: lerp!(c6),
-        c4slab: lerp!(c4slab),
-        c5slab: lerp!(c5slab),
-        c6slab: lerp!(c6slab),
-        d: lerp!(d),
-        m: lerp!(m),
-        db: lerp!(db),
-        v2: lerp!(v2),
-        s2: lerp!(s2),
-        f4: lerp!(f4),
-        f5: lerp!(f5),
-        tau: lerp!(tau),
-        phi21: lerp!(phi21),
-        phi22: lerp!(phi22),
-        phi2v: lerp!(phi2v),
-    }
-}
-
-pub fn coeffs_for(im: Im) -> Coeffs {
-    match im {
-        Im::Pga => PGA_COEFFS,
-        Im::Pgv => PGV_COEFFS,
-        Im::Sa(period) => coeffs_for_period(period),
+    /// Linear interpolation from `self` (ratio 0) to `above` (ratio 1).
+    fn interp(&self, above: &Self, ratio: f64) -> Self {
+        macro_rules! lerp {
+            ($f:ident) => {
+                (above.$f - self.$f) * ratio + self.$f
+            };
+        }
+        Self {
+            c0: lerp!(c0),
+            c0slab: lerp!(c0slab),
+            c1: lerp!(c1),
+            c1slab: lerp!(c1slab),
+            a0: lerp!(a0),
+            a0slab: lerp!(a0slab),
+            c4: lerp!(c4),
+            c5: lerp!(c5),
+            c6: lerp!(c6),
+            c4slab: lerp!(c4slab),
+            c5slab: lerp!(c5slab),
+            c6slab: lerp!(c6slab),
+            d: lerp!(d),
+            m: lerp!(m),
+            db: lerp!(db),
+            v2: lerp!(v2),
+            s2: lerp!(s2),
+            f4: lerp!(f4),
+            f5: lerp!(f5),
+            tau: lerp!(tau),
+            phi21: lerp!(phi21),
+            phi22: lerp!(phi22),
+            phi2v: lerp!(phi2v),
+        }
     }
 }
 
@@ -200,8 +176,8 @@ fn path_term_h(tect_type: TectType, mag: f64, m_b: f64) -> f64 {
 
 /// Path term FP, Eq. 2, with R and Rref from Eqs. 3a and 3b.
 fn path_term(c1: f64, a0: f64, mag: f64, rrup: f64, h: f64) -> f64 {
-    let r = (rrup.powi(2) + h.powi(2)).sqrt();
-    let r_rref = (r / (1.0 + h.powi(2)).sqrt()).ln();
+    let r = rrup.hypot(h);
+    let r_rref = (r / 1f64.hypot(h)).ln();
     c1 * r.ln() + (B4 * mag) * r_rref + a0 * r
 }
 
@@ -217,85 +193,72 @@ fn depth_scaling(hypo_depth: f64, d: f64, m: f64, db: f64) -> f64 {
     }
 }
 
-/// Linear site term Flin, Eq. 8. With `region=None`, hazardlib's `s1 == s2`,
+/// Linear site term Flin, Eq. 8. With `region=None`, OpenQuake's `s1 == s2`,
 /// which collapses the three-branch piecewise form into a single clamp.
 fn linear_amplification(vs30: f64, s2: f64, v2: f64) -> f64 {
     s2 * (vs30.min(v2) / VREF).ln()
 }
 
-/// Non-linear site term Fnl, Eq. 9 (with f1 = 0) and f2 from Eq. 10.
+/// f2, Eq. 10.
+fn f2(f4: f64, f5: f64, vs30: f64) -> f64 {
+    f4 * ((f5 * (vs30.min(VREF_FNL) - VB)).exp() - (f5 * (VREF_FNL - VB)).exp())
+}
+
+/// Non-linear site term Fnl, Eq. 9 (with f1 = 0).
 /// NZ version: no `period >= 3` cutoff, unlike the base
 /// `parker_2020._non_linear_term` (see the NZ source's docstring).
 fn non_linear_term(f4: f64, f5: f64, vs30: f64, pgar: f64) -> f64 {
-    f4 * ((f5 * (vs30.min(VREF_FNL) - VB)).exp() - (f5 * (VREF_FNL - VB)).exp())
-        * ((pgar + F3) / F3).ln()
-}
-
-/// Linear interpolation over `ys` at `ln(x)`, matching `scipy.interpolate.interp1d`
-/// with default (linear) kind, clamped at the boundaries (never exercised in
-/// practice since callers only interpolate within `xs`'s natural range).
-fn log_interp(xs: &[f64], ys: &[f64], x: f64) -> f64 {
-    let lx = x.ln();
-    let logs: Vec<f64> = xs.iter().map(|v| v.ln()).collect();
-    if lx <= logs[0] {
-        return ys[0];
-    }
-    if lx >= logs[logs.len() - 1] {
-        return ys[ys.len() - 1];
-    }
-    for i in 0..logs.len() - 1 {
-        if lx >= logs[i] && lx <= logs[i + 1] {
-            let t = (lx - logs[i]) / (logs[i + 1] - logs[i]);
-            return ys[i] + t * (ys[i + 1] - ys[i]);
-        }
-    }
-    ys[ys.len() - 1]
+    f2(f4, f5, vs30) * ((pgar + F3) / F3).ln()
 }
 
 /// BC Hydro 2016 / Abrahamson et al. (2016)-style backarc correction.
 /// NZ-specific; only nonzero for [`TectType::Slab`] backarc sites.
-///
-/// Faithfully reproduces a quirk in the hazardlib source: the "no
-/// correction for PGV" comment there relies on `imt.period < 0` for PGV,
-/// but hazardlib's `PGV().period` is actually `0.0` (same as PGA), so in
-/// practice PGV gets the same period<0.02 correction as PGA. We reproduce
-/// that behaviour rather than the comment's stated intent, since Layer 1
-/// verification compares against hazardlib's actual output.
-fn backarc_term(tect_type: TectType, period: f64, rrup: f64, backarc: bool) -> f64 {
+fn backarc_term(tect_type: TectType, im: IM, rrup: f64, backarc: bool) -> Result<f64, GMMError> {
     if tect_type != TectType::Slab || !backarc {
-        return 0.0;
+        return Ok(0.0);
     }
     let w_epi_factor = 1.008;
     let min_dist = 85.0;
-    let (theta7, theta8) = if period < 0.0 {
-        (0.0, 0.0)
-    } else if period < 0.02 {
-        (1.0988, -1.42)
-    } else {
-        (
-            log_interp(&PERIODS[1..], &THETA7S[1..], period),
-            log_interp(&PERIODS[1..], &THETA8S[1..], period),
-        )
+    let (theta7, theta8) = match im {
+        IM::SA { period } if period >= 0.02 => (
+            log_interp(&PERIODS[1..], &THETA7S[1..], period)?,
+            log_interp(&PERIODS[1..], &THETA8S[1..], period)?,
+        ),
+        // Includes PGV: OpenQuake's "no correction for PGV" branch tests
+        // `imt.period < 0`, but `PGV().period` is 0.0, so PGV gets the PGA
+        // correction. Reproduced here since we verify against OpenQuake output.
+        _ => (1.0988, -1.42),
     };
     let dist = rrup.max(min_dist);
-    (theta7 + theta8 * (dist / 40.0).ln()) * w_epi_factor
+    Ok((theta7 + theta8 * (dist / 40.0).ln()) * w_epi_factor)
 }
 
 /// Epistemic standard deviation sigma_e(T), Eq. 27, with the NZ-NSHM2022
 /// coefficients (global model only, the only configuration in scope here).
-fn sigma_epistemic(tect_type: TectType, period: f64) -> f64 {
+/// PGA and PGV take the short-period value se1.
+fn sigma_epistemic(tect_type: TectType, im: IM) -> f64 {
     let (se1, se2, t1, t2) = match tect_type {
         TectType::Slab => (0.35, 0.22, 0.15, 2.0),
         TectType::Interface => (0.4, 0.4, 0.2, 0.4),
     };
-    if period < t1 {
-        se1
-    } else if period < t2 {
-        let ratio1 = (period / t1).ln();
-        let ratio2 = (t2 / t1).ln();
-        se1 - (se1 - se2) * (ratio1 / ratio2)
+    match im {
+        IM::SA { period } if period >= t2 => se2,
+        IM::SA { period } if period >= t1 => {
+            se1 - (se1 - se2) * (period / t1).ln() / (t2 / t1).ln()
+        }
+        _ => se1,
+    }
+}
+
+/// phi^2(Rrup), Eq. 19.
+fn phi2_rrup(c: &Coeffs, rrup: f64) -> f64 {
+    let (r1, r2): (f64, f64) = (200.0, 500.0);
+    if rrup <= r1 {
+        c.phi21
+    } else if rrup >= r2 {
+        c.phi22
     } else {
-        se2
+        (c.phi22 - c.phi21) / (r2.ln() - r1.ln()) * (rrup.ln() - r1.ln()) + c.phi21
     }
 }
 
@@ -305,14 +268,7 @@ fn sigma_epistemic(tect_type: TectType, period: f64) -> f64 {
 fn stddevs_original(c: &Coeffs, rrup: f64, vs30: f64) -> (f64, f64, f64) {
     let (r1, r2, v1, v2) = (200.0, 500.0, 200.0, 500.0);
 
-    let mut phi2_rv = if rrup <= r1 {
-        c.phi21
-    } else if rrup >= r2 {
-        c.phi22
-    } else {
-        (c.phi22 - c.phi21) / (r2.ln() - r1.ln()) * (rrup.ln() - r1.ln()) + c.phi21
-    };
-
+    let mut phi2_rv = phi2_rrup(c, rrup);
     let clamped_r_ratio = || (r2 / rrup.max(r1).min(r2)).ln() / (r2 / r1).ln();
     if vs30 <= v1 {
         phi2_rv += c.phi2v * clamped_r_ratio();
@@ -321,8 +277,7 @@ fn stddevs_original(c: &Coeffs, rrup: f64, vs30: f64) -> (f64, f64, f64) {
     }
 
     let phi_tot = phi2_rv.sqrt();
-    let total = (c.tau.powi(2) + phi_tot.powi(2)).sqrt();
-    (total, c.tau, phi_tot)
+    (c.tau.hypot(phi_tot), c.tau, phi_tot)
 }
 
 /// NZ "modified sigma" nonlinear standard-deviation model (`modified_sigma=True`).
@@ -331,81 +286,59 @@ fn stddevs_original(c: &Coeffs, rrup: f64, vs30: f64) -> (f64, f64, f64) {
 /// (2022), Earthquake Spectra 38(4), "AG22 Eq. N" below, with rho_W/rho_B from
 /// their Table E6. Their Eq. 28 (d f_site / d ln PGA) is replaced by the
 /// derivative of Parker's Eq. 9.
-#[allow(clippy::too_many_arguments)]
 fn stddevs_nonlinear(
     c: &Coeffs,
     c_pga: &Coeffs,
-    period: f64,
+    im: IM,
     pgar: f64,
     rrup: f64,
     vs30: f64,
-) -> (f64, f64, f64) {
-    let (r1, r2) = (200.0, 500.0);
-    let phi_amp: f64 = 0.3;
+) -> Result<(f64, f64, f64), GMMError> {
+    let phi_amp2: f64 = 0.3f64.powi(2);
 
-    let phi2_rv = if rrup <= r1 {
-        c.phi21
-    } else if rrup >= r2 {
-        c.phi22
-    } else {
-        (c.phi22 - c.phi21) / (r2.ln() - r1.ln()) * (rrup.ln() - r1.ln()) + c.phi21
-    };
-    let phi2_rv_pga = if rrup <= r1 {
-        c_pga.phi21
-    } else if rrup >= r2 {
-        c_pga.phi22
-    } else {
-        (c_pga.phi22 - c_pga.phi21) / (r2.ln() - r1.ln()) * (rrup.ln() - r1.ln()) + c_pga.phi21
-    };
-
-    let phi_lin = phi2_rv.sqrt();
-    let phi_lin_pga = phi2_rv_pga.sqrt();
+    let phi2_lin = phi2_rrup(c, rrup);
     // AG22 Eq. 26
-    let phi_b = (phi_lin.powi(2) - phi_amp.powi(2)).sqrt();
-    let phi_b_pga = (phi_lin_pga.powi(2) - phi_amp.powi(2)).sqrt();
+    let phi_b = (phi2_lin - phi_amp2).sqrt();
+    let phi_b_pga = (phi2_rrup(c_pga, rrup) - phi_amp2).sqrt();
 
-    let tau_lin = c.tau;
-    let tau_lin_pga = c_pga.tau;
-
-    let (rho_w, rho_b) = if period < 0.01 {
-        (1.0, 1.0)
-    } else {
-        (
-            log_interp(&PERIODS_AG20, &RHO_WS, period),
-            log_interp(&PERIODS_AG20, &RHO_BS, period),
-        )
+    let (rho_w, rho_b) = match im {
+        IM::SA { period } if period >= 0.01 => (
+            log_interp(&PERIODS_AG20, &RHO_WS, period)?,
+            log_interp(&PERIODS_AG20, &RHO_BS, period)?,
+        ),
+        // Includes PGV, via OpenQuake's `PGV().period == 0.0`.
+        _ => (1.0, 1.0),
     };
 
-    // Eq. 10
-    let f2 = c.f4 * ((c.f5 * (vs30.min(VREF_FNL) - VB)).exp() - (c.f5 * (VREF_FNL - VB)).exp());
     // d Fnl / d ln(PGAr) from Eq. 9, in place of AG22 Eq. 28
-    let partial_f_pga = f2 * pgar / (pgar + F3);
+    let partial_f_pga = f2(c.f4, c.f5, vs30) * pgar / (pgar + F3);
 
     // AG22 Eqs. 27 and 29
-    let phi2_nl = phi_lin.powi(2)
+    let phi2_nl = phi2_lin
         + partial_f_pga.powi(2) * phi_b_pga.powi(2)
         + 2.0 * partial_f_pga * phi_b_pga * phi_b * rho_w;
-    let tau2_nl = tau_lin.powi(2)
-        + partial_f_pga.powi(2) * tau_lin_pga.powi(2)
-        + 2.0 * partial_f_pga * tau_lin_pga * tau_lin * rho_b;
+    let tau2_nl = c.tau.powi(2)
+        + partial_f_pga.powi(2) * c_pga.tau.powi(2)
+        + 2.0 * partial_f_pga * c_pga.tau * c.tau * rho_b;
 
-    ((tau2_nl + phi2_nl).sqrt(), tau2_nl.sqrt(), phi2_nl.sqrt())
+    Ok(((tau2_nl + phi2_nl).sqrt(), tau2_nl.sqrt(), phi2_nl.sqrt()))
 }
 
 /// Computes mean + standard deviations for a single site/rupture pair.
 ///
-/// `c` must be `coeffs_for(im)`; it is passed in so callers looping over
-/// sites look it up once rather than per site.
+/// `c` must be `Coeffs::for_im(im)`; it is passed in so callers looping over
+/// sites look it up once rather than per site. Errors only if a period-table
+/// interpolation falls outside its table, which `Coeffs::for_im`'s period
+/// check should already rule out.
 pub fn compute(
     tect_type: TectType,
-    im: Im,
+    im: IM,
     c: &Coeffs,
     inp: &Inputs,
     sigma_mu_epsilon: f64,
     modified_sigma: bool,
-) -> MeanStd {
+) -> Result<MeanStd, GMMError> {
     let c_pga = PGA_COEFFS;
-    let period = im.period();
 
     let m_b = match tect_type {
         TectType::Interface => MB_DEFAULT_INTERFACE,
@@ -422,17 +355,14 @@ pub fn compute(
     let fp = path_term(c1, a0, inp.mag, inp.rrup, h);
     // Backarc term applied to the path function for reference-rock PGA.
     let fp_pga = path_term(c1_pga, a0_pga, inp.mag, inp.rrup, h)
-        + backarc_term(tect_type, 0.0, inp.rrup, inp.backarc);
+        + backarc_term(tect_type, IM::PGA {}, inp.rrup, inp.backarc)?;
 
-    let fd = if tect_type == TectType::Slab {
-        depth_scaling(inp.hypo_depth, c.d, c.m, c.db)
-    } else {
-        0.0
-    };
-    let fd_pga = if tect_type == TectType::Slab {
-        depth_scaling(inp.hypo_depth, c_pga.d, c_pga.m, c_pga.db)
-    } else {
-        0.0
+    let (fd, fd_pga) = match tect_type {
+        TectType::Slab => (
+            depth_scaling(inp.hypo_depth, c.d, c.m, c.db),
+            depth_scaling(inp.hypo_depth, c_pga.d, c_pga.m, c_pga.db),
+        ),
+        TectType::Interface => (0.0, 0.0),
     };
 
     let flin = linear_amplification(inp.vs30, c.s2, c.v2);
@@ -442,39 +372,37 @@ pub fn compute(
     let pgar = (fp_pga + fm_pga + c0_pga + fd_pga).exp();
     let fnl = non_linear_term(c.f4, c.f5, inp.vs30, pgar);
 
-    let fba = backarc_term(tect_type, period, inp.rrup, inp.backarc);
+    let fba = backarc_term(tect_type, im, inp.rrup, inp.backarc)?;
 
     // Eq. 1, with FS = Flin + Fnl from Eq. 7. Basin term (Fb) omitted: always 0
     // in this configuration (no z2pt5). fba is the NZ backarc addition.
-    let mut mean = fp + fnl + flin + fm + c0 + fd + fba;
     // Epistemic adjustment of c0 by epsilon * sigma_e (Eq. 27 and text).
-    if sigma_mu_epsilon != 0.0 {
-        mean += sigma_mu_epsilon * sigma_epistemic(tect_type, period);
-    }
+    let mean =
+        fp + fnl + flin + fm + c0 + fd + fba + sigma_mu_epsilon * sigma_epistemic(tect_type, im);
 
     let (total, inter, intra) = if modified_sigma {
-        stddevs_nonlinear(c, &c_pga, period, pgar, inp.rrup, inp.vs30)
+        stddevs_nonlinear(c, &c_pga, im, pgar, inp.rrup, inp.vs30)?
     } else {
         stddevs_original(c, inp.rrup, inp.vs30)
     };
 
-    MeanStd {
+    Ok(MeanStd {
         mean,
         total,
         inter,
         intra,
-    }
+    })
 }
 
 /// Layer 1 verification: compares this module's output directly against
-/// hazardlib's own independently-sourced reference tables (GNS-produced
+/// OpenQuake's own independently-sourced reference tables (GNS-produced
 /// CSVs, generated from Grace Parker's original R implementation — see
 /// `nznshm2022_parker2020_test.py`'s test data), read from a local
 /// `oq-engine` checkout rather than vendored into this repo (see the
 /// gm_models plan for why). These tests are `#[ignore]`d so a plain
 /// `cargo test` reports them as ignored rather than passed; run them with
 /// `OQ_ENGINE_PATH=<oq-engine checkout root> cargo test -- --ignored`.
-/// CI runs them against oq-engine master (`hazardlib-verification.yml`), so a
+/// CI runs them against oq-engine master (`openquake-verification.yml`), so a
 /// failure there may come from an upstream data change, not from this code.
 #[cfg(test)]
 mod tests {
@@ -533,13 +461,15 @@ mod tests {
         }
     }
 
-    fn im_for_header(header: &str) -> Im {
+    fn im_for_header(header: &str) -> IM {
         if header == "pga" {
-            Im::Pga
+            IM::PGA {}
         } else {
-            Im::Sa(header.parse().unwrap_or_else(|_| {
-                panic!("column '{header}' is neither 'pga' nor a parseable SA period")
-            }))
+            IM::SA {
+                period: header.parse().unwrap_or_else(|_| {
+                    panic!("column '{header}' is neither 'pga' nor a parseable SA period")
+                }),
+            }
         }
     }
 
@@ -556,9 +486,17 @@ mod tests {
             for (col_idx, header) in headers.iter().enumerate().skip(row.value_start) {
                 let im = im_for_header(header);
                 let expected: f64 = record[col_idx].parse().unwrap();
-                let predicted = compute(tect_type, im, &coeffs_for(im), &row.inputs, 0.0, false)
-                    .mean
-                    .exp();
+                let predicted = compute(
+                    tect_type,
+                    im,
+                    &Coeffs::for_im(im).unwrap(),
+                    &row.inputs,
+                    0.0,
+                    false,
+                )
+                .unwrap()
+                .mean
+                .exp();
                 let discrep = (predicted / expected * 100.0 - 100.0).abs();
                 max_discrep = max_discrep.max(discrep);
                 n_checked += 1;
@@ -599,11 +537,12 @@ mod tests {
                 let predicted = compute(
                     tect_type,
                     im,
-                    &coeffs_for(im),
+                    &Coeffs::for_im(im).unwrap(),
                     &row.inputs,
                     0.0,
                     modified_sigma,
                 )
+                .unwrap()
                 .total;
                 let discrep = (predicted / expected * 100.0 - 100.0).abs();
                 max_discrep = max_discrep.max(discrep);
@@ -630,7 +569,7 @@ mod tests {
         );
     }
 
-    macro_rules! hazardlib_test {
+    macro_rules! openquake_test {
         ($name:ident, $check:expr) => {
             #[test]
             #[ignore = "needs OQ_ENGINE_PATH; run with `cargo test -- --ignored`"]
@@ -640,44 +579,126 @@ mod tests {
         };
     }
 
-    hazardlib_test!(interface_mean_matches_hazardlib, |dir: PathBuf| {
+    openquake_test!(interface_mean_matches_openquake, |dir: PathBuf| {
         check_mean_csv(
             &dir.join("PARKER2021_INTERFACE_GLO_GNS_MEAN.csv"),
             TectType::Interface,
         )
     });
-    hazardlib_test!(slab_mean_matches_hazardlib, |dir: PathBuf| check_mean_csv(
+    openquake_test!(slab_mean_matches_openquake, |dir: PathBuf| check_mean_csv(
         &dir.join("PARKER2021_SLAB_GLO_GNS_MEAN.csv"),
         TectType::Slab
     ));
-    hazardlib_test!(
-        interface_stddev_original_matches_hazardlib,
+    openquake_test!(
+        interface_stddev_original_matches_openquake,
         |dir: PathBuf| check_stddev_csv(
             &dir.join("PARKER2021_INTERFACE_GLO_GNS_TOTAL_STDDEV_ORIGINAL_SIGMA.csv"),
             TectType::Interface,
             false
         )
     );
-    hazardlib_test!(
-        interface_stddev_modified_matches_hazardlib,
+    openquake_test!(
+        interface_stddev_modified_matches_openquake,
         |dir: PathBuf| check_stddev_csv(
             &dir.join("PARKER2021_INTERFACE_GLO_GNS_TOTAL_STDDEV_MODIFIED_SIGMA.csv"),
             TectType::Interface,
             true
         )
     );
-    hazardlib_test!(slab_stddev_original_matches_hazardlib, |dir: PathBuf| {
+    openquake_test!(slab_stddev_original_matches_openquake, |dir: PathBuf| {
         check_stddev_csv(
             &dir.join("PARKER2021_SLAB_GLO_GNS_TOTAL_STDDEV_ORIGINAL_SIGMA.csv"),
             TectType::Slab,
             false,
         )
     });
-    hazardlib_test!(slab_stddev_modified_matches_hazardlib, |dir: PathBuf| {
+    openquake_test!(slab_stddev_modified_matches_openquake, |dir: PathBuf| {
         check_stddev_csv(
             &dir.join("PARKER2021_SLAB_GLO_GNS_TOTAL_STDDEV_MODIFIED_SIGMA.csv"),
             TectType::Slab,
             true,
         )
     });
+}
+
+/// Property tests over the supported input domain. These need no external
+/// data, so they run in a plain `cargo test`.
+#[cfg(test)]
+mod proptests {
+    use super::*;
+    use proptest::prelude::*;
+
+    fn im() -> impl Strategy<Value = IM> {
+        prop_oneof![
+            Just(IM::PGA {}),
+            Just(IM::PGV {}),
+            (0.01..=10.0f64).prop_map(|period| IM::SA { period }),
+        ]
+    }
+
+    fn inputs() -> impl Strategy<Value = Inputs> {
+        (
+            5.0..9.5f64,
+            0.1..1000.0f64,
+            100.0..2000.0f64,
+            0.0..200.0f64,
+            any::<bool>(),
+        )
+            .prop_map(|(mag, rrup, vs30, hypo_depth, backarc)| Inputs {
+                mag,
+                rrup,
+                vs30,
+                hypo_depth,
+                backarc,
+            })
+    }
+
+    fn tect_type() -> impl Strategy<Value = TectType> {
+        prop_oneof![Just(TectType::Interface), Just(TectType::Slab)]
+    }
+
+    proptest! {
+        #[test]
+        fn outputs_are_finite_and_stddevs_consistent(
+            tect_type in tect_type(),
+            im in im(),
+            inp in inputs(),
+            sigma_mu_epsilon in -1.2815..=1.2815f64,
+            modified_sigma in any::<bool>(),
+        ) {
+            let c = Coeffs::for_im(im).unwrap();
+            let r = compute(tect_type, im, &c, &inp, sigma_mu_epsilon, modified_sigma).unwrap();
+            prop_assert!(r.mean.is_finite());
+            prop_assert!(r.inter > 0.0 && r.intra > 0.0);
+            let rel = (r.total.powi(2) - (r.inter.powi(2) + r.intra.powi(2))).abs() / r.total.powi(2);
+            prop_assert!(rel < 1e-12, "total^2 != inter^2 + intra^2 (rel err {rel})");
+        }
+
+        #[test]
+        fn periods_above_table_are_rejected(period in 10.0f64..1e3) {
+            prop_assume!(period > SA_PERIODS[SA_PERIODS.len() - 1]);
+            prop_assert!(Coeffs::for_im(IM::SA { period }).is_err(), "period {period} accepted");
+        }
+
+        #[test]
+        fn interpolated_coeffs_lie_between_neighbours(i in 0..SA_PERIODS.len() - 1, t in 0.0..1.0f64) {
+            let (lo, hi) = (SA_PERIODS[i], SA_PERIODS[i + 1]);
+            let period = (lo.ln() + t * (hi.ln() - lo.ln())).exp();
+            let c = Coeffs::for_im(IM::SA { period }).unwrap();
+            let (a, b) = (SA_COEFFS[i].tau, SA_COEFFS[i + 1].tau);
+            prop_assert!(c.tau >= a.min(b) - 1e-12 && c.tau <= a.max(b) + 1e-12);
+        }
+    }
+
+    #[test]
+    fn tabulated_periods_return_exact_rows() {
+        for (&period, row) in SA_PERIODS.iter().zip(SA_COEFFS.iter()) {
+            assert_eq!(Coeffs::for_im(IM::SA { period }).unwrap(), *row);
+        }
+    }
+
+    #[test]
+    fn nan_period_is_rejected() {
+        assert!(Coeffs::for_im(IM::SA { period: f64::NAN }).is_err());
+    }
 }

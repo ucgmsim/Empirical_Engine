@@ -5,7 +5,7 @@ use std::path::Path;
 /// Column names in `data/p21_coefficients.csv`, in the order the CSV was
 /// generated (see the script used to produce it), mapped to the Rust struct
 /// field name used in the generated code. Lowercased/renamed only where the
-/// hazardlib column name isn't a valid (or idiomatic) Rust identifier
+/// OpenQuake column name isn't a valid (or idiomatic) Rust identifier
 /// (`V2` -> `v2`, `Tau` -> `tau`, `phi2V` -> `phi2v`).
 const FIELDS: &[(&str, &str)] = &[
     ("c0", "c0"),
@@ -113,7 +113,7 @@ fn p21_coefficients() {
 /// region-, saturation-region-, and basin-specific columns are omitted
 /// since the NZ NSHM2022 logic tree always instantiates this model with
 /// `region=None, saturation_region=None, basin=None`).
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Coeffs {{
 {struct_fields}
 }}
