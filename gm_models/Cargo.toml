@@ -15,7 +15,6 @@ pyo3 = "0.30"
 thiserror = "2"
 
 [dev-dependencies]
-approx = "0.5.1"
 criterion = { version = "0.5", features = ["html_reports"] }
 csv = "1.4.0"
 pprof = { version = "0.15", features = ["criterion", "flamegraph"] }

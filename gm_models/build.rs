@@ -7,7 +7,7 @@ use std::path::Path;
 /// field name used in the generated code. Lowercased/renamed only where the
 /// OpenQuake column name isn't a valid (or idiomatic) Rust identifier
 /// (`V2` -> `v2`, `Tau` -> `tau`, `phi2V` -> `phi2v`).
-const FIELDS: &[(&str, &str)] = &[
+const P21_FIELDS: &[(&str, &str)] = &[
     ("c0", "c0"),
     ("c0slab", "c0slab"),
     ("c1", "c1"),
@@ -33,19 +33,25 @@ const FIELDS: &[(&str, &str)] = &[
     ("phi2V", "phi2v"),
 ];
 
-fn p21_coefficients() {
-    let csv_path = "data/p21_coefficients.csv";
-    println!("cargo:rerun-if-changed={}", csv_path);
+/// Generates a coefficient-table module from an OpenQuake `COEFFS` table
+/// exported to CSV (first column `IMT`: `pga`, `pgv`, then SA periods). Writes
+/// `$OUT_DIR/{out_file}` containing a `Coeffs` struct (one `f64` per entry in
+/// `fields`), `PGA_COEFFS`, `PGV_COEFFS`, `SA_PERIODS`, `SA_COEFFS`, and
+/// `Coeffs::interp` (field-wise linear interpolation). Each model `include!`s
+/// its own file into its own module, so the names don't clash.
+fn generate_coeffs(csv_path: &str, out_file: &str, doc: &str, fields: &[(&str, &str)]) {
+    println!("cargo:rerun-if-changed={csv_path}");
 
-    let mut rdr = Reader::from_path(csv_path).expect("Could not open p21_coefficients.csv");
+    let mut rdr =
+        Reader::from_path(csv_path).unwrap_or_else(|e| panic!("Could not open {csv_path}: {e}"));
     let headers = rdr.headers().expect("Could not read CSV header").clone();
-    let col_index: Vec<usize> = FIELDS
+    let col_index: Vec<usize> = fields
         .iter()
         .map(|(csv_name, _)| {
             headers
                 .iter()
                 .position(|h| h == *csv_name)
-                .unwrap_or_else(|| panic!("Column {csv_name} not found in p21_coefficients.csv"))
+                .unwrap_or_else(|| panic!("Column {csv_name} not found in {csv_path}"))
         })
         .collect();
 
@@ -55,7 +61,7 @@ fn p21_coefficients() {
     let mut sa_rows: Vec<Vec<f64>> = Vec::new();
 
     for result in rdr.records() {
-        let record = result.expect("Could not read a row of p21_coefficients.csv");
+        let record = result.unwrap_or_else(|e| panic!("Could not read a row of {csv_path}: {e}"));
         let imt = record.get(0).expect("Missing IMT column").to_string();
         let values: Vec<f64> = col_index
             .iter()
@@ -81,18 +87,24 @@ fn p21_coefficients() {
         }
     }
 
-    let pga_row = pga_row.expect("p21_coefficients.csv is missing the pga row");
-    let pgv_row = pgv_row.expect("p21_coefficients.csv is missing the pgv row");
+    let pga_row = pga_row.unwrap_or_else(|| panic!("{csv_path} is missing the pga row"));
+    let pgv_row = pgv_row.unwrap_or_else(|| panic!("{csv_path} is missing the pgv row"));
     let n_periods = sa_periods.len();
 
-    let struct_fields = FIELDS
+    let struct_fields = fields
         .iter()
         .map(|(_, rust_name)| format!("    pub {rust_name}: f64,"))
         .collect::<Vec<_>>()
         .join("\n");
 
+    let interp_fields = fields
+        .iter()
+        .map(|(_, f)| format!("            {f}: (above.{f} - self.{f}) * ratio + self.{f},"))
+        .collect::<Vec<_>>()
+        .join("\n");
+
     let coeffs_literal = |values: &[f64]| -> String {
-        FIELDS
+        fields
             .iter()
             .zip(values.iter())
             .map(|((_, rust_name), value)| format!("{rust_name}: {value:?}"))
@@ -106,16 +118,27 @@ fn p21_coefficients() {
         .collect::<Vec<_>>()
         .join("\n");
 
+    let doc = doc
+        .lines()
+        .map(|line| format!("/// {line}"))
+        .collect::<Vec<_>>()
+        .join("\n");
+
     let generated_code = format!(
         r#"
-/// P21 (NZ NSHM2022 Parker et al. 2020) coefficients, transcribed from
-/// `nz_nshm2022_parker.py`'s `COEFFS` table (global/GLO region only —
-/// region-, saturation-region-, and basin-specific columns are omitted
-/// since the NZ NSHM2022 logic tree always instantiates this model with
-/// `region=None, saturation_region=None, basin=None`).
+{doc}
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Coeffs {{
 {struct_fields}
+}}
+
+impl Coeffs {{
+    /// Field-wise linear interpolation from `self` (ratio 0) to `above` (ratio 1).
+    pub(crate) fn interp(&self, above: &Self, ratio: f64) -> Self {{
+        Self {{
+{interp_fields}
+        }}
+    }}
 }}
 
 pub static PGA_COEFFS: Coeffs = Coeffs {{ {pga_literal} }};
@@ -129,19 +152,23 @@ pub static SA_COEFFS: [Coeffs; {n_periods}] = [
 {sa_coeffs_literals}
 ];
 "#,
-        struct_fields = struct_fields,
         pga_literal = coeffs_literal(&pga_row),
         pgv_literal = coeffs_literal(&pgv_row),
-        n_periods = n_periods,
-        sa_periods = sa_periods,
-        sa_coeffs_literals = sa_coeffs_literals,
     );
 
     let out_dir = std::env::var("OUT_DIR").expect("OUT_DIR not set");
-    let dest_path = Path::new(&out_dir).join("p21_coefficients.rs");
-    fs::write(dest_path, generated_code).unwrap();
+    fs::write(Path::new(&out_dir).join(out_file), generated_code).unwrap();
 }
 
 fn main() {
-    p21_coefficients();
+    generate_coeffs(
+        "data/p21_coefficients.csv",
+        "p21_coefficients.rs",
+        "P21 (NZ NSHM2022 Parker et al. 2020) coefficients, transcribed from\n\
+         `nz_nshm2022_parker.py`'s `COEFFS` table (global/GLO region only:\n\
+         region-, saturation-region-, and basin-specific columns are omitted\n\
+         since the NZ NSHM2022 logic tree always instantiates this model with\n\
+         `region=None, saturation_region=None, basin=None`).",
+        P21_FIELDS,
+    );
 }

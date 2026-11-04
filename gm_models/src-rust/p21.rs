@@ -199,40 +199,6 @@ impl Coeffs {
         let ratio = (period.ln() - below) / (above - below);
         Ok(SA_COEFFS[i - 1].interp(&SA_COEFFS[i], ratio))
     }
-
-    /// Linear interpolation from `self` (ratio 0) to `above` (ratio 1).
-    fn interp(&self, above: &Self, ratio: f64) -> Self {
-        macro_rules! lerp {
-            ($f:ident) => {
-                (above.$f - self.$f) * ratio + self.$f
-            };
-        }
-        Self {
-            c0: lerp!(c0),
-            c0slab: lerp!(c0slab),
-            c1: lerp!(c1),
-            c1slab: lerp!(c1slab),
-            a0: lerp!(a0),
-            a0slab: lerp!(a0slab),
-            c4: lerp!(c4),
-            c5: lerp!(c5),
-            c6: lerp!(c6),
-            c4slab: lerp!(c4slab),
-            c5slab: lerp!(c5slab),
-            c6slab: lerp!(c6slab),
-            d: lerp!(d),
-            m: lerp!(m),
-            db: lerp!(db),
-            v2: lerp!(v2),
-            s2: lerp!(s2),
-            f4: lerp!(f4),
-            f5: lerp!(f5),
-            tau: lerp!(tau),
-            phi21: lerp!(phi21),
-            phi22: lerp!(phi22),
-            phi2v: lerp!(phi2v),
-        }
-    }
 }
 
 /// (c0, c1, a0, c4, c5, c6) for the given tectonic type — interface reads the
