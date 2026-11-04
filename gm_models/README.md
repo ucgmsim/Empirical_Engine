@@ -21,9 +21,7 @@ Two layers, see the top-level plan for detail:
    `#[ignore]`d so a plain `cargo test` lists them as ignored. CI runs them
    against oq-engine master in `openquake-verification.yml`, so a failure
    there can come from an upstream change to the reference data.
-2. **oq_wrapper benchmark parity** (`pytest tests/`): compares the full
-   Python-facing output against `oq_wrapper`'s existing benchmark parquet
-   fixtures, to check this is a safe drop-in replacement.
+2. **oq_wrapper benchmark parity** (`pytest tests/`): compares the values of the full Python-facing output against `oq_wrapper`'s existing benchmark parquet fixtures. The output format differs on purpose: models return an `xarray.Dataset` (variables `ln_mean`, `std_total`, `std_inter`, `std_intra`, with a numeric `period` dimension for pSA) rather than `oq_wrapper`'s flat DataFrame with `pSA_{period}_std_Total`-style columns.
 
 A plain `cargo test` also runs property tests (`proptest`) over the supported input domain, which need no external data.
 

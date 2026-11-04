@@ -9,65 +9,16 @@ from collections.abc import Sequence
 
 import numpy as np
 import pandas as pd
+import xarray as xr
 
 from gm_models import _core
-from gm_models.constants import P21_SIGMA_MU_EPSILON, EpistemicBranch, TectType
-from gm_models.utils import validate_columns
+from gm_models.constants import SIGMA_MU_EPSILON, EpistemicBranch, TectType
+from gm_models.utils import evaluate_ims, validate_columns
 
 _REQUIRED_COLUMNS = {
     TectType.SUBDUCTION_INTERFACE: {"mag", "rrup", "vs30"},
     TectType.SUBDUCTION_SLAB: {"mag", "rrup", "vs30", "hypo_depth", "backarc"},
 }
-
-
-def _run_one(
-    tect_type: TectType,
-    rupture_df: pd.DataFrame,
-    im: _core.IM,
-    sigma_mu_epsilon: float,
-    modified_sigma: bool,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Run the compiled `_core` extension once, for a single IM.
-
-    Parameters
-    ----------
-    tect_type : TectType
-        Tectonic type (subduction interface or slab).
-    rupture_df : pd.DataFrame
-        Rupture/site dataframe, already column-validated.
-    im : _core.IM
-        Intensity measure.
-    sigma_mu_epsilon : float
-        Epistemic uncertainty offset for the "modified sigma" branch.
-    modified_sigma : bool
-        Whether to use the NZ "modified sigma" standard-deviation model.
-
-    Returns
-    -------
-    tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]
-        ``(mean, std_total, std_inter, std_intra)``, mean in ln space.
-    """
-    mag = rupture_df["mag"].to_numpy(dtype=np.float64)
-    rrup = rupture_df["rrup"].to_numpy(dtype=np.float64)
-    vs30 = rupture_df["vs30"].to_numpy(dtype=np.float64)
-
-    if tect_type is TectType.SUBDUCTION_INTERFACE:
-        return _core._p21_interface(
-            mag, rrup, vs30, im, sigma_mu_epsilon, modified_sigma
-        )
-
-    hypo_depth = rupture_df["hypo_depth"].to_numpy(dtype=np.float64)
-    backarc = rupture_df["backarc"].to_numpy(dtype=np.bool_)
-    return _core._p21_slab(
-        mag,
-        rrup,
-        vs30,
-        hypo_depth,
-        backarc,
-        im,
-        sigma_mu_epsilon,
-        modified_sigma,
-    )
 
 
 def run_p21(
@@ -77,7 +28,7 @@ def run_p21(
     periods: Sequence[float] | None = None,
     epistemic_branch: EpistemicBranch = EpistemicBranch.CENTRAL,
     modified_sigma: bool = True,
-) -> pd.DataFrame:
+) -> xr.Dataset:
     """Run the P_21 (NZ NSHM2022 Parker et al. 2020) model, global (GLO) region.
 
     Parameters
@@ -100,45 +51,40 @@ def run_p21(
 
     Returns
     -------
-    pd.DataFrame
-        Columns ``{im}_mean``, ``{im}_std_Total``, ``{im}_std_Inter``,
-        ``{im}_std_Intra`` (one set per period for ``pSA``), indexed by
-        `rupture_df`'s index. Mean is in natural-log space, matching
-        `oq_wrapper.run_gmm`'s output contract.
+    xr.Dataset
+        Variables ``ln_mean`` (natural-log space), ``std_total``, ``std_inter``
+        and ``std_intra`` over `rupture_df`'s index (plus ``period`` for
+        ``pSA``), with the model settings as attributes. See
+        `gm_models.utils.evaluate_ims`.
     """
     validate_columns(rupture_df, _REQUIRED_COLUMNS[tect_type])
-    sigma_mu_epsilon = P21_SIGMA_MU_EPSILON[epistemic_branch]
 
-    columns: dict[str, np.ndarray] = {}
-    if im == "pSA":
-        if not periods:
-            raise ValueError("periods must be provided when im='pSA'")
-        for period in periods:
-            mean, total, inter, intra = _run_one(
-                tect_type,
-                rupture_df,
-                _core.IM.SA(period=float(period)),
-                sigma_mu_epsilon,
-                modified_sigma,
-            )
-            prefix = f"pSA_{period}"
-            columns[f"{prefix}_mean"] = mean
-            columns[f"{prefix}_std_Total"] = total
-            columns[f"{prefix}_std_Inter"] = inter
-            columns[f"{prefix}_std_Intra"] = intra
-    elif im in ("PGA", "PGV"):
-        mean, total, inter, intra = _run_one(
-            tect_type,
-            rupture_df,
-            _core.IM.PGA() if im == "PGA" else _core.IM.PGV(),
-            sigma_mu_epsilon,
-            modified_sigma,
+    mag, rrup, vs30 = (
+        rupture_df[col].to_numpy(dtype=np.float64) for col in ("mag", "rrup", "vs30")
+    )
+    inputs = (
+        _core.P21Inputs.interface(mag, rrup, vs30)
+        if tect_type is TectType.SUBDUCTION_INTERFACE
+        else _core.P21Inputs.slab(
+            mag,
+            rrup,
+            vs30,
+            rupture_df["hypo_depth"].to_numpy(dtype=np.float64),
+            rupture_df["backarc"].to_numpy(dtype=np.bool_),
         )
-        columns[f"{im}_mean"] = mean
-        columns[f"{im}_std_Total"] = total
-        columns[f"{im}_std_Inter"] = inter
-        columns[f"{im}_std_Intra"] = intra
-    else:
-        raise ValueError(f"Unsupported im '{im}': expected one of 'PGA', 'PGV', 'pSA'")
-
-    return pd.DataFrame(columns, index=rupture_df.index)
+    )
+    return evaluate_ims(
+        lambda core_im: _core.p21(
+            inputs, core_im, SIGMA_MU_EPSILON[epistemic_branch], modified_sigma
+        ),
+        rupture_df.index,
+        im,
+        periods,
+        # modified_sigma as int: netCDF attributes can't be bool.
+        attrs={
+            "model": "P_21",
+            "tect_type": str(tect_type),
+            "epistemic_branch": str(epistemic_branch),
+            "modified_sigma": int(modified_sigma),
+        },
+    )

@@ -26,7 +26,10 @@ use crate::coeffs::{Coeffs, PGA_COEFFS, PGV_COEFFS, SA_COEFFS, SA_PERIODS};
 use crate::error::GMMError;
 use crate::im::IM;
 use crate::nz22_const::{PERIODS, PERIODS_AG20, RHO_BS, RHO_WS, THETA7S, THETA8S};
-use crate::utils::log_interp;
+use crate::result::{GMMResult, MeanStd};
+use crate::utils::{check_lengths, log_interp};
+use numpy::PyReadonlyArray1;
+use pyo3::prelude::*;
 
 /// b4 in Eq. 2.
 const B4: f64 = 0.1;
@@ -42,30 +45,130 @@ const VREF: f64 = 760.0;
 const MB_DEFAULT_INTERFACE: f64 = 7.9;
 const MB_DEFAULT_SLAB: f64 = 7.6;
 
+/// Selects the interface or slab coefficients and functional forms.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TectType {
+enum TectType {
     Interface,
     Slab,
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct Inputs {
-    pub mag: f64,
-    pub rrup: f64,
-    pub vs30: f64,
-    /// Only read for [`TectType::Slab`].
-    pub hypo_depth: f64,
-    /// Only read for [`TectType::Slab`].
-    pub backarc: bool,
+/// P21 input columns, one value per rupture-site pair. Slab-only columns
+/// exist only on the `Slab` variant. Exposed to Python as
+/// `gm_models._core.P21Inputs`, built with `P21Inputs.interface(...)` or
+/// `P21Inputs.slab(...)`. Column lengths are checked in [`P21Inputs::iter`].
+#[pyclass(frozen, module = "gm_models._core")]
+#[derive(Debug)]
+pub enum P21Inputs {
+    Interface {
+        mag: Vec<f64>,
+        rrup: Vec<f64>,
+        vs30: Vec<f64>,
+    },
+    Slab {
+        mag: Vec<f64>,
+        rrup: Vec<f64>,
+        vs30: Vec<f64>,
+        hypo_depth: Vec<f64>,
+        backarc: Vec<bool>,
+    },
 }
 
+/// A single row of [`P21Inputs`].
 #[derive(Debug, Clone, Copy)]
-pub struct MeanStd {
-    /// Mean, in natural-log space (ln(g) for PGA/SA, ln(cm/s) for PGV).
-    pub mean: f64,
-    pub total: f64,
-    pub inter: f64,
-    pub intra: f64,
+pub enum P21Row {
+    Interface {
+        mag: f64,
+        rrup: f64,
+        vs30: f64,
+    },
+    Slab {
+        mag: f64,
+        rrup: f64,
+        vs30: f64,
+        hypo_depth: f64,
+        backarc: bool,
+    },
+}
+
+impl P21Inputs {
+    /// The rupture-site pairs, in order. Fails if the columns differ in length.
+    pub fn iter(&self) -> Result<impl Iterator<Item = P21Row> + '_, GMMError> {
+        let n = match self {
+            Self::Interface { mag, rrup, vs30 } => check_lengths(&[
+                ("mag", mag.len()),
+                ("rrup", rrup.len()),
+                ("vs30", vs30.len()),
+            ]),
+            Self::Slab {
+                mag,
+                rrup,
+                vs30,
+                hypo_depth,
+                backarc,
+            } => check_lengths(&[
+                ("mag", mag.len()),
+                ("rrup", rrup.len()),
+                ("vs30", vs30.len()),
+                ("hypo_depth", hypo_depth.len()),
+                ("backarc", backarc.len()),
+            ]),
+        }?;
+        Ok((0..n).map(move |i| match self {
+            Self::Interface { mag, rrup, vs30 } => P21Row::Interface {
+                mag: mag[i],
+                rrup: rrup[i],
+                vs30: vs30[i],
+            },
+            Self::Slab {
+                mag,
+                rrup,
+                vs30,
+                hypo_depth,
+                backarc,
+            } => P21Row::Slab {
+                mag: mag[i],
+                rrup: rrup[i],
+                vs30: vs30[i],
+                hypo_depth: hypo_depth[i],
+                backarc: backarc[i],
+            },
+        }))
+    }
+}
+
+#[pymethods]
+impl P21Inputs {
+    /// Subduction interface inputs.
+    #[staticmethod]
+    fn interface(
+        mag: PyReadonlyArray1<f64>,
+        rrup: PyReadonlyArray1<f64>,
+        vs30: PyReadonlyArray1<f64>,
+    ) -> Self {
+        Self::Interface {
+            mag: mag.as_array().to_vec(),
+            rrup: rrup.as_array().to_vec(),
+            vs30: vs30.as_array().to_vec(),
+        }
+    }
+
+    /// Subduction slab inputs.
+    #[staticmethod]
+    fn slab(
+        mag: PyReadonlyArray1<f64>,
+        rrup: PyReadonlyArray1<f64>,
+        vs30: PyReadonlyArray1<f64>,
+        hypo_depth: PyReadonlyArray1<f64>,
+        backarc: PyReadonlyArray1<bool>,
+    ) -> Self {
+        Self::Slab {
+            mag: mag.as_array().to_vec(),
+            rrup: rrup.as_array().to_vec(),
+            vs30: vs30.as_array().to_vec(),
+            hypo_depth: hypo_depth.as_array().to_vec(),
+            backarc: backarc.as_array().to_vec(),
+        }
+    }
 }
 
 impl Coeffs {
@@ -212,11 +315,8 @@ fn non_linear_term(f4: f64, f5: f64, vs30: f64, pgar: f64) -> f64 {
 }
 
 /// BC Hydro 2016 / Abrahamson et al. (2016)-style backarc correction.
-/// NZ-specific; only nonzero for [`TectType::Slab`] backarc sites.
-fn backarc_term(tect_type: TectType, im: IM, rrup: f64, backarc: bool) -> Result<f64, GMMError> {
-    if tect_type != TectType::Slab || !backarc {
-        return Ok(0.0);
-    }
+/// NZ-specific; applied only to slab backarc sites.
+fn backarc_term(im: IM, rrup: f64) -> Result<f64, GMMError> {
     let w_epi_factor = 1.008;
     let min_dist = 85.0;
     let (theta7, theta8) = match im {
@@ -324,6 +424,25 @@ fn stddevs_nonlinear(
     Ok(((tau2_nl + phi2_nl).sqrt(), tau2_nl.sqrt(), phi2_nl.sqrt()))
 }
 
+/// Mean + standard deviations for `NZNSHM2022_ParkerEtAl2020SInter` /
+/// `NZNSHM2022_ParkerEtAl2020SSlab` (global/GLO region), one value per
+/// rupture-site pair in `inputs`. The tectonic type is set by how
+/// `inputs` was built (`P21Inputs.interface` or `P21Inputs.slab`).
+/// Exposed to Python as `gm_models._core.p21`.
+#[pyfunction]
+pub fn p21(
+    inputs: PyRef<'_, P21Inputs>,
+    im: IM,
+    sigma_mu_epsilon: f64,
+    modified_sigma: bool,
+) -> PyResult<GMMResult> {
+    let coeffs = Coeffs::for_im(im)?;
+    Ok(inputs
+        .iter()?
+        .map(|row| compute(im, &coeffs, &row, sigma_mu_epsilon, modified_sigma))
+        .collect::<Result<GMMResult, _>>()?)
+}
+
 /// Computes mean + standard deviations for a single site/rupture pair.
 ///
 /// `c` must be `Coeffs::for_im(im)`; it is passed in so callers looping over
@@ -331,14 +450,21 @@ fn stddevs_nonlinear(
 /// interpolation falls outside its table, which `Coeffs::for_im`'s period
 /// check should already rule out.
 pub fn compute(
-    tect_type: TectType,
     im: IM,
     c: &Coeffs,
-    inp: &Inputs,
+    row: &P21Row,
     sigma_mu_epsilon: f64,
     modified_sigma: bool,
 ) -> Result<MeanStd, GMMError> {
     let c_pga = PGA_COEFFS;
+
+    let (tect_type, mag, rrup, vs30) = match *row {
+        P21Row::Interface { mag, rrup, vs30 } => (TectType::Interface, mag, rrup, vs30),
+        P21Row::Slab {
+            mag, rrup, vs30, ..
+        } => (TectType::Slab, mag, rrup, vs30),
+    };
+    let backarc = matches!(row, P21Row::Slab { backarc: true, .. });
 
     let m_b = match tect_type {
         TectType::Interface => MB_DEFAULT_INTERFACE,
@@ -348,31 +474,34 @@ pub fn compute(
     let (c0, c1, a0, c4, c5, c6) = select(tect_type, c);
     let (c0_pga, c1_pga, a0_pga, c4_pga, c5_pga, c6_pga) = select(tect_type, &c_pga);
 
-    let fm = magnitude_scaling(c6, c4, c5, inp.mag, m_b);
-    let fm_pga = magnitude_scaling(c6_pga, c4_pga, c5_pga, inp.mag, m_b);
+    let fm = magnitude_scaling(c6, c4, c5, mag, m_b);
+    let fm_pga = magnitude_scaling(c6_pga, c4_pga, c5_pga, mag, m_b);
 
-    let h = path_term_h(tect_type, inp.mag, m_b);
-    let fp = path_term(c1, a0, inp.mag, inp.rrup, h);
-    // Backarc term applied to the path function for reference-rock PGA.
-    let fp_pga = path_term(c1_pga, a0_pga, inp.mag, inp.rrup, h)
-        + backarc_term(tect_type, IM::PGA {}, inp.rrup, inp.backarc)?;
+    let h = path_term_h(tect_type, mag, m_b);
+    let fp = path_term(c1, a0, mag, rrup, h);
+    // NZ backarc term, for the reference-rock PGA (folded into its path term)
+    // and for the target IM.
+    let (fba_pga, fba) = if backarc {
+        (backarc_term(IM::PGA {}, rrup)?, backarc_term(im, rrup)?)
+    } else {
+        (0.0, 0.0)
+    };
+    let fp_pga = path_term(c1_pga, a0_pga, mag, rrup, h) + fba_pga;
 
-    let (fd, fd_pga) = match tect_type {
-        TectType::Slab => (
-            depth_scaling(inp.hypo_depth, c.d, c.m, c.db),
-            depth_scaling(inp.hypo_depth, c_pga.d, c_pga.m, c_pga.db),
+    let (fd, fd_pga) = match *row {
+        P21Row::Slab { hypo_depth, .. } => (
+            depth_scaling(hypo_depth, c.d, c.m, c.db),
+            depth_scaling(hypo_depth, c_pga.d, c_pga.m, c_pga.db),
         ),
-        TectType::Interface => (0.0, 0.0),
+        P21Row::Interface { .. } => (0.0, 0.0),
     };
 
-    let flin = linear_amplification(inp.vs30, c.s2, c.v2);
+    let flin = linear_amplification(vs30, c.s2, c.v2);
 
     // Reference-rock PGA, Eq. 1 with PGA coefficients and FS = 0 (backarc
     // already folded into fp_pga).
     let pgar = (fp_pga + fm_pga + c0_pga + fd_pga).exp();
-    let fnl = non_linear_term(c.f4, c.f5, inp.vs30, pgar);
-
-    let fba = backarc_term(tect_type, im, inp.rrup, inp.backarc)?;
+    let fnl = non_linear_term(c.f4, c.f5, vs30, pgar);
 
     // Eq. 1, with FS = Flin + Fnl from Eq. 7. Basin term (Fb) omitted: always 0
     // in this configuration (no z2pt5). fba is the NZ backarc addition.
@@ -381,9 +510,9 @@ pub fn compute(
         fp + fnl + flin + fm + c0 + fd + fba + sigma_mu_epsilon * sigma_epistemic(tect_type, im);
 
     let (total, inter, intra) = if modified_sigma {
-        stddevs_nonlinear(c, &c_pga, im, pgar, inp.rrup, inp.vs30)?
+        stddevs_nonlinear(c, &c_pga, im, pgar, rrup, vs30)?
     } else {
-        stddevs_original(c, inp.rrup, inp.vs30)
+        stddevs_original(c, rrup, vs30)
     };
 
     Ok(MeanStd {
@@ -426,7 +555,7 @@ mod tests {
     }
 
     struct RowInputs {
-        inputs: Inputs,
+        inputs: P21Row,
         value_start: usize,
     }
 
@@ -438,25 +567,22 @@ mod tests {
         let mag: f64 = record[header_index(headers, "rup_mag")].parse().unwrap();
         let rrup: f64 = record[header_index(headers, "dist_rrup")].parse().unwrap();
         let vs30: f64 = record[header_index(headers, "site_vs30")].parse().unwrap();
-        let (hypo_depth, backarc) = if tect_type == TectType::Slab {
-            let hypo_depth: f64 = record[header_index(headers, "rup_hypo_depth")]
-                .parse()
-                .unwrap();
-            let backarc = record[header_index(headers, "site_backarc")]
-                .trim()
-                .eq_ignore_ascii_case("true");
-            (hypo_depth, backarc)
-        } else {
-            (0.0, false)
-        };
-        RowInputs {
-            inputs: Inputs {
+        let inputs = match tect_type {
+            TectType::Interface => P21Row::Interface { mag, rrup, vs30 },
+            TectType::Slab => P21Row::Slab {
                 mag,
                 rrup,
                 vs30,
-                hypo_depth,
-                backarc,
+                hypo_depth: record[header_index(headers, "rup_hypo_depth")]
+                    .parse()
+                    .unwrap(),
+                backarc: record[header_index(headers, "site_backarc")]
+                    .trim()
+                    .eq_ignore_ascii_case("true"),
             },
+        };
+        RowInputs {
+            inputs,
             value_start: header_index(headers, "pga"),
         }
     }
@@ -486,27 +612,18 @@ mod tests {
             for (col_idx, header) in headers.iter().enumerate().skip(row.value_start) {
                 let im = im_for_header(header);
                 let expected: f64 = record[col_idx].parse().unwrap();
-                let predicted = compute(
-                    tect_type,
-                    im,
-                    &Coeffs::for_im(im).unwrap(),
-                    &row.inputs,
-                    0.0,
-                    false,
-                )
-                .unwrap()
-                .mean
-                .exp();
+                let predicted = compute(im, &Coeffs::for_im(im).unwrap(), &row.inputs, 0.0, false)
+                    .unwrap()
+                    .mean
+                    .exp();
                 let discrep = (predicted / expected * 100.0 - 100.0).abs();
                 max_discrep = max_discrep.max(discrep);
                 n_checked += 1;
                 assert!(
                     discrep <= MAX_DISCREP_PERCENTAGE,
-                    "mean mismatch for IM '{header}' (mag={}, rrup={}, vs30={}): \
+                    "mean mismatch for IM '{header}' ({:?}): \
                      predicted={predicted}, expected={expected}, discrepancy={discrep:.4}%",
-                    row.inputs.mag,
-                    row.inputs.rrup,
-                    row.inputs.vs30,
+                    row.inputs,
                 );
             }
         }
@@ -535,7 +652,6 @@ mod tests {
                 let im = im_for_header(header);
                 let expected: f64 = record[col_idx].parse().unwrap();
                 let predicted = compute(
-                    tect_type,
                     im,
                     &Coeffs::for_im(im).unwrap(),
                     &row.inputs,
@@ -550,11 +666,9 @@ mod tests {
                 assert!(
                     discrep <= MAX_DISCREP_PERCENTAGE,
                     "total stddev mismatch (modified_sigma={modified_sigma}) for IM '{header}' \
-                     (mag={}, rrup={}, vs30={}): predicted={predicted}, expected={expected}, \
+                     ({:?}): predicted={predicted}, expected={expected}, \
                      discrepancy={discrep:.4}%",
-                    row.inputs.mag,
-                    row.inputs.rrup,
-                    row.inputs.vs30,
+                    row.inputs,
                 );
             }
         }
@@ -636,38 +750,34 @@ mod proptests {
         ]
     }
 
-    fn inputs() -> impl Strategy<Value = Inputs> {
-        (
-            5.0..9.5f64,
-            0.1..1000.0f64,
-            100.0..2000.0f64,
-            0.0..200.0f64,
-            any::<bool>(),
-        )
-            .prop_map(|(mag, rrup, vs30, hypo_depth, backarc)| Inputs {
-                mag,
-                rrup,
-                vs30,
-                hypo_depth,
-                backarc,
-            })
-    }
-
-    fn tect_type() -> impl Strategy<Value = TectType> {
-        prop_oneof![Just(TectType::Interface), Just(TectType::Slab)]
+    fn row() -> impl Strategy<Value = P21Row> {
+        let common = (5.0..9.5f64, 0.1..1000.0f64, 100.0..2000.0f64);
+        prop_oneof![
+            common
+                .clone()
+                .prop_map(|(mag, rrup, vs30)| P21Row::Interface { mag, rrup, vs30 }),
+            (common, 0.0..200.0f64, any::<bool>()).prop_map(
+                |((mag, rrup, vs30), hypo_depth, backarc)| P21Row::Slab {
+                    mag,
+                    rrup,
+                    vs30,
+                    hypo_depth,
+                    backarc,
+                }
+            ),
+        ]
     }
 
     proptest! {
         #[test]
         fn outputs_are_finite_and_stddevs_consistent(
-            tect_type in tect_type(),
             im in im(),
-            inp in inputs(),
+            row in row(),
             sigma_mu_epsilon in -1.2815..=1.2815f64,
             modified_sigma in any::<bool>(),
         ) {
             let c = Coeffs::for_im(im).unwrap();
-            let r = compute(tect_type, im, &c, &inp, sigma_mu_epsilon, modified_sigma).unwrap();
+            let r = compute(im, &c, &row, sigma_mu_epsilon, modified_sigma).unwrap();
             prop_assert!(r.mean.is_finite());
             prop_assert!(r.inter > 0.0 && r.intra > 0.0);
             let rel = (r.total.powi(2) - (r.inter.powi(2) + r.intra.powi(2))).abs() / r.total.powi(2);
@@ -695,6 +805,34 @@ mod proptests {
         for (&period, row) in SA_PERIODS.iter().zip(SA_COEFFS.iter()) {
             assert_eq!(Coeffs::for_im(IM::SA { period }).unwrap(), *row);
         }
+    }
+
+    #[test]
+    fn inputs_reject_mismatched_lengths_and_iterate_rows() {
+        let slab = |backarc: Vec<bool>| P21Inputs::Slab {
+            mag: vec![7.0, 8.0],
+            rrup: vec![10.0, 20.0],
+            vs30: vec![400.0, 500.0],
+            hypo_depth: vec![30.0, 40.0],
+            backarc,
+        };
+        assert!(slab(vec![true]).iter().is_err());
+        let rows: Vec<P21Row> = slab(vec![false, true]).iter().unwrap().collect();
+        assert!(matches!(
+            rows[..],
+            [
+                P21Row::Slab {
+                    mag: 7.0,
+                    backarc: false,
+                    ..
+                },
+                P21Row::Slab {
+                    mag: 8.0,
+                    backarc: true,
+                    ..
+                },
+            ]
+        ));
     }
 
     #[test]

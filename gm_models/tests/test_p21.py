@@ -1,13 +1,15 @@
 """Layer 2: compare gm_models.p21 against oq_wrapper's existing P_21 benchmark fixtures.
 
 This does not prove the model is *correct* (see the Rust `cargo test`
-OpenQuake-verification suite in `src-rust/p21.rs` for that, Layer 1) — it
-proves this reimplementation is a safe drop-in replacement for
-`oq_wrapper`'s own P_21, matching its wrapper-level output contract exactly
-(column names, units, epistemic-branch wiring) against the same fixtures
-`oq_wrapper`'s own test suite is checked against.
+OpenQuake-verification suite in `src-rust/p21.rs` for that, Layer 1). It
+checks that `run_p21` gives the same values as `oq_wrapper`'s P_21 (units,
+epistemic-branch wiring, rupture-df handling) on the fixtures `oq_wrapper`'s
+own test suite uses. The output format differs (an xarray Dataset rather than
+`oq_wrapper`'s flat DataFrame), so each fixture column is matched to its
+Dataset variable and period.
 """
 
+import re
 from pathlib import Path
 
 import numpy as np
@@ -48,6 +50,11 @@ NZGMDB_OQ_COL_MAPPING = {
 # implementation, not the same code re-run.
 RTOL = 1e-6
 
+# oq_wrapper fixture columns: "PGA_mean", "pSA_0.1_std_Total", ...
+OQ_WRAPPER_COLUMN = re.compile(
+    r"(?:PGA|PGV|pSA_(?P<period>[\d.]+))_(?P<stat>mean|std_\w+)"
+)
+
 
 def pytest_generate_tests(metafunc: Metafunc) -> None:
     """Parametrize over every P_21 benchmark fixture (PGA/PGV/pSA x interface/slab x branch)."""
@@ -74,14 +81,15 @@ def test_p21_matches_oq_wrapper_benchmark(
     cur_rupture_df = cur_rupture_df.rename(columns=NZGMDB_OQ_COL_MAPPING)
     cur_rupture_df["backarc"] = False
 
+    parsed: dict[str, re.Match[str]] = {}
+    for col in bench_df.columns:
+        m = OQ_WRAPPER_COLUMN.fullmatch(col)
+        assert m is not None, f"unexpected oq_wrapper column '{col}'"
+        parsed[col] = m
     periods = (
         None
         if im != "pSA"
-        else [
-            float(col.rsplit("_", maxsplit=1)[0].removeprefix("pSA_"))
-            for col in bench_df.columns
-            if col.endswith("mean")
-        ]
+        else [float(m["period"]) for col, m in parsed.items() if m["stat"] == "mean"]
     )
 
     gmm_name, tect_type_name = benchmark_ffp.stem.split("TectType")
@@ -92,7 +100,7 @@ def test_p21_matches_oq_wrapper_benchmark(
     assert gmm_name.strip("_") == "P_21"
     tect_type = TectType[tect_type_name.strip("_")]
 
-    result_df = run_p21(
+    ds = run_p21(
         tect_type,
         cur_rupture_df,
         im,
@@ -100,10 +108,15 @@ def test_p21_matches_oq_wrapper_benchmark(
         epistemic_branch=epistemic_branch,
     )
 
-    assert list(result_df.columns) == list(bench_df.columns)
-    np.testing.assert_allclose(
-        result_df.to_numpy(),
-        bench_df[result_df.columns].to_numpy(),
-        rtol=RTOL,
-        err_msg=f"gm_models.p21 output diverges from oq_wrapper benchmark for {benchmark_ffp}",
-    )
+    assert ds.indexes[bench_df.index.name].equals(bench_df.index)
+    assert set(ds.data_vars) == {"ln_mean", "std_total", "std_inter", "std_intra"}
+    for col, m in parsed.items():
+        values = ds["ln_mean" if m["stat"] == "mean" else m["stat"].lower()]
+        if m["period"] is not None:
+            values = values.sel(period=float(m["period"]))
+        np.testing.assert_allclose(
+            values.to_numpy(),
+            bench_df[col].to_numpy(),
+            rtol=RTOL,
+            err_msg=f"gm_models.p21 {col} diverges from oq_wrapper benchmark {benchmark_ffp}",
+        )

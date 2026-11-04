@@ -22,31 +22,42 @@ class IM:
         period: float
         def __init__(self, period: float) -> None: ...
 
-def _p21_interface(
-    mag: npt.NDArray[np.float64],
-    rrup: npt.NDArray[np.float64],
-    vs30: npt.NDArray[np.float64],
+class P21Inputs:
+    """P21 input columns, one value per rupture-site pair."""
+
+    @staticmethod
+    def interface(
+        mag: npt.NDArray[np.float64],
+        rrup: npt.NDArray[np.float64],
+        vs30: npt.NDArray[np.float64],
+    ) -> P21Inputs:
+        """Subduction interface inputs."""
+
+    @staticmethod
+    def slab(
+        mag: npt.NDArray[np.float64],
+        rrup: npt.NDArray[np.float64],
+        vs30: npt.NDArray[np.float64],
+        hypo_depth: npt.NDArray[np.float64],
+        backarc: npt.NDArray[np.bool_],
+    ) -> P21Inputs:
+        """Subduction slab inputs."""
+
+class GMMResult:
+    """Mean (ln space) and standard deviations, one array per quantity."""
+
+    @property
+    def ln_mean(self) -> npt.NDArray[np.float64]: ...
+    @property
+    def std_total(self) -> npt.NDArray[np.float64]: ...
+    @property
+    def std_inter(self) -> npt.NDArray[np.float64]: ...
+    @property
+    def std_intra(self) -> npt.NDArray[np.float64]: ...
+
+def p21(
+    inputs: P21Inputs,
     im: IM,
     sigma_mu_epsilon: float,
     modified_sigma: bool,
-) -> tuple[
-    npt.NDArray[np.float64],
-    npt.NDArray[np.float64],
-    npt.NDArray[np.float64],
-    npt.NDArray[np.float64],
-]: ...
-def _p21_slab(
-    mag: npt.NDArray[np.float64],
-    rrup: npt.NDArray[np.float64],
-    vs30: npt.NDArray[np.float64],
-    hypo_depth: npt.NDArray[np.float64],
-    backarc: npt.NDArray[np.bool_],
-    im: IM,
-    sigma_mu_epsilon: float,
-    modified_sigma: bool,
-) -> tuple[
-    npt.NDArray[np.float64],
-    npt.NDArray[np.float64],
-    npt.NDArray[np.float64],
-    npt.NDArray[np.float64],
-]: ...
+) -> GMMResult: ...

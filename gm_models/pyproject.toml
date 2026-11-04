@@ -9,7 +9,11 @@ description = "Native (Rust) reimplementations of empirical ground motion models
 readme = "README.md"
 requires-python = ">=3.11"
 dynamic = ["version"]
-dependencies = ["numpy>=2.0", "pandas[pyarrow]"]
+dependencies = [
+    "numpy>=2.0",
+    "pandas[pyarrow]",
+    "xarray>=2026.9.0",
+]
 
 [tool.setuptools_scm]
 root = ".."

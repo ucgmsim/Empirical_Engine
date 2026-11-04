@@ -17,6 +17,20 @@ pub fn log_interp(xs: &[f64], ys: &[f64], x: f64) -> Result<f64, GMMError> {
     Ok(ys[i - 1] + (x.ln() - x0) / (x1 - x0) * (ys[i] - ys[i - 1]))
 }
 
+/// Checks that all `(name, length)` columns have the length of the first,
+/// and returns that common length.
+pub fn check_lengths(columns: &[(&'static str, usize)]) -> Result<usize, GMMError> {
+    let expected = columns[0].1;
+    match columns.iter().find(|c| c.1 != expected) {
+        Some(&(name, len)) => Err(GMMError::LengthMismatch {
+            name,
+            len,
+            expected,
+        }),
+        None => Ok(expected),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -35,6 +49,12 @@ mod tests {
     fn interpolates_in_log_space() {
         let mid = (0.1f64 * 1.0).sqrt();
         assert!((log_interp(&XS, &YS, mid).unwrap() - 1.5).abs() < 1e-12);
+    }
+
+    #[test]
+    fn mismatched_lengths_are_errors() {
+        assert_eq!(check_lengths(&[("a", 3), ("b", 3)]).unwrap(), 3);
+        assert!(check_lengths(&[("a", 3), ("b", 2)]).is_err());
     }
 
     #[test]

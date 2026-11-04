@@ -9,6 +9,12 @@ pub enum GMMError {
     UnsupportedPeriod { period: f64, max: f64 },
     #[error("{x} is outside the interpolation range [{min}, {max}]")]
     OutOfInterpolationRange { x: f64, min: f64, max: f64 },
+    #[error("'{name}' has length {len}, expected {expected}")]
+    LengthMismatch {
+        name: &'static str,
+        len: usize,
+        expected: usize,
+    },
 }
 
 impl From<GMMError> for PyErr {
