@@ -32,9 +32,14 @@ jobs:
           git -C oq-engine log -1 --format='oq-engine master: %h (%cs)'
           git -C oq-engine log -1 --format='reference data last changed: %h (%cs) %s' -- "$DATA_DIR"
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: gm_models
+      - name: cargo clippy (also compiles benches and tests)
+        working-directory: gm_models
+        run: cargo clippy --all-targets -- -D warnings
       - name: cargo test (OpenQuake verification)
         working-directory: gm_models
         env:
