@@ -5,6 +5,9 @@ name: OpenQuake verification
 # against the last green run.
 on:
   pull_request:
+    paths:
+      - "gm_models/**"
+      - ".github/workflows/openquake-verification.yml"
   schedule:
     - cron: "0 18 * * 0" # weekly, so upstream drift shows up without a PR
 

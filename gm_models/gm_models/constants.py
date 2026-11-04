@@ -18,8 +18,7 @@ class EpistemicBranch(StrEnum):
     UPPER = "UPPER"
 
 
-# `sigma_mu_epsilon` per branch, shared by every model that has it (AG_20, K_20,
-# P_21, ASK_14, CY_14, CB_14, BSSA_14, Br_13). Matches
+# `sigma_mu_epsilon` per branch, shared by every model that has it. Matches
 # oq_wrapper.constants.GMM_EPISTEMIC_BRANCH_KWARGS_MAPPING, where CENTRAL is
 # omitted and so takes OpenQuake's default of 0.
 SIGMA_MU_EPSILON = {

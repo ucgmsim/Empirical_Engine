@@ -13,7 +13,7 @@ assembly live in Python (`gm_models/`).
 
 ## Verification
 
-Two layers, see the top-level plan for detail:
+Two layers:
 
 1. **OpenQuake verification** (`cargo test -- --ignored`): compares directly against
    OpenQuake's (`openquake.hazardlib`) own independently-sourced reference tables. Requires

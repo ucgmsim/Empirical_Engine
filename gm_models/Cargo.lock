@@ -508,7 +508,6 @@ dependencies = [
  "pprof",
  "proptest",
  "pyo3",
- "serde",
  "thiserror",
 ]
 

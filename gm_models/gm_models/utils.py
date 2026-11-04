@@ -72,7 +72,10 @@ def evaluate_ims(
             )
             for var in variables
         }
-        coords = {site_dim: index, "period": np.asarray(periods, dtype=np.float64)}
+        coords = {
+            site_dim: index,
+            "period": ("period", np.asarray(periods, dtype=np.float64), {"units": "s"}),
+        }
     elif im in ("PGA", "PGV"):
         result = compute(_core.IM.PGA() if im == "PGA" else _core.IM.PGV())
         data = {var: ((site_dim,), getattr(result, var)) for var in variables}
@@ -82,6 +85,4 @@ def evaluate_ims(
 
     ds = xr.Dataset(data, coords=coords, attrs={"im": im, **(attrs or {})})
     ds["ln_mean"].attrs["units"] = "ln(cm/s)" if im == "PGV" else "ln(g)"
-    if im == "pSA":
-        ds["period"].attrs["units"] = "s"
     return ds

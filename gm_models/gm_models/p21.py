@@ -1,7 +1,7 @@
 """Python scaffolding around the Rust P_21 (NZ NSHM2022 Parker et al. 2020) implementation.
 
-Column/input validation, epistemic-branch handling, and result assembly live
-here; the actual GMPE math lives in the compiled `gm_models._core` Rust
+Column/input validation and epistemic-branch handling live here; the actual
+GMPE math lives in the compiled `gm_models._core` Rust
 extension (see `src-rust/p21.rs`).
 """
 

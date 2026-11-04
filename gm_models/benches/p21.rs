@@ -4,9 +4,8 @@
 //! `cargo bench` writes HTML reports to `target/criterion/report/index.html`;
 //! `cargo bench -- --profile-time 5` additionally writes flamegraphs.
 
-use _core::coeffs::Coeffs;
 use _core::im::IM;
-use _core::p21::{compute, P21Inputs};
+use _core::p21::{coeffs::Coeffs, compute, P21Inputs};
 use _core::result::GMMResult;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use pprof::criterion::{Output, PProfProfiler};

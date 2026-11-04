@@ -11,7 +11,7 @@
 //! and is 0 whenever a rupture context has no `z2pt5`) is always 0 and
 //! is omitted entirely, and the linear site term's region-dependent
 //! `s1`/`s2` split collapses to a single `s2` coefficient (see
-//! `linear_amplification`).
+//! `flin` in [`compute`]).
 //!
 //! Equation numbers ("Eq. N") refer to Parker et al. (2022), "NGA-Subduction
 //! global ground motion models with regional adjustment factors", Earthquake
@@ -22,12 +22,16 @@
 //! changes the result for PGV (backarc term, rho_W/rho_B), the `match` on
 //! [`IM`] says so explicitly.
 
-use crate::coeffs::{Coeffs, PGA_COEFFS, PGV_COEFFS, SA_COEFFS, SA_PERIODS};
+pub mod coeffs {
+    include!(concat!(env!("OUT_DIR"), "/p21_coefficients.rs"));
+}
+
 use crate::error::GMMError;
 use crate::im::IM;
 use crate::nz22_const::{PERIODS, PERIODS_AG20, RHO_BS, RHO_WS, THETA7S, THETA8S};
 use crate::result::{GMMResult, MeanStd};
 use crate::utils::{check_lengths, log_interp};
+use coeffs::{Coeffs, PGA_COEFFS, PGV_COEFFS, SA_COEFFS, SA_PERIODS};
 use numpy::PyReadonlyArray1;
 use pyo3::prelude::*;
 
@@ -40,6 +44,11 @@ const VB: f64 = 200.0;
 const VREF_FNL: f64 = 760.0;
 /// Vref in Eq. 8.
 const VREF: f64 = 760.0;
+/// R1, R2 in Eq. 19 and V1, V2 in Eq. 20.
+const R1: f64 = 200.0;
+const R2: f64 = 500.0;
+const V1: f64 = 200.0;
+const V2: f64 = 500.0;
 
 /// Global mc (Table 3).
 const MB_DEFAULT_INTERFACE: f64 = 7.9;
@@ -227,11 +236,7 @@ fn path_term_h(row: &P21Row, mag: f64, m_b: f64) -> f64 {
         P21Row::Interface { .. } => 10f64.powf(-0.82 + 0.252 * mag),
         P21Row::Slab { .. } => {
             let slope = (35f64.log10() - 3.12f64.log10()) / (m_b - 4.0);
-            if mag <= m_b {
-                10f64.powf(slope * (mag - m_b) + 35f64.log10())
-            } else {
-                35.0
-            }
+            35.0 * 10f64.powf(slope * (mag - m_b).min(0.0))
         }
     }
 }
@@ -255,22 +260,9 @@ fn depth_scaling(hypo_depth: f64, d: f64, m: f64, db: f64) -> f64 {
     }
 }
 
-/// Linear site term Flin, Eq. 8. With `region=None`, OpenQuake's `s1 == s2`,
-/// which collapses the three-branch piecewise form into a single clamp.
-fn linear_amplification(vs30: f64, s2: f64, v2: f64) -> f64 {
-    s2 * (vs30.min(v2) / VREF).ln()
-}
-
 /// f2, Eq. 10.
 fn f2(f4: f64, f5: f64, vs30: f64) -> f64 {
     f4 * ((f5 * (vs30.min(VREF_FNL) - VB)).exp() - (f5 * (VREF_FNL - VB)).exp())
-}
-
-/// Non-linear site term Fnl, Eq. 9 (with f1 = 0).
-/// NZ version: no `period >= 3` cutoff, unlike the base
-/// `parker_2020._non_linear_term` (see the NZ source's docstring).
-fn non_linear_term(f4: f64, f5: f64, vs30: f64, pgar: f64) -> f64 {
-    f2(f4, f5, vs30) * ((pgar + F3) / F3).ln()
 }
 
 /// BC Hydro 2016 / Abrahamson et al. (2016)-style backarc correction.
@@ -286,7 +278,7 @@ fn backarc_term(im: IM, rrup: f64) -> Result<f64, GMMError> {
         // Includes PGV: OpenQuake's "no correction for PGV" branch tests
         // `imt.period < 0`, but `PGV().period` is 0.0, so PGV gets the PGA
         // correction. Reproduced here since we verify against OpenQuake output.
-        _ => (1.0988, -1.42),
+        _ => (THETA7S[0], THETA8S[0]),
     };
     let dist = rrup.max(min_dist);
     Ok((theta7 + theta8 * (dist / 40.0).ln()) * w_epi_factor)
@@ -311,31 +303,17 @@ fn sigma_epistemic(row: &P21Row, im: IM) -> f64 {
 
 /// phi^2(Rrup), Eq. 19.
 fn phi2_rrup(c: &Coeffs, rrup: f64) -> f64 {
-    let (r1, r2): (f64, f64) = (200.0, 500.0);
-    if rrup <= r1 {
-        c.phi21
-    } else if rrup >= r2 {
-        c.phi22
-    } else {
-        (c.phi22 - c.phi21) / (r2.ln() - r1.ln()) * (rrup.ln() - r1.ln()) + c.phi21
-    }
+    c.phi21 + (c.phi22 - c.phi21) * (rrup.clamp(R1, R2) / R1).ln() / (R2 / R1).ln()
 }
 
 /// Original (linear) standard-deviation model (`modified_sigma=False`):
 /// phi^2(Rrup) from Eq. 19 plus DeltaVar(Vs30) from Eq. 20, then phi (Eq. 18)
 /// and total sigma (Eq. 17).
 fn stddevs_original(c: &Coeffs, rrup: f64, vs30: f64) -> (f64, f64, f64) {
-    let (r1, r2, v1, v2) = (200.0, 500.0, 200.0, 500.0);
-
-    let mut phi2_rv = phi2_rrup(c, rrup);
-    let clamped_r_ratio = || (r2 / rrup.max(r1).min(r2)).ln() / (r2 / r1).ln();
-    if vs30 <= v1 {
-        phi2_rv += c.phi2v * clamped_r_ratio();
-    } else if vs30 < v2 {
-        phi2_rv += c.phi2v * ((v2 / vs30.min(v2)).ln() / (v2 / v1).ln()) * clamped_r_ratio();
-    }
-
-    let phi_tot = phi2_rv.sqrt();
+    // DeltaVar weights: 1 at vs30 <= V1 / rrup <= R1, 0 at vs30 >= V2 / rrup >= R2.
+    let w_v = (V2 / vs30.clamp(V1, V2)).ln() / (V2 / V1).ln();
+    let w_r = (R2 / rrup.clamp(R1, R2)).ln() / (R2 / R1).ln();
+    let phi_tot = (phi2_rrup(c, rrup) + c.phi2v * w_v * w_r).sqrt();
     (c.tau.hypot(phi_tot), c.tau, phi_tot)
 }
 
@@ -351,7 +329,7 @@ fn stddevs_nonlinear(
     im: IM,
     pgar: f64,
     rrup: f64,
-    vs30: f64,
+    f2: f64,
 ) -> Result<(f64, f64, f64), GMMError> {
     let phi_amp2: f64 = 0.3f64.powi(2);
 
@@ -370,7 +348,7 @@ fn stddevs_nonlinear(
     };
 
     // d Fnl / d ln(PGAr) from Eq. 9, in place of AG22 Eq. 28
-    let partial_f_pga = f2(c.f4, c.f5, vs30) * pgar / (pgar + F3);
+    let partial_f_pga = f2 * pgar / (pgar + F3);
 
     // AG22 Eqs. 27 and 29
     let phi2_nl = phi2_lin
@@ -415,7 +393,7 @@ pub fn compute(
     sigma_mu_epsilon: f64,
     modified_sigma: bool,
 ) -> Result<MeanStd, GMMError> {
-    let c_pga = PGA_COEFFS;
+    let c_pga = &PGA_COEFFS;
 
     let (mag, rrup, vs30, m_b) = match *row {
         P21Row::Interface { mag, rrup, vs30 } => (mag, rrup, vs30, MB_DEFAULT_INTERFACE),
@@ -426,7 +404,7 @@ pub fn compute(
     let backarc = matches!(row, P21Row::Slab { backarc: true, .. });
 
     let (c0, c1, a0, c4, c5, c6) = select(row, c);
-    let (c0_pga, c1_pga, a0_pga, c4_pga, c5_pga, c6_pga) = select(row, &c_pga);
+    let (c0_pga, c1_pga, a0_pga, c4_pga, c5_pga, c6_pga) = select(row, c_pga);
 
     let fm = magnitude_scaling(c6, c4, c5, mag, m_b);
     let fm_pga = magnitude_scaling(c6_pga, c4_pga, c5_pga, mag, m_b);
@@ -450,12 +428,17 @@ pub fn compute(
         P21Row::Interface { .. } => (0.0, 0.0),
     };
 
-    let flin = linear_amplification(vs30, c.s2, c.v2);
+    // Linear site term Flin, Eq. 8. With `region=None`, OpenQuake's `s1 == s2`,
+    // which collapses the three-branch piecewise form into a single clamp.
+    let flin = c.s2 * (vs30.min(c.v2) / VREF).ln();
 
     // Reference-rock PGA, Eq. 1 with PGA coefficients and FS = 0 (backarc
     // already folded into fp_pga).
     let pgar = (fp_pga + fm_pga + c0_pga + fd_pga).exp();
-    let fnl = non_linear_term(c.f4, c.f5, vs30, pgar);
+    let f2 = f2(c.f4, c.f5, vs30);
+    // Non-linear site term Fnl, Eq. 9 (with f1 = 0). NZ version: no
+    // `period >= 3` cutoff, unlike the base `parker_2020._non_linear_term`.
+    let fnl = f2 * ((pgar + F3) / F3).ln();
 
     // Eq. 1, with FS = Flin + Fnl from Eq. 7. Basin term (Fb) omitted: always 0
     // in this configuration (no z2pt5). fba is the NZ backarc addition.
@@ -463,7 +446,7 @@ pub fn compute(
     let mean = fp + fnl + flin + fm + c0 + fd + fba + sigma_mu_epsilon * sigma_epistemic(row, im);
 
     let (total, inter, intra) = if modified_sigma {
-        stddevs_nonlinear(c, &c_pga, im, pgar, rrup, vs30)?
+        stddevs_nonlinear(c, c_pga, im, pgar, rrup, f2)?
     } else {
         stddevs_original(c, rrup, vs30)
     };
@@ -480,8 +463,7 @@ pub fn compute(
 /// OpenQuake's own independently-sourced reference tables (GNS-produced
 /// CSVs, generated from Grace Parker's original R implementation — see
 /// `nznshm2022_parker2020_test.py`'s test data), read from a local
-/// `oq-engine` checkout rather than vendored into this repo (see the
-/// gm_models plan for why). These tests are `#[ignore]`d so a plain
+/// `oq-engine` checkout rather than vendored into this repo. These tests are `#[ignore]`d so a plain
 /// `cargo test` reports them as ignored rather than passed; run them with
 /// `OQ_ENGINE_PATH=<oq-engine checkout root> cargo test -- --ignored`.
 /// CI runs them against oq-engine master (`openquake-verification.yml`), so a
@@ -489,193 +471,109 @@ pub fn compute(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::env;
     use std::path::PathBuf;
 
     const MAX_DISCREP_PERCENTAGE: f64 = 0.1;
 
-    fn oq_engine_data_dir() -> PathBuf {
-        let base = env::var("OQ_ENGINE_PATH")
-            .expect("OQ_ENGINE_PATH must be set to an oq-engine checkout root");
-        PathBuf::from(base).join("openquake/hazardlib/tests/gsim/data/nz22/NZNSH2022_PARKER20")
-    }
-
-    fn header_index(headers: &csv::StringRecord, name: &str) -> usize {
-        headers
+    /// Compares `pick(compute(..))` against every value column of an OpenQuake
+    /// reference CSV. Slab CSVs are the only ones with `rup_hypo_depth`.
+    fn check_csv(file: &str, modified_sigma: bool, pick: fn(&MeanStd) -> f64) {
+        let path = PathBuf::from(
+            std::env::var("OQ_ENGINE_PATH")
+                .expect("OQ_ENGINE_PATH must be set to an oq-engine checkout root"),
+        )
+        .join("openquake/hazardlib/tests/gsim/data/nz22/NZNSH2022_PARKER20")
+        .join(file);
+        let mut rdr = csv::Reader::from_path(&path)
+            .unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()));
+        let headers = rdr.headers().unwrap().clone();
+        let col = |name: &str| {
+            headers
+                .iter()
+                .position(|h| h == name)
+                .unwrap_or_else(|| panic!("column '{name}' not found in {headers:?}"))
+        };
+        let (i_mag, i_rrup, i_vs30, value_start) = (
+            col("rup_mag"),
+            col("dist_rrup"),
+            col("site_vs30"),
+            col("pga"),
+        );
+        let slab_cols = headers
             .iter()
-            .position(|h| h == name)
-            .unwrap_or_else(|| panic!("column '{name}' not found in {headers:?}"))
-    }
-
-    struct RowInputs {
-        inputs: P21Row,
-        value_start: usize,
-    }
-
-    /// Slab CSVs are the only ones with `rup_hypo_depth`/`site_backarc` columns.
-    fn row_inputs(headers: &csv::StringRecord, record: &csv::StringRecord) -> RowInputs {
-        let mag: f64 = record[header_index(headers, "rup_mag")].parse().unwrap();
-        let rrup: f64 = record[header_index(headers, "dist_rrup")].parse().unwrap();
-        let vs30: f64 = record[header_index(headers, "site_vs30")].parse().unwrap();
-        let inputs = if headers.iter().any(|h| h == "rup_hypo_depth") {
-            P21Row::Slab {
-                mag,
-                rrup,
-                vs30,
-                hypo_depth: record[header_index(headers, "rup_hypo_depth")]
-                    .parse()
-                    .unwrap(),
-                backarc: record[header_index(headers, "site_backarc")]
-                    .trim()
-                    .eq_ignore_ascii_case("true"),
-            }
-        } else {
-            P21Row::Interface { mag, rrup, vs30 }
-        };
-        RowInputs {
-            inputs,
-            value_start: header_index(headers, "pga"),
-        }
-    }
-
-    fn im_for_header(header: &str) -> IM {
-        if header == "pga" {
-            IM::PGA {}
-        } else {
-            IM::SA {
-                period: header.parse().unwrap_or_else(|_| {
-                    panic!("column '{header}' is neither 'pga' nor a parseable SA period")
-                }),
-            }
-        }
-    }
-
-    fn check_mean_csv(path: &PathBuf) {
-        let mut rdr = csv::Reader::from_path(path)
-            .unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()));
-        let headers = rdr.headers().unwrap().clone();
+            .any(|h| h == "rup_hypo_depth")
+            .then(|| (col("rup_hypo_depth"), col("site_backarc")));
+        let ims: Vec<IM> = headers
+            .iter()
+            .skip(value_start)
+            .map(|h| match h {
+                "pga" => IM::PGA {},
+                _ => IM::SA {
+                    period: h.parse().unwrap_or_else(|_| {
+                        panic!("column '{h}' is neither 'pga' nor a parseable SA period")
+                    }),
+                },
+            })
+            .collect();
 
         let mut n_checked = 0usize;
         let mut max_discrep: f64 = 0.0;
         for result in rdr.records() {
             let record = result.unwrap();
-            let row = row_inputs(&headers, &record);
-            for (col_idx, header) in headers.iter().enumerate().skip(row.value_start) {
-                let im = im_for_header(header);
-                let expected: f64 = record[col_idx].parse().unwrap();
-                let predicted = compute(im, &Coeffs::for_im(im).unwrap(), &row.inputs, 0.0, false)
-                    .unwrap()
-                    .mean
-                    .exp();
+            let num = |i: usize| -> f64 { record[i].parse().unwrap() };
+            let (mag, rrup, vs30) = (num(i_mag), num(i_rrup), num(i_vs30));
+            let row = match slab_cols {
+                Some((i_depth, i_backarc)) => P21Row::Slab {
+                    mag,
+                    rrup,
+                    vs30,
+                    hypo_depth: num(i_depth),
+                    backarc: record[i_backarc].trim().eq_ignore_ascii_case("true"),
+                },
+                None => P21Row::Interface { mag, rrup, vs30 },
+            };
+            for (j, &im) in ims.iter().enumerate() {
+                let expected = num(value_start + j);
+                let predicted = pick(
+                    &compute(im, &Coeffs::for_im(im).unwrap(), &row, 0.0, modified_sigma).unwrap(),
+                );
                 let discrep = (predicted / expected * 100.0 - 100.0).abs();
                 max_discrep = max_discrep.max(discrep);
                 n_checked += 1;
                 assert!(
                     discrep <= MAX_DISCREP_PERCENTAGE,
-                    "mean mismatch for IM '{header}' ({:?}): \
+                    "{file}: mismatch for {im:?} ({row:?}): \
                      predicted={predicted}, expected={expected}, discrepancy={discrep:.4}%",
-                    row.inputs,
                 );
             }
         }
-        assert!(
-            n_checked > 0,
-            "no rows/columns were checked in {}",
-            path.display()
-        );
-        eprintln!(
-            "{}: checked {n_checked} mean values, max discrepancy {max_discrep:.4}%",
-            path.display()
-        );
+        assert!(n_checked > 0, "no rows/columns were checked in {file}");
+        eprintln!("{file}: checked {n_checked} values, max discrepancy {max_discrep:.4}%");
     }
 
-    fn check_stddev_csv(path: &PathBuf, modified_sigma: bool) {
-        let mut rdr = csv::Reader::from_path(path)
-            .unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()));
-        let headers = rdr.headers().unwrap().clone();
+    #[test]
+    #[ignore = "needs OQ_ENGINE_PATH; run with `cargo test -- --ignored`"]
+    fn mean_matches_openquake() {
+        for tect in ["INTERFACE", "SLAB"] {
+            check_csv(&format!("PARKER2021_{tect}_GLO_GNS_MEAN.csv"), false, |r| {
+                r.mean.exp()
+            });
+        }
+    }
 
-        let mut n_checked = 0usize;
-        let mut max_discrep: f64 = 0.0;
-        for result in rdr.records() {
-            let record = result.unwrap();
-            let row = row_inputs(&headers, &record);
-            for (col_idx, header) in headers.iter().enumerate().skip(row.value_start) {
-                let im = im_for_header(header);
-                let expected: f64 = record[col_idx].parse().unwrap();
-                let predicted = compute(
-                    im,
-                    &Coeffs::for_im(im).unwrap(),
-                    &row.inputs,
-                    0.0,
+    #[test]
+    #[ignore = "needs OQ_ENGINE_PATH; run with `cargo test -- --ignored`"]
+    fn total_stddev_matches_openquake() {
+        for tect in ["INTERFACE", "SLAB"] {
+            for (sigma, modified_sigma) in [("ORIGINAL", false), ("MODIFIED", true)] {
+                check_csv(
+                    &format!("PARKER2021_{tect}_GLO_GNS_TOTAL_STDDEV_{sigma}_SIGMA.csv"),
                     modified_sigma,
-                )
-                .unwrap()
-                .total;
-                let discrep = (predicted / expected * 100.0 - 100.0).abs();
-                max_discrep = max_discrep.max(discrep);
-                n_checked += 1;
-                assert!(
-                    discrep <= MAX_DISCREP_PERCENTAGE,
-                    "total stddev mismatch (modified_sigma={modified_sigma}) for IM '{header}' \
-                     ({:?}): predicted={predicted}, expected={expected}, \
-                     discrepancy={discrep:.4}%",
-                    row.inputs,
+                    |r| r.total,
                 );
             }
         }
-        assert!(
-            n_checked > 0,
-            "no rows/columns were checked in {}",
-            path.display()
-        );
-        eprintln!(
-            "{}: checked {n_checked} stddev values, max discrepancy {max_discrep:.4}%",
-            path.display()
-        );
     }
-
-    macro_rules! openquake_test {
-        ($name:ident, $check:expr) => {
-            #[test]
-            #[ignore = "needs OQ_ENGINE_PATH; run with `cargo test -- --ignored`"]
-            fn $name() {
-                $check(oq_engine_data_dir());
-            }
-        };
-    }
-
-    openquake_test!(interface_mean_matches_openquake, |dir: PathBuf| {
-        check_mean_csv(&dir.join("PARKER2021_INTERFACE_GLO_GNS_MEAN.csv"))
-    });
-    openquake_test!(slab_mean_matches_openquake, |dir: PathBuf| check_mean_csv(
-        &dir.join("PARKER2021_SLAB_GLO_GNS_MEAN.csv")
-    ));
-    openquake_test!(
-        interface_stddev_original_matches_openquake,
-        |dir: PathBuf| check_stddev_csv(
-            &dir.join("PARKER2021_INTERFACE_GLO_GNS_TOTAL_STDDEV_ORIGINAL_SIGMA.csv"),
-            false
-        )
-    );
-    openquake_test!(
-        interface_stddev_modified_matches_openquake,
-        |dir: PathBuf| check_stddev_csv(
-            &dir.join("PARKER2021_INTERFACE_GLO_GNS_TOTAL_STDDEV_MODIFIED_SIGMA.csv"),
-            true
-        )
-    );
-    openquake_test!(slab_stddev_original_matches_openquake, |dir: PathBuf| {
-        check_stddev_csv(
-            &dir.join("PARKER2021_SLAB_GLO_GNS_TOTAL_STDDEV_ORIGINAL_SIGMA.csv"),
-            false,
-        )
-    });
-    openquake_test!(slab_stddev_modified_matches_openquake, |dir: PathBuf| {
-        check_stddev_csv(
-            &dir.join("PARKER2021_SLAB_GLO_GNS_TOTAL_STDDEV_MODIFIED_SIGMA.csv"),
-            true,
-        )
-    });
 }
 
 /// Property tests over the supported input domain. These need no external

@@ -15,34 +15,18 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
-from pytest import Metafunc
 
 from gm_models.constants import EpistemicBranch, TectType
 from gm_models.p21 import run_p21
 
-OQ_WRAPPER_TESTS_DIR = Path(__file__).parent.parent.parent / "oq_wrapper" / "tests"
-BENCHMARK_DATA_DIR = OQ_WRAPPER_TESTS_DIR / "benchmark_data"
+BENCHMARK_DATA_DIR = (
+    Path(__file__).parents[2] / "oq_wrapper" / "tests" / "benchmark_data"
+)
 RUPTURE_PATH = BENCHMARK_DATA_DIR / "nzgmdb_v4p3_rupture_df.parquet"
 
-# Matches oq_wrapper.constants.NZGMDB_OQ_COL_MAPPING, reimplemented standalone
-# so this test suite doesn't need oq_wrapper as a dependency.
-NZGMDB_OQ_COL_MAPPING = {
-    "Vs30": "vs30",
-    "Z1.0": "z1pt0",
-    "Z2.5": "z2pt5",
-    "r_rup": "rrup",
-    "r_jb": "rjb",
-    "r_x": "rx",
-    "r_y": "ry",
-    "r_hyp": "rhypo",
-    "mag": "mag",
-    "tect_class": "tect_class",
-    "z_tor": "ztor",
-    "z_bor": "zbot",
-    "rake": "rake",
-    "dip": "dip",
-    "ev_depth": "hypo_depth",
-}
+# The P_21 subset of oq_wrapper.constants.NZGMDB_OQ_COL_MAPPING, copied so this
+# test suite doesn't need oq_wrapper as a dependency.
+NZGMDB_OQ_COL_MAPPING = {"Vs30": "vs30", "r_rup": "rrup", "ev_depth": "hypo_depth"}
 
 # Discrepancy tolerance for comparing against the oq_wrapper benchmark
 # parquet files. Looser than the exact-ish default of `assert_frame_equal`
@@ -56,21 +40,18 @@ OQ_WRAPPER_COLUMN = re.compile(
 )
 
 
-def pytest_generate_tests(metafunc: Metafunc) -> None:
-    """Parametrize over every P_21 benchmark fixture (PGA/PGV/pSA x interface/slab x branch)."""
-    if "benchmark_ffp" in metafunc.fixturenames:
-        data_path = BENCHMARK_DATA_DIR / "data"
-        files = sorted(data_path.rglob("P_21_TectType_*.parquet"))
-        params = [pytest.param(f, id=f"{f.parent.name}/{f.stem}") for f in files]
-        metafunc.parametrize("benchmark_ffp", params)
-
-
 @pytest.fixture(scope="module")
 def shared_rupture_df() -> pd.DataFrame:
     """Loads the heavy rupture dataframe once per module."""
     return pd.read_parquet(RUPTURE_PATH)
 
 
+# Every P_21 benchmark fixture (PGA/PGV/pSA x interface/slab x branch).
+@pytest.mark.parametrize(
+    "benchmark_ffp",
+    sorted((BENCHMARK_DATA_DIR / "data").rglob("P_21_TectType_*.parquet")),
+    ids=lambda f: f"{f.parent.name}/{f.stem}",
+)
 def test_p21_matches_oq_wrapper_benchmark(
     benchmark_ffp: Path, shared_rupture_df: pd.DataFrame
 ) -> None:

@@ -11,9 +11,6 @@
 //! varies with it, so unsupported or contradictory combinations cannot be
 //! constructed.
 
-pub mod coeffs {
-    include!(concat!(env!("OUT_DIR"), "/p21_coefficients.rs"));
-}
 pub mod error;
 pub mod im;
 pub mod nz22_const;

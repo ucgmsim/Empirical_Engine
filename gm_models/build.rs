@@ -2,35 +2,11 @@ use csv::Reader;
 use std::fs;
 use std::path::Path;
 
-/// Column names in `data/p21_coefficients.csv`, in the order the CSV was
-/// generated (see the script used to produce it), mapped to the Rust struct
-/// field name used in the generated code. Lowercased/renamed only where the
-/// OpenQuake column name isn't a valid (or idiomatic) Rust identifier
-/// (`V2` -> `v2`, `Tau` -> `tau`, `phi2V` -> `phi2v`).
-const P21_FIELDS: &[(&str, &str)] = &[
-    ("c0", "c0"),
-    ("c0slab", "c0slab"),
-    ("c1", "c1"),
-    ("c1slab", "c1slab"),
-    ("a0", "a0"),
-    ("a0slab", "a0slab"),
-    ("c4", "c4"),
-    ("c5", "c5"),
-    ("c6", "c6"),
-    ("c4slab", "c4slab"),
-    ("c5slab", "c5slab"),
-    ("c6slab", "c6slab"),
-    ("d", "d"),
-    ("m", "m"),
-    ("db", "db"),
-    ("V2", "v2"),
-    ("s2", "s2"),
-    ("f4", "f4"),
-    ("f5", "f5"),
-    ("Tau", "tau"),
-    ("phi21", "phi21"),
-    ("phi22", "phi22"),
-    ("phi2V", "phi2v"),
+/// Columns of `data/p21_coefficients.csv` to generate fields for. The Rust
+/// field name is the lowercased column name (`V2` -> `v2`, `Tau` -> `tau`).
+const P21_FIELDS: &[&str] = &[
+    "c0", "c0slab", "c1", "c1slab", "a0", "a0slab", "c4", "c5", "c6", "c4slab", "c5slab", "c6slab",
+    "d", "m", "db", "V2", "s2", "f4", "f5", "Tau", "phi21", "phi22", "phi2V",
 ];
 
 /// Generates a coefficient-table module from an OpenQuake `COEFFS` table
@@ -38,8 +14,8 @@ const P21_FIELDS: &[(&str, &str)] = &[
 /// `$OUT_DIR/{out_file}` containing a `Coeffs` struct (one `f64` per entry in
 /// `fields`), `PGA_COEFFS`, `PGV_COEFFS`, `SA_PERIODS`, `SA_COEFFS`, and
 /// `Coeffs::interp` (field-wise linear interpolation). Each model `include!`s
-/// its own file into its own module, so the names don't clash.
-fn generate_coeffs(csv_path: &str, out_file: &str, doc: &str, fields: &[(&str, &str)]) {
+/// its own file into its own module (e.g. `p21::coeffs`), so the names don't clash.
+fn generate_coeffs(csv_path: &str, out_file: &str, doc: &str, fields: &[&str]) {
     println!("cargo:rerun-if-changed={csv_path}");
 
     let mut rdr =
@@ -47,7 +23,7 @@ fn generate_coeffs(csv_path: &str, out_file: &str, doc: &str, fields: &[(&str, &
     let headers = rdr.headers().expect("Could not read CSV header").clone();
     let col_index: Vec<usize> = fields
         .iter()
-        .map(|(csv_name, _)| {
+        .map(|csv_name| {
             headers
                 .iter()
                 .position(|h| h == *csv_name)
@@ -62,7 +38,7 @@ fn generate_coeffs(csv_path: &str, out_file: &str, doc: &str, fields: &[(&str, &
 
     for result in rdr.records() {
         let record = result.unwrap_or_else(|e| panic!("Could not read a row of {csv_path}: {e}"));
-        let imt = record.get(0).expect("Missing IMT column").to_string();
+        let imt = record.get(0).expect("Missing IMT column");
         let values: Vec<f64> = col_index
             .iter()
             .map(|&idx| {
@@ -74,7 +50,7 @@ fn generate_coeffs(csv_path: &str, out_file: &str, doc: &str, fields: &[(&str, &
             })
             .collect();
 
-        match imt.as_str() {
+        match imt {
             "pga" => pga_row = Some(values),
             "pgv" => pgv_row = Some(values),
             period_str => {
@@ -91,23 +67,24 @@ fn generate_coeffs(csv_path: &str, out_file: &str, doc: &str, fields: &[(&str, &
     let pgv_row = pgv_row.unwrap_or_else(|| panic!("{csv_path} is missing the pgv row"));
     let n_periods = sa_periods.len();
 
-    let struct_fields = fields
+    let rust_names: Vec<String> = fields.iter().map(|f| f.to_lowercase()).collect();
+    let struct_fields = rust_names
         .iter()
-        .map(|(_, rust_name)| format!("    pub {rust_name}: f64,"))
+        .map(|rust_name| format!("    pub {rust_name}: f64,"))
         .collect::<Vec<_>>()
         .join("\n");
 
-    let interp_fields = fields
+    let interp_fields = rust_names
         .iter()
-        .map(|(_, f)| format!("            {f}: (above.{f} - self.{f}) * ratio + self.{f},"))
+        .map(|f| format!("            {f}: (above.{f} - self.{f}) * ratio + self.{f},"))
         .collect::<Vec<_>>()
         .join("\n");
 
     let coeffs_literal = |values: &[f64]| -> String {
-        fields
+        rust_names
             .iter()
             .zip(values.iter())
-            .map(|((_, rust_name), value)| format!("{rust_name}: {value:?}"))
+            .map(|(rust_name, value)| format!("{rust_name}: {value:?}"))
             .collect::<Vec<_>>()
             .join(", ")
     };
