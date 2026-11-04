@@ -45,13 +45,6 @@ const VREF: f64 = 760.0;
 const MB_DEFAULT_INTERFACE: f64 = 7.9;
 const MB_DEFAULT_SLAB: f64 = 7.6;
 
-/// Selects the interface or slab coefficients and functional forms.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum TectType {
-    Interface,
-    Slab,
-}
-
 /// P21 input columns, one value per rupture-site pair. Slab-only columns
 /// exist only on the `Slab` variant. Exposed to Python as
 /// `gm_models._core.P21Inputs`, built with `P21Inputs.interface(...)` or
@@ -245,10 +238,10 @@ impl Coeffs {
 /// (c0, c1, a0, c4, c5, c6) for the given tectonic type — interface reads the
 /// unsuffixed columns, slab reads the `*slab` columns (`SUFFIX` in the
 /// Python source).
-fn select(tect_type: TectType, c: &Coeffs) -> (f64, f64, f64, f64, f64, f64) {
-    match tect_type {
-        TectType::Interface => (c.c0, c.c1, c.a0, c.c4, c.c5, c.c6),
-        TectType::Slab => (c.c0slab, c.c1slab, c.a0slab, c.c4slab, c.c5slab, c.c6slab),
+fn select(row: &P21Row, c: &Coeffs) -> (f64, f64, f64, f64, f64, f64) {
+    match row {
+        P21Row::Interface { .. } => (c.c0, c.c1, c.a0, c.c4, c.c5, c.c6),
+        P21Row::Slab { .. } => (c.c0slab, c.c1slab, c.a0slab, c.c4slab, c.c5slab, c.c6slab),
     }
 }
 
@@ -263,10 +256,10 @@ fn magnitude_scaling(c6: f64, c4: f64, c5: f64, mag: f64, m_b: f64) -> f64 {
 }
 
 /// Near-source saturation term h, Eq. 4a (interface) and Eq. 4b (slab).
-fn path_term_h(tect_type: TectType, mag: f64, m_b: f64) -> f64 {
-    match tect_type {
-        TectType::Interface => 10f64.powf(-0.82 + 0.252 * mag),
-        TectType::Slab => {
+fn path_term_h(row: &P21Row, mag: f64, m_b: f64) -> f64 {
+    match row {
+        P21Row::Interface { .. } => 10f64.powf(-0.82 + 0.252 * mag),
+        P21Row::Slab { .. } => {
             let slope = (35f64.log10() - 3.12f64.log10()) / (m_b - 4.0);
             if mag <= m_b {
                 10f64.powf(slope * (mag - m_b) + 35f64.log10())
@@ -336,10 +329,10 @@ fn backarc_term(im: IM, rrup: f64) -> Result<f64, GMMError> {
 /// Epistemic standard deviation sigma_e(T), Eq. 27, with the NZ-NSHM2022
 /// coefficients (global model only, the only configuration in scope here).
 /// PGA and PGV take the short-period value se1.
-fn sigma_epistemic(tect_type: TectType, im: IM) -> f64 {
-    let (se1, se2, t1, t2) = match tect_type {
-        TectType::Slab => (0.35, 0.22, 0.15, 2.0),
-        TectType::Interface => (0.4, 0.4, 0.2, 0.4),
+fn sigma_epistemic(row: &P21Row, im: IM) -> f64 {
+    let (se1, se2, t1, t2) = match row {
+        P21Row::Slab { .. } => (0.35, 0.22, 0.15, 2.0),
+        P21Row::Interface { .. } => (0.4, 0.4, 0.2, 0.4),
     };
     match im {
         IM::SA { period } if period >= t2 => se2,
@@ -458,26 +451,21 @@ pub fn compute(
 ) -> Result<MeanStd, GMMError> {
     let c_pga = PGA_COEFFS;
 
-    let (tect_type, mag, rrup, vs30) = match *row {
-        P21Row::Interface { mag, rrup, vs30 } => (TectType::Interface, mag, rrup, vs30),
+    let (mag, rrup, vs30, m_b) = match *row {
+        P21Row::Interface { mag, rrup, vs30 } => (mag, rrup, vs30, MB_DEFAULT_INTERFACE),
         P21Row::Slab {
             mag, rrup, vs30, ..
-        } => (TectType::Slab, mag, rrup, vs30),
+        } => (mag, rrup, vs30, MB_DEFAULT_SLAB),
     };
     let backarc = matches!(row, P21Row::Slab { backarc: true, .. });
 
-    let m_b = match tect_type {
-        TectType::Interface => MB_DEFAULT_INTERFACE,
-        TectType::Slab => MB_DEFAULT_SLAB,
-    };
-
-    let (c0, c1, a0, c4, c5, c6) = select(tect_type, c);
-    let (c0_pga, c1_pga, a0_pga, c4_pga, c5_pga, c6_pga) = select(tect_type, &c_pga);
+    let (c0, c1, a0, c4, c5, c6) = select(row, c);
+    let (c0_pga, c1_pga, a0_pga, c4_pga, c5_pga, c6_pga) = select(row, &c_pga);
 
     let fm = magnitude_scaling(c6, c4, c5, mag, m_b);
     let fm_pga = magnitude_scaling(c6_pga, c4_pga, c5_pga, mag, m_b);
 
-    let h = path_term_h(tect_type, mag, m_b);
+    let h = path_term_h(row, mag, m_b);
     let fp = path_term(c1, a0, mag, rrup, h);
     // NZ backarc term, for the reference-rock PGA (folded into its path term)
     // and for the target IM.
@@ -506,8 +494,7 @@ pub fn compute(
     // Eq. 1, with FS = Flin + Fnl from Eq. 7. Basin term (Fb) omitted: always 0
     // in this configuration (no z2pt5). fba is the NZ backarc addition.
     // Epistemic adjustment of c0 by epsilon * sigma_e (Eq. 27 and text).
-    let mean =
-        fp + fnl + flin + fm + c0 + fd + fba + sigma_mu_epsilon * sigma_epistemic(tect_type, im);
+    let mean = fp + fnl + flin + fm + c0 + fd + fba + sigma_mu_epsilon * sigma_epistemic(row, im);
 
     let (total, inter, intra) = if modified_sigma {
         stddevs_nonlinear(c, &c_pga, im, pgar, rrup, vs30)?
@@ -559,17 +546,13 @@ mod tests {
         value_start: usize,
     }
 
-    fn row_inputs(
-        headers: &csv::StringRecord,
-        record: &csv::StringRecord,
-        tect_type: TectType,
-    ) -> RowInputs {
+    /// Slab CSVs are the only ones with `rup_hypo_depth`/`site_backarc` columns.
+    fn row_inputs(headers: &csv::StringRecord, record: &csv::StringRecord) -> RowInputs {
         let mag: f64 = record[header_index(headers, "rup_mag")].parse().unwrap();
         let rrup: f64 = record[header_index(headers, "dist_rrup")].parse().unwrap();
         let vs30: f64 = record[header_index(headers, "site_vs30")].parse().unwrap();
-        let inputs = match tect_type {
-            TectType::Interface => P21Row::Interface { mag, rrup, vs30 },
-            TectType::Slab => P21Row::Slab {
+        let inputs = if headers.iter().any(|h| h == "rup_hypo_depth") {
+            P21Row::Slab {
                 mag,
                 rrup,
                 vs30,
@@ -579,7 +562,9 @@ mod tests {
                 backarc: record[header_index(headers, "site_backarc")]
                     .trim()
                     .eq_ignore_ascii_case("true"),
-            },
+            }
+        } else {
+            P21Row::Interface { mag, rrup, vs30 }
         };
         RowInputs {
             inputs,
@@ -599,7 +584,7 @@ mod tests {
         }
     }
 
-    fn check_mean_csv(path: &PathBuf, tect_type: TectType) {
+    fn check_mean_csv(path: &PathBuf) {
         let mut rdr = csv::Reader::from_path(path)
             .unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()));
         let headers = rdr.headers().unwrap().clone();
@@ -608,7 +593,7 @@ mod tests {
         let mut max_discrep: f64 = 0.0;
         for result in rdr.records() {
             let record = result.unwrap();
-            let row = row_inputs(&headers, &record, tect_type);
+            let row = row_inputs(&headers, &record);
             for (col_idx, header) in headers.iter().enumerate().skip(row.value_start) {
                 let im = im_for_header(header);
                 let expected: f64 = record[col_idx].parse().unwrap();
@@ -638,7 +623,7 @@ mod tests {
         );
     }
 
-    fn check_stddev_csv(path: &PathBuf, tect_type: TectType, modified_sigma: bool) {
+    fn check_stddev_csv(path: &PathBuf, modified_sigma: bool) {
         let mut rdr = csv::Reader::from_path(path)
             .unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()));
         let headers = rdr.headers().unwrap().clone();
@@ -647,7 +632,7 @@ mod tests {
         let mut max_discrep: f64 = 0.0;
         for result in rdr.records() {
             let record = result.unwrap();
-            let row = row_inputs(&headers, &record, tect_type);
+            let row = row_inputs(&headers, &record);
             for (col_idx, header) in headers.iter().enumerate().skip(row.value_start) {
                 let im = im_for_header(header);
                 let expected: f64 = record[col_idx].parse().unwrap();
@@ -694,20 +679,15 @@ mod tests {
     }
 
     openquake_test!(interface_mean_matches_openquake, |dir: PathBuf| {
-        check_mean_csv(
-            &dir.join("PARKER2021_INTERFACE_GLO_GNS_MEAN.csv"),
-            TectType::Interface,
-        )
+        check_mean_csv(&dir.join("PARKER2021_INTERFACE_GLO_GNS_MEAN.csv"))
     });
     openquake_test!(slab_mean_matches_openquake, |dir: PathBuf| check_mean_csv(
-        &dir.join("PARKER2021_SLAB_GLO_GNS_MEAN.csv"),
-        TectType::Slab
+        &dir.join("PARKER2021_SLAB_GLO_GNS_MEAN.csv")
     ));
     openquake_test!(
         interface_stddev_original_matches_openquake,
         |dir: PathBuf| check_stddev_csv(
             &dir.join("PARKER2021_INTERFACE_GLO_GNS_TOTAL_STDDEV_ORIGINAL_SIGMA.csv"),
-            TectType::Interface,
             false
         )
     );
@@ -715,21 +695,18 @@ mod tests {
         interface_stddev_modified_matches_openquake,
         |dir: PathBuf| check_stddev_csv(
             &dir.join("PARKER2021_INTERFACE_GLO_GNS_TOTAL_STDDEV_MODIFIED_SIGMA.csv"),
-            TectType::Interface,
             true
         )
     );
     openquake_test!(slab_stddev_original_matches_openquake, |dir: PathBuf| {
         check_stddev_csv(
             &dir.join("PARKER2021_SLAB_GLO_GNS_TOTAL_STDDEV_ORIGINAL_SIGMA.csv"),
-            TectType::Slab,
             false,
         )
     });
     openquake_test!(slab_stddev_modified_matches_openquake, |dir: PathBuf| {
         check_stddev_csv(
             &dir.join("PARKER2021_SLAB_GLO_GNS_TOTAL_STDDEV_MODIFIED_SIGMA.csv"),
-            TectType::Slab,
             true,
         )
     });
