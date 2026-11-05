@@ -1,36 +1,31 @@
 name: OpenQuake verification
 
-# Checks gm_models' P21 against OpenQuake's reference data on oq-engine master. A failure here may come from an upstream change to that data rather
-# than from this repo; compare the "Upstream reference data version" step
-# against the last green run.
+# Checks gm_models against OpenQuake's reference data at the commit pinned by
+# the external/oq-engine submodule. openquake-data-drift.yml opens an issue
+# when that data changes upstream.
 on:
   pull_request:
     paths:
       - "gm_models/**"
+      - "external/oq-engine"
       - ".github/workflows/openquake-verification.yml"
-  schedule:
-    - cron: "0 18 * * 0" # weekly, so upstream drift shows up without a PR
 
 jobs:
-  p21-vs-openquake:
-    name: P21 vs OpenQuake reference data (oq-engine master)
+  gm-models-vs-openquake:
+    name: gm_models vs OpenQuake reference data
     runs-on: ubuntu-latest
-    env:
-      DATA_DIR: openquake/hazardlib/tests/gsim/data/nz22/NZNSH2022_PARKER20
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
-        with:
-          repository: gem/oq-engine
-          ref: master
-          path: oq-engine
-          fetch-depth: 0
-          filter: blob:none # history for the log step without downloading every blob
-          sparse-checkout: ${{ env.DATA_DIR }}
-      - name: Upstream reference data version
+      # Only the gsim test data at the pinned commit, not the whole oq-engine repo.
+      - name: Fetch pinned oq-engine reference data
         run: |
-          git -C oq-engine log -1 --format='oq-engine master: %h (%cs)'
-          git -C oq-engine log -1 --format='reference data last changed: %h (%cs) %s' -- "$DATA_DIR"
+          sha=$(git rev-parse HEAD:external/oq-engine)
+          git init -q external/oq-engine
+          cd external/oq-engine
+          git remote add origin https://github.com/gem/oq-engine.git
+          git sparse-checkout set openquake/hazardlib/tests/gsim/data
+          git fetch -q --depth 1 --filter=blob:none origin "$sha"
+          git checkout -q FETCH_HEAD
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
@@ -42,6 +37,4 @@ jobs:
         run: cargo clippy --all-targets -- -D warnings
       - name: cargo test (OpenQuake verification)
         working-directory: gm_models
-        env:
-          OQ_ENGINE_PATH: ${{ github.workspace }}/oq-engine
         run: cargo test -- --ignored

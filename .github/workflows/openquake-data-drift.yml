@@ -1,0 +1,49 @@
+name: OpenQuake reference data drift
+
+# Checks whether the reference data gm_models is verified against differs
+# between the pinned external/oq-engine commit and oq-engine master, and opens
+# an issue if so. Then bump the pin and run the OpenQuake verification.
+on:
+  schedule:
+    - cron: "0 18 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      # One reference data directory per model, relative to
+      # openquake/hazardlib/tests/gsim/data.
+      DATA_DIRS: nz22/NZNSH2022_PARKER20
+    steps:
+      - uses: actions/checkout@v4
+      # Compares git tree hashes, so no reference data is downloaded.
+      - name: Compare pinned reference data with oq-engine master
+        run: |
+          pinned=$(git rev-parse HEAD:external/oq-engine)
+          git init -q oq && cd oq
+          git fetch -q --depth 1 --filter=blob:none https://github.com/gem/oq-engine.git "$pinned" master:latest
+          status=0
+          for d in $DATA_DIRS; do
+            p=openquake/hazardlib/tests/gsim/data/$d
+            if [ "$(git rev-parse "$pinned:$p")" != "$(git rev-parse "latest:$p")" ]; then
+              echo "::error::$d changed upstream since the pinned commit"
+              status=1
+            fi
+          done
+          exit $status
+      - name: Open an issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: OpenQuake reference data changed upstream
+        run: |
+          # Skip if one is already open, so weekly failures don't pile up issues.
+          if [ -z "$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "in:title $TITLE" --json number --jq '.[]')" ]; then
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" \
+              --body "See $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID. Bump external/oq-engine and run the OpenQuake verification."
+          fi

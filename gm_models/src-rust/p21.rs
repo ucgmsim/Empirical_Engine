@@ -21,6 +21,9 @@
 //! OpenQuake uses `period = 0.0` for both PGA and PGV. Where that convention
 //! changes the result for PGV (backarc term, rho_W/rho_B), the `match` on
 //! [`IM`] says so explicitly.
+//!
+//! Derived from OpenQuake hazardlib (Copyright (C) GEM Foundation), licensed
+//! under AGPL-3.0-or-later. Transcribed to Rust and modified by ucgmsim, 2026.
 
 pub mod coeffs {
     include!(concat!(env!("OUT_DIR"), "/p21_coefficients.rs"));
@@ -401,7 +404,6 @@ pub fn compute(
             mag, rrup, vs30, ..
         } => (mag, rrup, vs30, MB_DEFAULT_SLAB),
     };
-    let backarc = matches!(row, P21Row::Slab { backarc: true, .. });
 
     let (c0, c1, a0, c4, c5, c6) = select(row, c);
     let (c0_pga, c1_pga, a0_pga, c4_pga, c5_pga, c6_pga) = select(row, c_pga);
@@ -413,10 +415,11 @@ pub fn compute(
     let fp = path_term(c1, a0, mag, rrup, h);
     // NZ backarc term, for the reference-rock PGA (folded into its path term)
     // and for the target IM.
-    let (fba_pga, fba) = if backarc {
-        (backarc_term(IM::PGA {}, rrup)?, backarc_term(im, rrup)?)
-    } else {
-        (0.0, 0.0)
+    let (fba_pga, fba) = match *row {
+        P21Row::Slab { backarc: true, .. } => {
+            (backarc_term(IM::PGA {}, rrup)?, backarc_term(im, rrup)?)
+        }
+        _ => (0.0, 0.0),
     };
     let fp_pga = path_term(c1_pga, a0_pga, mag, rrup, h) + fba_pga;
 
@@ -461,112 +464,58 @@ pub fn compute(
 
 /// Layer 1 verification: compares this module's output directly against
 /// OpenQuake's own independently-sourced reference tables (GNS-produced
-/// CSVs, generated from Grace Parker's original R implementation — see
-/// `nznshm2022_parker2020_test.py`'s test data), read from a local
-/// `oq-engine` checkout rather than vendored into this repo. These tests are `#[ignore]`d so a plain
-/// `cargo test` reports them as ignored rather than passed; run them with
-/// `OQ_ENGINE_PATH=<oq-engine checkout root> cargo test -- --ignored`.
-/// CI runs them against oq-engine master (`openquake-verification.yml`), so a
-/// failure there may come from an upstream data change, not from this code.
+/// CSVs, generated from Grace Parker's original R implementation, see
+/// `nznshm2022_parker2020_test.py`'s test data), read from the
+/// `external/oq-engine` submodule. `#[ignore]`d so a plain `cargo test` works
+/// without the submodule; run them with `cargo test -- --ignored`.
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
+    use crate::oq_test::check_csv;
+    use std::collections::HashMap;
 
-    const MAX_DISCREP_PERCENTAGE: f64 = 0.1;
-
-    /// Compares `pick(compute(..))` against every value column of an OpenQuake
-    /// reference CSV. Slab CSVs are the only ones with `rup_hypo_depth`.
-    fn check_csv(file: &str, modified_sigma: bool, pick: fn(&MeanStd) -> f64) {
-        let path = PathBuf::from(
-            std::env::var("OQ_ENGINE_PATH")
-                .expect("OQ_ENGINE_PATH must be set to an oq-engine checkout root"),
-        )
-        .join("openquake/hazardlib/tests/gsim/data/nz22/NZNSH2022_PARKER20")
-        .join(file);
-        let mut rdr = csv::Reader::from_path(&path)
-            .unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()));
-        let headers = rdr.headers().unwrap().clone();
-        let col = |name: &str| {
-            headers
-                .iter()
-                .position(|h| h == name)
-                .unwrap_or_else(|| panic!("column '{name}' not found in {headers:?}"))
-        };
-        let (i_mag, i_rrup, i_vs30, value_start) = (
-            col("rup_mag"),
-            col("dist_rrup"),
-            col("site_vs30"),
-            col("pga"),
-        );
-        let slab_cols = headers
-            .iter()
-            .any(|h| h == "rup_hypo_depth")
-            .then(|| (col("rup_hypo_depth"), col("site_backarc")));
-        let ims: Vec<IM> = headers
-            .iter()
-            .skip(value_start)
-            .map(|h| match h {
-                "pga" => IM::PGA {},
-                _ => IM::SA {
-                    period: h.parse().unwrap_or_else(|_| {
-                        panic!("column '{h}' is neither 'pga' nor a parseable SA period")
-                    }),
-                },
-            })
-            .collect();
-
-        let mut n_checked = 0usize;
-        let mut max_discrep: f64 = 0.0;
-        for result in rdr.records() {
-            let record = result.unwrap();
-            let num = |i: usize| -> f64 { record[i].parse().unwrap() };
-            let (mag, rrup, vs30) = (num(i_mag), num(i_rrup), num(i_vs30));
-            let row = match slab_cols {
-                Some((i_depth, i_backarc)) => P21Row::Slab {
-                    mag,
-                    rrup,
-                    vs30,
-                    hypo_depth: num(i_depth),
-                    backarc: record[i_backarc].trim().eq_ignore_ascii_case("true"),
-                },
-                None => P21Row::Interface { mag, rrup, vs30 },
-            };
-            for (j, &im) in ims.iter().enumerate() {
-                let expected = num(value_start + j);
-                let predicted = pick(
-                    &compute(im, &Coeffs::for_im(im).unwrap(), &row, 0.0, modified_sigma).unwrap(),
-                );
-                let discrep = (predicted / expected * 100.0 - 100.0).abs();
-                max_discrep = max_discrep.max(discrep);
-                n_checked += 1;
-                assert!(
-                    discrep <= MAX_DISCREP_PERCENTAGE,
-                    "{file}: mismatch for {im:?} ({row:?}): \
-                     predicted={predicted}, expected={expected}, discrepancy={discrep:.4}%",
-                );
-            }
+    /// Slab CSVs are the only ones with `site_backarc`.
+    fn row(rec: &HashMap<&str, &str>) -> P21Row {
+        let num = |k: &str| -> f64 { rec[k].parse().unwrap() };
+        let (mag, rrup, vs30) = (num("rup_mag"), num("dist_rrup"), num("site_vs30"));
+        match rec.get("site_backarc") {
+            Some(backarc) => P21Row::Slab {
+                mag,
+                rrup,
+                vs30,
+                hypo_depth: num("rup_hypo_depth"),
+                backarc: backarc.trim().eq_ignore_ascii_case("true"),
+            },
+            None => P21Row::Interface { mag, rrup, vs30 },
         }
-        assert!(n_checked > 0, "no rows/columns were checked in {file}");
-        eprintln!("{file}: checked {n_checked} values, max discrepancy {max_discrep:.4}%");
+    }
+
+    fn check(file: &str, modified_sigma: bool, pick: fn(&MeanStd) -> f64) {
+        check_csv(
+            &format!("nz22/NZNSH2022_PARKER20/{file}"),
+            row,
+            |im, row| {
+                pick(&compute(im, &Coeffs::for_im(im).unwrap(), row, 0.0, modified_sigma).unwrap())
+            },
+        );
     }
 
     #[test]
-    #[ignore = "needs OQ_ENGINE_PATH; run with `cargo test -- --ignored`"]
+    #[ignore = "needs the external/oq-engine submodule; run with `cargo test -- --ignored`"]
     fn mean_matches_openquake() {
         for tect in ["INTERFACE", "SLAB"] {
-            check_csv(&format!("PARKER2021_{tect}_GLO_GNS_MEAN.csv"), false, |r| {
+            check(&format!("PARKER2021_{tect}_GLO_GNS_MEAN.csv"), false, |r| {
                 r.mean.exp()
             });
         }
     }
 
     #[test]
-    #[ignore = "needs OQ_ENGINE_PATH; run with `cargo test -- --ignored`"]
+    #[ignore = "needs the external/oq-engine submodule; run with `cargo test -- --ignored`"]
     fn total_stddev_matches_openquake() {
         for tect in ["INTERFACE", "SLAB"] {
             for (sigma, modified_sigma) in [("ORIGINAL", false), ("MODIFIED", true)] {
-                check_csv(
+                check(
                     &format!("PARKER2021_{tect}_GLO_GNS_TOTAL_STDDEV_{sigma}_SIGMA.csv"),
                     modified_sigma,
                     |r| r.total,
@@ -581,6 +530,7 @@ mod tests {
 #[cfg(test)]
 mod proptests {
     use super::*;
+    use approx::relative_eq;
     use proptest::prelude::*;
 
     fn im() -> impl Strategy<Value = IM> {
@@ -621,8 +571,8 @@ mod proptests {
             let r = compute(im, &c, &row, sigma_mu_epsilon, modified_sigma).unwrap();
             prop_assert!(r.mean.is_finite());
             prop_assert!(r.inter > 0.0 && r.intra > 0.0);
-            let rel = (r.total.powi(2) - (r.inter.powi(2) + r.intra.powi(2))).abs() / r.total.powi(2);
-            prop_assert!(rel < 1e-12, "total^2 != inter^2 + intra^2 (rel err {rel})");
+            let (lhs, rhs) = (r.total.powi(2), r.inter.powi(2) + r.intra.powi(2));
+            prop_assert!(relative_eq!(lhs, rhs, max_relative = 1e-12), "total^2 {lhs} != inter^2 + intra^2 {rhs}");
         }
 
         #[test]

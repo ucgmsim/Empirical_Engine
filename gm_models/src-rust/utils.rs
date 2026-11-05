@@ -34,6 +34,7 @@ pub fn check_lengths(columns: &[(&'static str, usize)]) -> Result<usize, GMMErro
 #[cfg(test)]
 mod tests {
     use super::*;
+    use approx::assert_relative_eq;
 
     const XS: [f64; 3] = [0.1, 1.0, 10.0];
     const YS: [f64; 3] = [1.0, 2.0, 4.0];
@@ -48,7 +49,7 @@ mod tests {
     #[test]
     fn interpolates_in_log_space() {
         let mid = (0.1f64 * 1.0).sqrt();
-        assert!((log_interp(&XS, &YS, mid).unwrap() - 1.5).abs() < 1e-12);
+        assert_relative_eq!(log_interp(&XS, &YS, mid).unwrap(), 1.5, epsilon = 1e-12);
     }
 
     #[test]
