@@ -64,14 +64,16 @@ def evaluate_ims(
     if im == "pSA":
         if not periods:
             raise ValueError("periods must be provided when im='pSA'")
-        results = [compute(_core.IM.SA(period=float(p))) for p in periods]
-        data = {
-            var: (
-                (site_dim, "period"),
-                np.stack([getattr(r, var) for r in results], axis=-1),
-            )
-            for var in variables
+        # Filled one period at a time, so only one period's results are held
+        # alongside the output. Fortran order keeps each period's column contiguous.
+        arrays = {
+            var: np.empty((len(index), len(periods)), order="F") for var in variables
         }
+        for j, period in enumerate(periods):
+            result = compute(_core.IM.SA(period=float(period)))
+            for var, arr in arrays.items():
+                arr[:, j] = getattr(result, var)
+        data = {var: ((site_dim, "period"), arr) for var, arr in arrays.items()}
         coords = {
             site_dim: index,
             "period": ("period", np.asarray(periods, dtype=np.float64), {"units": "s"}),

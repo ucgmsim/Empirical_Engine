@@ -371,16 +371,22 @@ fn stddevs_nonlinear(
 /// Exposed to Python as `gm_models._core.p21`.
 #[pyfunction]
 pub fn p21(
+    py: Python<'_>,
     inputs: PyRef<'_, P21Inputs>,
     im: IM,
     sigma_mu_epsilon: f64,
     modified_sigma: bool,
 ) -> PyResult<GMMResult> {
     let coeffs = Coeffs::for_im(im)?;
-    Ok(inputs
-        .iter()?
-        .map(|row| compute(im, &coeffs, &row, sigma_mu_epsilon, modified_sigma))
-        .collect::<Result<GMMResult, _>>()?)
+    let inputs = &*inputs;
+    // Releases the GIL: `inputs` owns copies of the arrays, so no Python object
+    // is touched while other threads run.
+    Ok(py.detach(|| {
+        inputs
+            .iter()?
+            .map(|row| compute(im, &coeffs, &row, sigma_mu_epsilon, modified_sigma))
+            .collect::<Result<GMMResult, _>>()
+    })?)
 }
 
 /// Computes mean + standard deviations for a single site/rupture pair.
