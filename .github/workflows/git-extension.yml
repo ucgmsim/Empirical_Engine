@@ -10,6 +10,12 @@ on:
 jobs:
   check-git-deps:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package: [oq_wrapper, gm_models]
+    defaults:
+      run:
+        working-directory: ${{ matrix.package }}
 
     steps:
       - name: Checkout repository

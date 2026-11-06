@@ -7,9 +7,11 @@ on:
       - master
 
 jobs:
-  ci:
+  ci-oq-wrapper:
     uses: ucgmsim/meta-ci-action/.github/workflows/ci.yml@v2
     with:
+      working-directory: oq_wrapper
+      package-dir: oq_wrapper
       # fiona/geopandas need libgdal at `uv sync` time.
       system-packages: "gdal-bin libgdal-dev"
       # Empty so pytest falls through to [tool.pytest.ini_options] testpaths,
@@ -21,3 +23,9 @@ jobs:
       # the default branch; raising coverage and turning this on is
       # follow-up work.
       enable-coverage: false
+
+  ci-gm-models:
+    uses: ucgmsim/meta-ci-action/.github/workflows/ci.yml@v2
+    with:
+      working-directory: gm_models
+      package-dir: gm_models

@@ -1,7 +1,7 @@
 """Summarise value changes in the benchmark files between a base ref and the working tree.
 
 Prints a markdown report, used by the benchmark-diff workflow as a PR comment.
-Run from the repo root, e.g. `python tests/benchmark_data/compare_benchmarks.py origin/master`.
+Run from the repo root, e.g. `python oq_wrapper/tests/benchmark_data/compare_benchmarks.py origin/master`.
 """
 
 import io
@@ -11,7 +11,7 @@ import sys
 import numpy as np
 import pandas as pd
 
-DATA_DIR = "tests/benchmark_data/data"
+DATA_DIR = "oq_wrapper/tests/benchmark_data/data"
 # Same tolerance as assert_frame_equal in test_gmm_benchmark.py
 RTOL, ATOL = 1e-5, 1e-8
 MAX_COMMENT_CHARS = 60_000  # GitHub's limit is 65536

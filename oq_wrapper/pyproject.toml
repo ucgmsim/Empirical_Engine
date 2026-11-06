@@ -3,6 +3,7 @@ requires = ["setuptools", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools_scm]
+root = ".."
 
 [project]
 name = "oq-wrapper"
@@ -64,9 +65,8 @@ exclude = ["scripts/one_offs"]
 include = ["oq_wrapper"]
 
 [tool.pytest.ini_options]
-# generate_benchmark_outputs.py regenerates tests/benchmark_data/*.parquet as a
-# module-level side effect on import (no __main__ guard); --doctest-modules
-# must never collect it.
+# generate_benchmark_outputs.py regenerates tests/benchmark_data/*.parquet when
+# run as a script; it is not a test module, so --doctest-modules never collects it.
 addopts = "--doctest-modules --ignore=tests/benchmark_data/generate_benchmark_outputs.py"
 testpaths = ["tests", "oq_wrapper"]
 

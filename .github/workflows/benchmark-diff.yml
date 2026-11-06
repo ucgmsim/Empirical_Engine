@@ -3,7 +3,7 @@ name: Benchmark diff
 on:
   pull_request:
     paths:
-      - "tests/benchmark_data/data/**"
+      - "oq_wrapper/tests/benchmark_data/data/**"
 
 permissions:
   contents: read
@@ -22,7 +22,7 @@ jobs:
           BASE_REF: origin/${{ github.base_ref }}
         run: >
           uv run --no-project --with pandas --with pyarrow
-          python tests/benchmark_data/compare_benchmarks.py "$BASE_REF" > benchmark_diff.md
+          python oq_wrapper/tests/benchmark_data/compare_benchmarks.py "$BASE_REF" > benchmark_diff.md
       - name: Comment on the PR
         env:
           GH_TOKEN: ${{ github.token }}

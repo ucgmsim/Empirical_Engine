@@ -1,0 +1,40 @@
+name: OpenQuake verification
+
+# Checks gm_models against OpenQuake's reference data at the commit pinned by
+# the external/oq-engine submodule. openquake-data-drift.yml opens an issue
+# when that data changes upstream.
+on:
+  pull_request:
+    paths:
+      - "gm_models/**"
+      - "external/oq-engine"
+      - ".github/workflows/openquake-verification.yml"
+
+jobs:
+  gm-models-vs-openquake:
+    name: gm_models vs OpenQuake reference data
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Only the gsim test data at the pinned commit, not the whole oq-engine repo.
+      - name: Fetch pinned oq-engine reference data
+        run: |
+          sha=$(git rev-parse HEAD:external/oq-engine)
+          git init -q external/oq-engine
+          cd external/oq-engine
+          git remote add origin https://github.com/gem/oq-engine.git
+          git sparse-checkout set openquake/hazardlib/tests/gsim/data
+          git fetch -q --depth 1 --filter=blob:none origin "$sha"
+          git checkout -q FETCH_HEAD
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: gm_models
+      - name: cargo clippy (also compiles benches and tests)
+        working-directory: gm_models
+        run: cargo clippy --all-targets -- -D warnings
+      - name: cargo test (OpenQuake verification)
+        working-directory: gm_models
+        run: cargo test -- --ignored
