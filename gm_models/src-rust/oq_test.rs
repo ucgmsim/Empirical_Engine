@@ -17,20 +17,31 @@ const MAX_RELATIVE: f64 = 1e-3;
 
 /// Checks `predict(im, &row)` against every IM column of the reference CSV
 /// `file` (relative to OpenQuake's gsim test data directory). IM columns are
-/// those after `damping` (`pga`, `pgv`, or an SA period). `row` builds the
+/// those after `damping` (`pga`, `pgv`, `rsd*`, `EAS(f)` or an SA period; `pgd`
+/// is skipped). `row` builds the
 /// model's input from one CSV record, keyed by column name.
 pub fn check_csv<R: Debug>(
     file: &str,
     row: impl Fn(&HashMap<&str, &str>) -> R,
     predict: impl Fn(IM, &R) -> f64,
 ) {
-    let data = Path::new(GSIM_DATA);
+    check_csv_tol(file, row, predict, MAX_RELATIVE);
+}
+
+/// [`check_csv`] with a custom relative tolerance, for reference tables that
+/// OpenQuake itself only matches loosely (e.g. BSSA14's Fortran output).
+pub fn check_csv_tol<R: Debug>(
+    file: &str,
+    row: impl Fn(&HashMap<&str, &str>) -> R,
+    predict: impl Fn(IM, &R) -> f64,
+    max_relative: f64,
+) {
+    let path = Path::new(GSIM_DATA).join(file);
     assert!(
-        data.is_dir(),
+        path.is_file(),
         "{} not found, run `git submodule update --init external/oq-engine`",
-        data.display()
+        path.display()
     );
-    let path = data.join(file);
     let mut rdr = csv::Reader::from_path(&path)
         .unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()));
     let headers = rdr.headers().unwrap().clone();
@@ -38,17 +49,27 @@ pub fn check_csv<R: Debug>(
         .iter()
         .position(|h| h == "damping")
         .unwrap_or_else(|| panic!("no 'damping' column in {headers:?}"));
-    let ims: Vec<IM> = headers
+    let ims: Vec<Option<IM>> = headers
         .iter()
         .skip(im_start)
+        // Some CSVs carry a trailing, empty "Unnamed: N" column (pandas artifact).
+        .take_while(|h| !h.starts_with("Unnamed"))
         .map(|h| match h {
-            "pga" => IM::PGA {},
-            "pgv" => IM::PGV {},
-            _ => IM::SA {
+            "pga" => Some(IM::PGA {}),
+            "pgv" => Some(IM::PGV {}),
+            // No PGD in `IM`: columns of models that predict it are skipped.
+            "pgd" => None,
+            "rsd575" => Some(IM::Ds575 {}),
+            "rsd595" => Some(IM::Ds595 {}),
+            "rsd2080" => Some(IM::Ds2080 {}),
+            _ if h.starts_with("EAS(") => Some(IM::EAS {
+                frequency: h[4..h.len() - 1].parse().unwrap(),
+            }),
+            _ => Some(IM::SA {
                 period: h
                     .parse()
                     .unwrap_or_else(|_| panic!("column '{h}' is not an IM")),
-            },
+            }),
         })
         .collect();
 
@@ -57,9 +78,10 @@ pub fn check_csv<R: Debug>(
         let record = record.unwrap();
         let row = row(&headers.iter().zip(record.iter()).collect());
         for (&im, value) in ims.iter().zip(record.iter().skip(im_start)) {
-            let (predicted, expected) = (predict(im, &row), value.parse::<f64>().unwrap());
+            let Some(im) = im else { continue };
+            let (predicted, expected) = (predict(im, &row), value.trim().parse::<f64>().unwrap());
             assert!(
-                relative_eq!(predicted, expected, max_relative = MAX_RELATIVE),
+                relative_eq!(predicted, expected, max_relative = max_relative),
                 "{file}: mismatch for {im:?} ({row:?}): predicted={predicted}, expected={expected}",
             );
             n_checked += 1;

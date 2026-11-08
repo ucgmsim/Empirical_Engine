@@ -1,5 +1,10 @@
 //! Transcribed verbatim from OpenQuake's `openquake.hazardlib.gsim.nz22.const`
-//! (`openquake/hazardlib/gsim/nz22/const.py`).
+//! (`openquake/hazardlib/gsim/nz22/const.py`), plus the backarc term that uses
+//! them.
+
+use crate::error::GMMError;
+use crate::im::IM;
+use crate::utils::log_interp;
 
 /// Correlation-coefficient periods from AG20, used to interpolate `rho_W`/`rho_B`
 /// in the NZ "modified sigma" nonlinear standard-deviation model.
@@ -21,7 +26,7 @@ pub static RHO_BS: [f64; 24] = [
 /// Periods for the backarc-term theta7/theta8 interpolation. Note
 /// `PERIODS[0] == 0.0` is a placeholder duplicating `PERIODS[1]`'s
 /// theta7/theta8 value; OpenQuake's own interpolation table drops it
-/// (`periods[1:]`), which is what `crate::p21::backarc_term` reproduces.
+/// (`periods[1:]`), which is what [`backarc_term`] reproduces.
 pub static PERIODS: [f64; 23] = [
     0.0, 0.02, 0.05, 0.075, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.75, 1.0, 1.5, 2.0, 2.5,
     3.0, 4.0, 5.0, 6.0, 7.5, 10.0,
@@ -36,3 +41,22 @@ pub static THETA8S: [f64; 23] = [
     -1.42, -1.42, -1.65, -1.8, -1.8, -1.69, -1.49, -1.3, -1.18, -0.98, -0.82, -0.7, -0.54, -0.34,
     -0.05, 0.12, 0.25, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3,
 ];
+
+/// BC Hydro 2016 / Abrahamson et al. (2016)-style backarc correction.
+/// NZ-specific; applied only to slab backarc sites (P_21, AG_20, A_22, K_20).
+pub fn backarc_term(im: IM, rrup: f64) -> Result<f64, GMMError> {
+    let w_epi_factor = 1.008;
+    let min_dist = 85.0;
+    let (theta7, theta8) = match im {
+        IM::SA { period } if period >= 0.02 => (
+            log_interp(&PERIODS[1..], &THETA7S[1..], period)?,
+            log_interp(&PERIODS[1..], &THETA8S[1..], period)?,
+        ),
+        // Includes PGV: OpenQuake's "no correction for PGV" branch tests
+        // `imt.period < 0`, but `PGV().period` is 0.0, so PGV gets the PGA
+        // correction. Reproduced here since we verify against OpenQuake output.
+        _ => (THETA7S[0], THETA8S[0]),
+    };
+    let dist = rrup.max(min_dist);
+    Ok((theta7 + theta8 * (dist / 40.0).ln()) * w_epi_factor)
+}

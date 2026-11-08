@@ -228,7 +228,7 @@ def run_gmm(
         Note: z1pt0 needs to be in km.
         Each row represents a separate site-fault pair.
     im : str
-        Intensity measure (e.g., 'PGA', 'PGV', 'pSA', 'Ds575', 'Ds595')
+        Intensity measure (e.g., 'PGA', 'PGV', 'pSA', 'Ds575', 'Ds595', 'Ds2080')
     periods : sequence of ints or floats, optional
         Periods to compute for pSA, required if im is 'pSA'.
         Ignored for other IMs.
@@ -1045,7 +1045,7 @@ def _convert_to_oq_im(im: str) -> str:
     Convert IM name to OpenQuake's IM name.
 
     Only supports conversion for
-    Ds575 and Ds595 to RSD575 and RSD595.
+    Ds575, Ds595 and Ds2080 to RSD575, RSD595 and RSD2080.
 
     Parameters
     ----------
@@ -1057,7 +1057,7 @@ def _convert_to_oq_im(im: str) -> str:
     str
         Converted IM name
     """
-    if im in ("Ds575", "Ds595"):
+    if im in ("Ds575", "Ds595", "Ds2080"):
         im = im.replace("Ds", "RSD")
 
     return im

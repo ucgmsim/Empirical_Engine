@@ -57,6 +57,12 @@ PERIODS = [
     10.0,
 ]
 
+# EAS frequencies (Hz): a mix of BA_18 table frequencies and off-table values,
+# all below 24 Hz, where BA_18's table switches to a kappa extrapolation.
+FREQUENCIES = [0.1, 0.2, 0.5, 1.0, 2.0, 3.0, 5.0, 10.0, 15.0, 20.0]
+
+IMS = ["pSA", "PGA", "PGV", "Ds575", "Ds595", "Ds2080", "EAS"]
+
 
 def write_im_results(
     benchmark_data_output_dir: Path,
@@ -155,8 +161,9 @@ if __name__ == "__main__":
 
         # Iterate over all tectonic types supported by the GMM
         for tect_type in tect_types:
-            for im in ["pSA", "PGA", "PGV"]:
+            for im in IMS:
                 cur_periods = PERIODS if im == "pSA" else None
+                cur_frequencies = FREQUENCIES if im == "EAS" else None
 
                 # Only use records matching the current tectonic type
                 cur_rupture_df = rupture_df.loc[
@@ -194,6 +201,7 @@ if __name__ == "__main__":
                             cur_rupture_df,
                             im,
                             periods=cur_periods,
+                            frequencies=cur_frequencies,
                         )
                         write_im_results(
                             benchmark_data_output_dir,
@@ -209,6 +217,7 @@ if __name__ == "__main__":
                                 cur_rupture_df,
                                 im,
                                 periods=cur_periods,
+                                frequencies=cur_frequencies,
                                 epistemic_branch=oqw.constants.EpistemicBranch.LOWER,
                             )
                             write_im_results(
@@ -225,6 +234,7 @@ if __name__ == "__main__":
                                 cur_rupture_df,
                                 im,
                                 periods=cur_periods,
+                                frequencies=cur_frequencies,
                                 epistemic_branch=oqw.constants.EpistemicBranch.UPPER,
                             )
                             write_im_results(

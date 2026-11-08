@@ -6,6 +6,8 @@ from enum import StrEnum
 class TectType(StrEnum):
     """Tectonic type."""
 
+    ACTIVE_SHALLOW = "ACTIVE_SHALLOW"
+    VOLCANIC = "VOLCANIC"
     SUBDUCTION_INTERFACE = "SUBDUCTION_INTERFACE"
     SUBDUCTION_SLAB = "SUBDUCTION_SLAB"
 

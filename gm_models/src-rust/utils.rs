@@ -1,6 +1,7 @@
 //! Numerical helpers shared by all ground motion models.
 
 use crate::error::GMMError;
+use crate::im::IM;
 
 /// Linear interpolation of `ys` in `ln(x)`, matching OpenQuake's
 /// `scipy.interpolate.interp1d(np.log(xs), ys)` (linear kind, default
@@ -31,6 +32,42 @@ pub fn check_lengths(columns: &[(&'static str, usize)]) -> Result<usize, GMMErro
     }
 }
 
+/// ZA_06's opt-in `oq_wrapper` long-period extrapolation (`_oq_run_pSA`): SA at a period
+/// above the model's largest tabulated period `max` is evaluated at `max`, and
+/// 2 ln(max / period) is added to its ln mean (constant spectral displacement).
+/// Returns the IM to evaluate and that ln-mean shift (0 for anything else).
+pub fn extrapolate_sa(im: IM, max: f64) -> (IM, f64) {
+    match im {
+        IM::SA { period } if period > max => (IM::SA { period: max }, 2.0 * (max / period).ln()),
+        _ => (im, 0.0),
+    }
+}
+
+/// Epistemic standard deviation of the NGA-West2 models (ASK14, BSSA14,
+/// CB14, CY14) and Bradley (2013), OpenQuake's
+/// `abrahamson_2014.get_epistemic_sigma`: the USGS-2014 approach
+/// (0.4 sqrt(n / N), n = 2, N = number of events in the magnitude-distance
+/// bin) with bin counts from the NZ SMDB v1.0. Magnitudes below 5 take the
+/// 5 <= M < 6 values. Models add `sigma_mu_epsilon` times this to the ln mean.
+pub fn nga_west2_epistemic_sigma(mag: f64, rrup: f64) -> f64 {
+    // Event counts for rrup <= 10, 10 < rrup < 30, rrup >= 30 km.
+    let counts: [f64; 3] = if mag < 6.0 {
+        [11.0, 38.0, 94.0]
+    } else if mag < 7.0 {
+        [2.0, 7.0, 13.0]
+    } else {
+        [2.0, 2.0, 4.0]
+    };
+    let count = if rrup <= 10.0 {
+        counts[0]
+    } else if rrup < 30.0 {
+        counts[1]
+    } else {
+        counts[2]
+    };
+    0.4 * (2.0 / count).sqrt()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -50,6 +87,18 @@ mod tests {
     fn interpolates_in_log_space() {
         let mid = (0.1f64 * 1.0).sqrt();
         assert_relative_eq!(log_interp(&XS, &YS, mid).unwrap(), 1.5, epsilon = 1e-12);
+    }
+
+    #[test]
+    fn extrapolates_only_above_max() {
+        let (im, shift) = extrapolate_sa(IM::SA { period: 20.0 }, 10.0);
+        assert_eq!(im, IM::SA { period: 10.0 });
+        assert_relative_eq!(shift, 2.0 * 0.5f64.ln());
+        assert_eq!(
+            extrapolate_sa(IM::SA { period: 5.0 }, 10.0),
+            (IM::SA { period: 5.0 }, 0.0)
+        );
+        assert_eq!(extrapolate_sa(IM::PGA {}, 10.0), (IM::PGA {}, 0.0));
     }
 
     #[test]

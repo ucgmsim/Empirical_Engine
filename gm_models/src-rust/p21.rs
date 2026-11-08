@@ -5,7 +5,7 @@
 //! (backarc term, "modified sigma" model, epistemic sigma_mu adjustment)
 //! and `openquake.hazardlib.gsim.parker_2020` (magnitude/path/depth/site
 //! terms, original sigma model), specialised to
-//! `region=None, saturation_region=None, basin=None` — the only
+//! `region=None, saturation_region=None, basin=None`, the only
 //! configuration `oq_wrapper`'s NSHM2022 logic tree ever instantiates
 //! this model with. That means the basin term (which requires `z2pt5`
 //! and is 0 whenever a rupture context has no `z2pt5`) is always 0 and
@@ -31,10 +31,10 @@ pub mod coeffs {
 
 use crate::error::GMMError;
 use crate::im::IM;
-use crate::nz22_const::{PERIODS, PERIODS_AG20, RHO_BS, RHO_WS, THETA7S, THETA8S};
+use crate::nz22_const::{backarc_term, PERIODS_AG20, RHO_BS, RHO_WS};
 use crate::result::{GMMResult, MeanStd};
 use crate::utils::{check_lengths, log_interp};
-use coeffs::{Coeffs, PGA_COEFFS, PGV_COEFFS, SA_COEFFS, SA_PERIODS};
+use coeffs::{Coeffs, PGA_COEFFS};
 use numpy::PyReadonlyArray1;
 use pyo3::prelude::*;
 
@@ -176,44 +176,7 @@ impl P21Inputs {
     }
 }
 
-impl Coeffs {
-    /// Coefficients for `im`. Fails only for SA periods above the largest
-    /// tabulated period.
-    pub fn for_im(im: IM) -> Result<Self, GMMError> {
-        match im {
-            IM::PGA {} => Ok(PGA_COEFFS),
-            IM::PGV {} => Ok(PGV_COEFFS),
-            IM::SA { period } => Self::for_period(period),
-        }
-    }
-
-    /// Coefficient-table lookup, reproducing OpenQuake's `CoeffsTable.__getitem__`
-    /// (`opt=0` path, see `openquake/hazardlib/gsim/coeffs_table.py:237-307`):
-    /// exact match if the period is tabulated; otherwise linear interpolation in
-    /// `ln(period)` between the nearest tabulated periods below and above; and,
-    /// only for periods below the smallest tabulated SA period, linear (not
-    /// log-linear) interpolation between PGA (treated as period 0) and the
-    /// smallest tabulated SA period.
-    fn for_period(period: f64) -> Result<Self, GMMError> {
-        let max = SA_PERIODS[SA_PERIODS.len() - 1];
-        if period.is_nan() || period > max {
-            return Err(GMMError::UnsupportedPeriod { period, max });
-        }
-        // First index with SA_PERIODS[i] >= period; SA_PERIODS is ascending.
-        let i = SA_PERIODS.partition_point(|&p| p < period);
-        if SA_PERIODS[i] == period {
-            return Ok(SA_COEFFS[i]);
-        }
-        if i == 0 {
-            return Ok(PGA_COEFFS.interp(&SA_COEFFS[0], period / SA_PERIODS[0]));
-        }
-        let (below, above) = (SA_PERIODS[i - 1].ln(), SA_PERIODS[i].ln());
-        let ratio = (period.ln() - below) / (above - below);
-        Ok(SA_COEFFS[i - 1].interp(&SA_COEFFS[i], ratio))
-    }
-}
-
-/// (c0, c1, a0, c4, c5, c6) for the given tectonic type — interface reads the
+/// (c0, c1, a0, c4, c5, c6) for the given tectonic type: interface reads the
 /// unsuffixed columns, slab reads the `*slab` columns (`SUFFIX` in the
 /// Python source).
 fn select(row: &P21Row, c: &Coeffs) -> (f64, f64, f64, f64, f64, f64) {
@@ -266,25 +229,6 @@ fn depth_scaling(hypo_depth: f64, d: f64, m: f64, db: f64) -> f64 {
 /// f2, Eq. 10.
 fn f2(f4: f64, f5: f64, vs30: f64) -> f64 {
     f4 * ((f5 * (vs30.min(VREF_FNL) - VB)).exp() - (f5 * (VREF_FNL - VB)).exp())
-}
-
-/// BC Hydro 2016 / Abrahamson et al. (2016)-style backarc correction.
-/// NZ-specific; applied only to slab backarc sites.
-fn backarc_term(im: IM, rrup: f64) -> Result<f64, GMMError> {
-    let w_epi_factor = 1.008;
-    let min_dist = 85.0;
-    let (theta7, theta8) = match im {
-        IM::SA { period } if period >= 0.02 => (
-            log_interp(&PERIODS[1..], &THETA7S[1..], period)?,
-            log_interp(&PERIODS[1..], &THETA8S[1..], period)?,
-        ),
-        // Includes PGV: OpenQuake's "no correction for PGV" branch tests
-        // `imt.period < 0`, but `PGV().period` is 0.0, so PGV gets the PGA
-        // correction. Reproduced here since we verify against OpenQuake output.
-        _ => (THETA7S[0], THETA8S[0]),
-    };
-    let dist = rrup.max(min_dist);
-    Ok((theta7 + theta8 * (dist / 40.0).ln()) * w_epi_factor)
 }
 
 /// Epistemic standard deviation sigma_e(T), Eq. 27, with the NZ-NSHM2022
@@ -368,7 +312,7 @@ fn stddevs_nonlinear(
 /// `NZNSHM2022_ParkerEtAl2020SSlab` (global/GLO region), one value per
 /// rupture-site pair in `inputs`. The tectonic type is set by how
 /// `inputs` was built (`P21Inputs.interface` or `P21Inputs.slab`).
-/// Exposed to Python as `gm_models._core.p21`.
+/// SA periods outside the table are an error. Exposed to Python as `gm_models._core.p21`.
 #[pyfunction]
 pub fn p21(
     py: Python<'_>,
@@ -385,7 +329,7 @@ pub fn p21(
         inputs
             .iter()?
             .map(|row| compute(im, &coeffs, &row, sigma_mu_epsilon, modified_sigma))
-            .collect::<Result<GMMResult, _>>()
+            .collect::<Result<GMMResult, GMMError>>()
     })?)
 }
 
@@ -537,6 +481,7 @@ mod tests {
 mod proptests {
     use super::*;
     use approx::relative_eq;
+    use coeffs::{SA_COEFFS, SA_PERIODS};
     use proptest::prelude::*;
 
     fn im() -> impl Strategy<Value = IM> {
