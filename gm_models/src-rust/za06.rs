@@ -19,7 +19,7 @@
 //! lookup interpolates between PGA (anchored at 0.01 s) and 0.05 s, as
 //! OpenQuake does. SA periods above 5 s are an error unless `extrapolate` is
 //! set, which applies `oq_wrapper`'s constant-displacement extrapolation (see
-//! [`extrapolate_sa`]).
+//! [`za06`]).
 //!
 //! Derived from OpenQuake hazardlib (Copyright (C) GEM Foundation), licensed
 //! under AGPL-3.0-or-later. Transcribed to Rust and modified by ucgmsim, 2026.
@@ -37,7 +37,7 @@ pub mod sslab {
 use crate::error::GMMError;
 use crate::im::IM;
 use crate::result::{GMMResult, MeanStd};
-use crate::utils::{check_lengths, extrapolate_sa};
+use crate::utils::check_lengths;
 use numpy::PyReadonlyArray1;
 use pyo3::prelude::*;
 
@@ -254,8 +254,10 @@ fn magnitude_squared(p: f64, hinge: f64, q: f64, w: f64, mag: f64) -> f64 {
 /// `ZhaoEtAl2006SSlab`, one value per rupture-site pair in `inputs`. The
 /// tectonic type is set by how `inputs` was built. SA periods above the table
 /// are an error unless `extrapolate` is true, in which case they are
-/// extrapolated as in `oq_wrapper` (see [`extrapolate_sa`]). Exposed to Python
-/// as `gm_models._core.za06`.
+/// extrapolated as in `oq_wrapper` (`_oq_run_pSA`): evaluated at the largest
+/// tabulated period `max`, with 2 ln(max / period) added to the ln mean
+/// (constant spectral displacement). Exposed to Python as
+/// `gm_models._core.za06`.
 #[pyfunction]
 pub fn za06(
     py: Python<'_>,
@@ -263,10 +265,12 @@ pub fn za06(
     im: IM,
     extrapolate: bool,
 ) -> PyResult<GMMResult> {
-    let (im, ln_shift) = if extrapolate {
-        extrapolate_sa(im, asc::SA_PERIODS[asc::SA_PERIODS.len() - 1])
-    } else {
-        (im, 0.0)
+    let max = asc::SA_PERIODS[asc::SA_PERIODS.len() - 1];
+    let (im, ln_shift) = match im {
+        IM::SA { period } if extrapolate && period > max => {
+            (IM::SA { period: max }, 2.0 * (max / period).ln())
+        }
+        _ => (im, 0.0),
     };
     let coeffs = Za06Coeffs::for_im(im)?;
     let inputs = &*inputs;

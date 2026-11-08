@@ -23,7 +23,31 @@ def _inputs(
     z1pt0: np.ndarray,
     backarc: np.ndarray | None,
 ) -> _core.K20Inputs:
-    """Build the Rust inputs for `tect_type` after validating `rupture_df`."""
+    """Build the Rust inputs for `tect_type` after validating `rupture_df`.
+
+    Parameters
+    ----------
+    tect_type : TectType
+        Tectonic type (subduction interface or slab).
+    rupture_df : pd.DataFrame
+        Rupture/site dataframe.
+    required : set[str]
+        Columns `rupture_df` must contain.
+    z1pt0 : np.ndarray
+        Z1.0 in metres, NaN where the basin term is not applied.
+    backarc : np.ndarray or None
+        Slab backarc flags, None for none (slab only).
+
+    Returns
+    -------
+    _core.K20Inputs
+        Inputs for `_core.k20`.
+
+    Raises
+    ------
+    ValueError
+        If `tect_type` is unsupported, or `rupture_df` is missing columns.
+    """
     if tect_type not in (TectType.SUBDUCTION_INTERFACE, TectType.SUBDUCTION_SLAB):
         raise ValueError(
             f"Kuehn et al. (2020) does not support tectonic type {tect_type}"

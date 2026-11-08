@@ -1,7 +1,6 @@
 //! Numerical helpers shared by all ground motion models.
 
 use crate::error::GMMError;
-use crate::im::IM;
 
 /// Linear interpolation of `ys` in `ln(x)`, matching OpenQuake's
 /// `scipy.interpolate.interp1d(np.log(xs), ys)` (linear kind, default
@@ -29,17 +28,6 @@ pub fn check_lengths(columns: &[(&'static str, usize)]) -> Result<usize, GMMErro
             expected,
         }),
         None => Ok(expected),
-    }
-}
-
-/// ZA_06's opt-in `oq_wrapper` long-period extrapolation (`_oq_run_pSA`): SA at a period
-/// above the model's largest tabulated period `max` is evaluated at `max`, and
-/// 2 ln(max / period) is added to its ln mean (constant spectral displacement).
-/// Returns the IM to evaluate and that ln-mean shift (0 for anything else).
-pub fn extrapolate_sa(im: IM, max: f64) -> (IM, f64) {
-    match im {
-        IM::SA { period } if period > max => (IM::SA { period: max }, 2.0 * (max / period).ln()),
-        _ => (im, 0.0),
     }
 }
 
@@ -87,18 +75,6 @@ mod tests {
     fn interpolates_in_log_space() {
         let mid = (0.1f64 * 1.0).sqrt();
         assert_relative_eq!(log_interp(&XS, &YS, mid).unwrap(), 1.5, epsilon = 1e-12);
-    }
-
-    #[test]
-    fn extrapolates_only_above_max() {
-        let (im, shift) = extrapolate_sa(IM::SA { period: 20.0 }, 10.0);
-        assert_eq!(im, IM::SA { period: 10.0 });
-        assert_relative_eq!(shift, 2.0 * 0.5f64.ln());
-        assert_eq!(
-            extrapolate_sa(IM::SA { period: 5.0 }, 10.0),
-            (IM::SA { period: 5.0 }, 0.0)
-        );
-        assert_eq!(extrapolate_sa(IM::PGA {}, 10.0), (IM::PGA {}, 0.0));
     }
 
     #[test]

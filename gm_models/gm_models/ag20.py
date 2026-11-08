@@ -29,7 +29,29 @@ def _run(
     periods: Sequence[float] | None,
     epistemic_branch: EpistemicBranch,
 ) -> xr.Dataset:
-    """Run AG20 as ``model`` (``"AG_20"`` or ``"AG_20_NZ"``)."""
+    """Run AG20 as ``model`` (``"AG_20"`` or ``"AG_20_NZ"``).
+
+    Parameters
+    ----------
+    model : str
+        ``"AG_20"`` (NZ22 global variant, with the slab backarc term) or
+        ``"AG_20_NZ"`` (NZ regionalisation).
+    tect_type : TectType
+        Tectonic type (subduction interface or slab).
+    rupture_df : pd.DataFrame
+        Rupture/site dataframe, see `run_ag20` and `run_ag20_nz`.
+    im : str
+        Intensity measure: one of ``"PGA"``, ``"pSA"``.
+    periods : Sequence[float] or None
+        Periods to compute, required if `im` is ``"pSA"``.
+    epistemic_branch : EpistemicBranch
+        Epistemic uncertainty branch.
+
+    Returns
+    -------
+    xr.Dataset
+        See `gm_models.utils.evaluate_ims`.
+    """
     if tect_type not in _REQUIRED_COLUMNS:
         raise ValueError(f"{model} does not support tectonic type {tect_type}")
     is_nz = model == "AG_20_NZ"

@@ -69,6 +69,18 @@ def run_ask14(
         )
 
     def column(name: str) -> np.ndarray:
+        """Return column `name` of `rupture_df` as float64.
+
+        Parameters
+        ----------
+        name : str
+            Column name.
+
+        Returns
+        -------
+        np.ndarray
+            The column values.
+        """
         return rupture_df[name].to_numpy(dtype=np.float64)
 
     # Same fallbacks as oq_wrapper's `prepare_model_inputs`.
