@@ -10,7 +10,6 @@ are listed in its ``run_*`` docstring.
 from pathlib import Path
 
 import pandas as pd
-import xarray as xr
 
 import gm_models as gmm
 
@@ -44,8 +43,5 @@ psa = gmm.run_br13(
     epistemic_branch=gmm.constants.EpistemicBranch.UPPER,
 )
 
-# Median PGA (g) per record, and pSA(1 s) as a pandas Series.
-print(xr.ufuncs.exp(pga["ln_mean"]).to_series().describe())
+# Print the first few records of the 1 s pSA median and total sigma.
 print(psa["ln_mean"].sel(period=1.0).to_series().head())
-# Everything as a flat dataframe, one row per (record, period).
-print(psa.to_dataframe().head())

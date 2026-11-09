@@ -10,7 +10,9 @@ assembly live in Python (`gm_models/`).
 ```python
 import gm_models as gmm
 
-ds = gmm.run_p21(gmm.constants.TectType.SUBDUCTION_INTERFACE, rupture_df, "pSA", periods=[0.1, 1.0])
+ds = gmm.run_p21(
+    gmm.constants.TectType.SUBDUCTION_INTERFACE, rupture_df, "pSA", periods=[0.1, 1.0]
+)
 ```
 
 Every model is a `gmm.run_*` function taking the tectonic type, a rupture/site dataframe (OpenQuake column names, Z1.0 in km, as for `oq_wrapper.run_gmm`) and the IM, and returning an `xarray.Dataset` (see below). Its docstring lists the columns it needs.

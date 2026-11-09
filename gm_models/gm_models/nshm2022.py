@@ -53,7 +53,7 @@ def run_nshm2022(
     tect_type: constants.TectType,
     rupture_df: pd.DataFrame,
     im: str,
-    periods: Sequence[float] | None = None,
+    periods: Sequence[float],
 ) -> xr.Dataset:
     """Run the NZ NSHM 2022 GMCM logic tree.
 
@@ -71,8 +71,8 @@ def run_nshm2022(
         needs (see the respective ``run_*`` functions).
     im : str
         Intensity measure, only ``"pSA"`` (the logic tree defines no other).
-    periods : Sequence[float], optional
-        Periods to compute, required.
+    periods : Sequence[float]
+        Periods to compute.
 
     Returns
     -------
@@ -80,7 +80,9 @@ def run_nshm2022(
         ``ln_mean`` and ``std_total`` over ``(site, period)``, and the
         per-branch ``branch_ln_mean`` and ``branch_std_total`` over
         ``(branch, site, period)``. The ``branch`` dimension has coordinates
-        ``model``, ``epistemic_branch`` and ``weight``. Inter- and intra-event
+        ``model``, ``epistemic_branch`` (indexed, so a branch is
+        selected with ``.sel(model=..., epistemic_branch=...)``) and
+        ``weight``. Inter- and intra-event
         standard deviations are not combined.
 
     Raises
@@ -95,22 +97,26 @@ def run_nshm2022(
         raise ValueError(f"NSHM 2022 does not support tectonic type {tect_type}")
     models = MODELS[tect_type]
     branches = [(name, branch) for name in models for branch in BRANCH_WEIGHTS]
-    ds = xr.concat(
-        [
-            models[name][0](
-                tect_type, rupture_df, im, periods, epistemic_branch=branch
-            )[["ln_mean", "std_total"]]
-            for name, branch in branches
-        ],
-        dim="branch",
-        combine_attrs="drop",
-    ).assign_coords(
-        model=("branch", [name for name, _ in branches]),
-        epistemic_branch=("branch", [str(branch) for _, branch in branches]),
-        weight=(
-            "branch",
-            [models[name][1] * BRANCH_WEIGHTS[branch] for name, branch in branches],
-        ),
+    ds = (
+        xr.concat(
+            [
+                models[name][0](
+                    tect_type, rupture_df, im, periods, epistemic_branch=branch
+                )[["ln_mean", "std_total"]]
+                for name, branch in branches
+            ],
+            dim="branch",
+            combine_attrs="drop",
+        )
+        .assign_coords(
+            model=("branch", [name for name, _ in branches]),
+            epistemic_branch=("branch", [str(branch) for _, branch in branches]),
+            weight=(
+                "branch",
+                [models[name][1] * BRANCH_WEIGHTS[branch] for name, branch in branches],
+            ),
+        )
+        .set_xindex(["model", "epistemic_branch"])
     )
     ln_mean = (ds.weight * ds.ln_mean).sum("branch")
     return xr.Dataset(

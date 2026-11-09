@@ -45,14 +45,31 @@ results = {
         ("Slab", gmm.constants.TectType.SUBDUCTION_SLAB),
     ]
 }
+crustal = results[gmm.constants.TectType.ACTIVE_SHALLOW]
 
-interface = results[gmm.constants.TectType.SUBDUCTION_INTERFACE]
-# Median pSA(1 s) (g) and total sigma of the combined logic tree.
-print(xr.ufuncs.exp(interface["ln_mean"].sel(period=1.0)).to_series().describe())
-print(interface["std_total"].sel(period=1.0).to_series().describe())
-# Each branch's weight and its median pSA(1 s) (g) averaged over all records.
+# Logic tree values: the mixture over all branches, ln units, (record, period).
+print("Crustal logic tree at 1 s, median pSA [g] and total sigma:")
 print(
-    xr.ufuncs.exp(interface["branch_ln_mean"].sel(period=1.0).mean("record_id"))
-    .to_dataframe(name="psa_1s")
-    .drop(columns="period")
+    pd.DataFrame(
+        {
+            "median": xr.ufuncs.exp(crustal["ln_mean"]).sel(period=1.0).to_pandas(),
+            "std_total": crustal["std_total"].sel(period=1.0).to_pandas(),
+        }
+    ).head()
+)
+
+# A single branch, selected by model and epistemic branch.
+s22_central = crustal.sel(
+    model="S_22", epistemic_branch=gmm.constants.EpistemicBranch.CENTRAL
+)
+print(f"\nS_22 central branch (weight {s22_central['weight'].item():.3f}) at 1 s:")
+print(
+    pd.DataFrame(
+        {
+            "median": xr.ufuncs.exp(s22_central["branch_ln_mean"])
+            .sel(period=1.0)
+            .to_pandas(),
+            "std_total": s22_central["branch_std_total"].sel(period=1.0).to_pandas(),
+        }
+    ).head()
 )
