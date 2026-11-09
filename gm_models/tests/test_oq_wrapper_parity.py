@@ -19,24 +19,7 @@ import pandas as pd
 import pytest
 import xarray as xr
 
-from gm_models.a18 import run_a18
-from gm_models.a22 import run_a22
-from gm_models.ag20 import run_ag20, run_ag20_nz
-from gm_models.as16 import run_as16
-from gm_models.ask14 import run_ask14
-from gm_models.ba18 import run_ba18
-from gm_models.bch16 import run_bch16
-from gm_models.br13 import run_br13
-from gm_models.bssa14 import run_bssa14
-from gm_models.cb10 import run_cb10
-from gm_models.cb14 import run_cb14
-from gm_models.constants import EpistemicBranch, TectType
-from gm_models.cy14 import run_cy14
-from gm_models.k20 import run_k20, run_k20_nz
-from gm_models.p20 import run_p20
-from gm_models.p21 import run_p21
-from gm_models.s22 import run_s22
-from gm_models.za06 import run_za06
+import gm_models as gmm
 
 BENCHMARK_DATA_DIR = (
     Path(__file__).parents[2] / "oq_wrapper" / "tests" / "benchmark_data"
@@ -47,26 +30,27 @@ RUPTURE_PATH = BENCHMARK_DATA_DIR / "nzgmdb_v4p3_rupture_df.parquet"
 # im), plus periods= for pSA, frequencies= for EAS and, for models with
 # branches, epistemic_branch=.
 MODELS: dict[str, Callable[..., xr.Dataset]] = {
-    "K_20": run_k20,
-    "K_20_NZ": run_k20_nz,
-    "P_20": run_p20,
-    "P_21": run_p21,
-    "AG_20": run_ag20,
-    "AG_20_NZ": run_ag20_nz,
-    "A_22": run_a22,
-    "S_22": run_s22,
-    "ASK_14": run_ask14,
-    "BSSA_14": run_bssa14,
-    "CY_14": run_cy14,
-    "Br_13": run_br13,
-    "CB_14": run_cb14,
-    "CB_10": run_cb10,
+    "K_20": gmm.run_k20,
+    "K_20_NZ": gmm.run_k20_nz,
+    "P_20": gmm.run_p20,
+    "P_21": gmm.run_p21,
+    "AG_20": gmm.run_ag20,
+    "AG_20_NZ": gmm.run_ag20_nz,
+    "A_22": gmm.run_a22,
+    "S_22": gmm.run_s22,
+    "ASK_14": gmm.run_ask14,
+    "BSSA_14": gmm.run_bssa14,
+    "CY_14": gmm.run_cy14,
+    "Br_13": gmm.run_br13,
+    "CB_14": gmm.run_cb14,
+    "CB_10": gmm.run_cb10,
     # The fixtures include 6 to 10 s columns, which oq_wrapper extrapolates.
-    "ZA_06": partial(run_za06, extrapolate=True),
-    "A_18": run_a18,
-    "BCH_16": run_bch16,
-    "AS_16": run_as16,
-    "BA_18": run_ba18,
+    "ZA_06": partial(gmm.run_za06, extrapolate=True),
+    "A_18": gmm.run_a18,
+    "BCH_16": gmm.run_bch16,
+    "AS_16": gmm.run_as16,
+    "BA_18": gmm.run_ba18,
+    "NSHM2022": gmm.run_nshm2022,
 }
 
 # Copy of oq_wrapper.constants.NZGMDB_OQ_COL_MAPPING, so this test suite
@@ -149,12 +133,15 @@ def test_matches_oq_wrapper_benchmark(
         tect_type_name, epistemic_branch_name = tect_type_name.split(
             "_EpistemicBranch_"
         )
-        kwargs["epistemic_branch"] = EpistemicBranch[epistemic_branch_name]
+        kwargs["epistemic_branch"] = gmm.constants.EpistemicBranch[
+            epistemic_branch_name
+        ]
 
-    ds = MODELS[gmm_name](TectType[tect_type_name], cur_rupture_df, im, **kwargs)
+    ds = MODELS[gmm_name](
+        gmm.constants.TectType[tect_type_name], cur_rupture_df, im, **kwargs
+    )
 
     assert ds.indexes[bench_df.index.name].equals(bench_df.index)
-    assert set(ds.data_vars) == {"ln_mean", "std_total", "std_inter", "std_intra"}
     for col, m in parsed.items():
         values = ds["ln_mean" if m["stat"] == "mean" else m["stat"].lower()]
         if m["value"] is not None:

@@ -11,23 +11,21 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from gm_models import _core
-from gm_models.constants import SIGMA_MU_EPSILON, EpistemicBranch, TectType
-from gm_models.utils import evaluate_ims, validate_columns
+from . import _core, constants, utils
 
 _REQUIRED_COLUMNS = {
-    TectType.SUBDUCTION_INTERFACE: {"mag", "rrup", "vs30"},
-    TectType.SUBDUCTION_SLAB: {"mag", "rrup", "vs30", "ztor"},
+    constants.TectType.SUBDUCTION_INTERFACE: {"mag", "rrup", "vs30"},
+    constants.TectType.SUBDUCTION_SLAB: {"mag", "rrup", "vs30", "ztor"},
 }
 
 
 def _run(
     model: str,
-    tect_type: TectType,
+    tect_type: constants.TectType,
     rupture_df: pd.DataFrame,
     im: str,
     periods: Sequence[float] | None,
-    epistemic_branch: EpistemicBranch,
+    epistemic_branch: constants.EpistemicBranch,
 ) -> xr.Dataset:
     """Run AG20 as ``model`` (``"AG_20"`` or ``"AG_20_NZ"``).
 
@@ -56,8 +54,8 @@ def _run(
         raise ValueError(f"{model} does not support tectonic type {tect_type}")
     is_nz = model == "AG_20_NZ"
     # Only the NZ22 (global) variant has the slab backarc term.
-    has_backarc = not is_nz and tect_type is TectType.SUBDUCTION_SLAB
-    validate_columns(
+    has_backarc = not is_nz and tect_type is constants.TectType.SUBDUCTION_SLAB
+    utils.validate_columns(
         rupture_df,
         _REQUIRED_COLUMNS[tect_type] | ({"backarc"} if has_backarc else set()),
     )
@@ -67,7 +65,7 @@ def _run(
     )
     inputs = (
         _core.AG20Inputs.interface(mag, rrup, vs30)
-        if tect_type is TectType.SUBDUCTION_INTERFACE
+        if tect_type is constants.TectType.SUBDUCTION_INTERFACE
         else _core.AG20Inputs.slab(
             mag,
             rrup,
@@ -78,9 +76,9 @@ def _run(
             else np.zeros(len(rupture_df), dtype=np.bool_),
         )
     )
-    return evaluate_ims(
+    return utils.evaluate_ims(
         lambda core_im: _core.ag20(
-            inputs, core_im, is_nz, SIGMA_MU_EPSILON[epistemic_branch]
+            inputs, core_im, is_nz, constants.SIGMA_MU_EPSILON[epistemic_branch]
         ),
         rupture_df.index,
         im,
@@ -94,11 +92,11 @@ def _run(
 
 
 def run_ag20(
-    tect_type: TectType,
+    tect_type: constants.TectType,
     rupture_df: pd.DataFrame,
     im: str,
     periods: Sequence[float] | None = None,
-    epistemic_branch: EpistemicBranch = EpistemicBranch.CENTRAL,
+    epistemic_branch: constants.EpistemicBranch = constants.EpistemicBranch.CENTRAL,
 ) -> xr.Dataset:
     """Run the AG_20 (NZ NSHM2022 Abrahamson and Gulerce 2020) model, global (GLO) region.
 
@@ -133,7 +131,7 @@ def run_ag20(
 
 
 def run_ag20_nz(
-    tect_type: TectType,
+    tect_type: constants.TectType,
     rupture_df: pd.DataFrame,
     im: str,
     periods: Sequence[float] | None = None,
@@ -165,4 +163,11 @@ def run_ag20_nz(
     ValueError
         If `tect_type` is unsupported or columns are missing.
     """
-    return _run("AG_20_NZ", tect_type, rupture_df, im, periods, EpistemicBranch.CENTRAL)
+    return _run(
+        "AG_20_NZ",
+        tect_type,
+        rupture_df,
+        im,
+        periods,
+        constants.EpistemicBranch.CENTRAL,
+    )

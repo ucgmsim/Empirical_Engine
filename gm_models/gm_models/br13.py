@@ -11,9 +11,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from gm_models import _core
-from gm_models.constants import SIGMA_MU_EPSILON, EpistemicBranch, TectType
-from gm_models.utils import evaluate_ims, validate_columns
+from . import _core, constants, utils
 
 _REQUIRED_COLUMNS = {
     "mag",
@@ -30,11 +28,11 @@ _REQUIRED_COLUMNS = {
 
 
 def run_br13(
-    tect_type: TectType,
+    tect_type: constants.TectType,
     rupture_df: pd.DataFrame,
     im: str,
     periods: Sequence[float] | None = None,
-    epistemic_branch: EpistemicBranch = EpistemicBranch.CENTRAL,
+    epistemic_branch: constants.EpistemicBranch = constants.EpistemicBranch.CENTRAL,
 ) -> xr.Dataset:
     """Run the Br_13 (Bradley, 2013) model (``Bradley2013`` / ``Bradley2013Volc``).
 
@@ -68,9 +66,12 @@ def run_br13(
         If `tect_type` is not active shallow or volcanic, or required columns
         are missing.
     """
-    if tect_type not in (TectType.ACTIVE_SHALLOW, TectType.VOLCANIC):
+    if tect_type not in (
+        constants.TectType.ACTIVE_SHALLOW,
+        constants.TectType.VOLCANIC,
+    ):
         raise ValueError(f"Br_13 does not support tectonic type {tect_type}")
-    validate_columns(rupture_df, _REQUIRED_COLUMNS)
+    utils.validate_columns(rupture_df, _REQUIRED_COLUMNS)
     if (rupture_df["z1pt0"] >= 10).any():
         raise ValueError(
             "Z1.0 values are too high. Did you pass in metre values instead of kilometres?"
@@ -96,12 +97,12 @@ def run_br13(
         .to_numpy()
         .astype(np.bool_),
     )
-    return evaluate_ims(
+    return utils.evaluate_ims(
         lambda core_im: _core.br13(
             inputs,
             core_im,
-            SIGMA_MU_EPSILON[epistemic_branch],
-            tect_type is TectType.VOLCANIC,
+            constants.SIGMA_MU_EPSILON[epistemic_branch],
+            tect_type is constants.TectType.VOLCANIC,
         ),
         rupture_df.index,
         im,

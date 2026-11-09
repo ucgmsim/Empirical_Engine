@@ -11,10 +11,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from gm_models import _core
-from gm_models.a22 import _BRANCHES
-from gm_models.constants import EpistemicBranch, TectType
-from gm_models.utils import evaluate_ims, validate_columns
+from . import _core, constants, utils
 
 _REQUIRED_COLUMNS = {
     "mag",
@@ -30,11 +27,11 @@ _REQUIRED_COLUMNS = {
 
 
 def run_s22(
-    tect_type: TectType,
+    tect_type: constants.TectType,
     rupture_df: pd.DataFrame,
     im: str,
     periods: Sequence[float] | None = None,
-    epistemic_branch: EpistemicBranch = EpistemicBranch.CENTRAL,
+    epistemic_branch: constants.EpistemicBranch = constants.EpistemicBranch.CENTRAL,
 ) -> xr.Dataset:
     """Run the S_22 (Stafford 2022 NZ NSHM backbone) model.
 
@@ -69,9 +66,12 @@ def run_s22(
         ``z1pt0`` looks like it is in metres, or `im` is not defined by the
         model.
     """
-    if tect_type not in (TectType.ACTIVE_SHALLOW, TectType.VOLCANIC):
+    if tect_type not in (
+        constants.TectType.ACTIVE_SHALLOW,
+        constants.TectType.VOLCANIC,
+    ):
         raise ValueError(f"Unsupported tect_type {tect_type!r}")
-    validate_columns(rupture_df, _REQUIRED_COLUMNS)
+    utils.validate_columns(rupture_df, _REQUIRED_COLUMNS)
     if (rupture_df["z1pt0"] >= 10).any():
         raise ValueError(
             "Z1.0 values are too high. Did you pass in metre values instead of kilometres?"
@@ -83,8 +83,10 @@ def run_s22(
     )
     # The model takes z1pt0 in metres.
     inputs = _core.S22Inputs(mag, rake, dip, ztor, rrup, rjb, rx, vs30, z1pt0 * 1000)
-    return evaluate_ims(
-        lambda core_im: _core.s22(inputs, core_im, _BRANCHES[epistemic_branch]),
+    return utils.evaluate_ims(
+        lambda core_im: _core.s22(
+            inputs, core_im, constants.CORE_BRANCHES[epistemic_branch]
+        ),
         rupture_df.index,
         im,
         periods,

@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from gm_models import _core
+from . import _core
 
 
 def validate_columns(rupture_df: pd.DataFrame, required: set[str]) -> None:

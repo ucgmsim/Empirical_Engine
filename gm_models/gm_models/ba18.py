@@ -10,13 +10,11 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from gm_models import _core
-from gm_models.constants import TectType
-from gm_models.utils import evaluate_ims, validate_columns
+from . import _core, constants, utils
 
 
 def run_ba18(
-    tect_type: TectType,
+    tect_type: constants.TectType,
     rupture_df: pd.DataFrame,
     im: str,
     frequencies: Sequence[float] | None = None,
@@ -51,12 +49,12 @@ def run_ba18(
         ``z1pt0`` looks like it is in metres, `im` is not ``"EAS"``, or a
         frequency is outside the supported range.
     """
-    if tect_type is not TectType.ACTIVE_SHALLOW:
+    if tect_type is not constants.TectType.ACTIVE_SHALLOW:
         raise ValueError(f"BA_18 does not support tectonic type {tect_type}")
     if im != "EAS":
         raise ValueError(f"BA_18 only supports im='EAS', got '{im}'")
     columns = ("mag", "rake", "ztor", "rrup", "vs30", "z1pt0")
-    validate_columns(rupture_df, set(columns))
+    utils.validate_columns(rupture_df, set(columns))
     if (rupture_df["z1pt0"] >= 10).any():
         raise ValueError(
             "Z1.0 values are too high. Did you pass in metre values instead of kilometres?"
@@ -67,7 +65,7 @@ def run_ba18(
             for col in columns
         )
     )
-    return evaluate_ims(
+    return utils.evaluate_ims(
         lambda core_im: _core.ba18(inputs, core_im),
         rupture_df.index,
         im,

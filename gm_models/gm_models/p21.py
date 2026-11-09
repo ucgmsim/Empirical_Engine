@@ -11,22 +11,26 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from gm_models import _core
-from gm_models.constants import SIGMA_MU_EPSILON, EpistemicBranch, TectType
-from gm_models.utils import evaluate_ims, validate_columns
+from . import _core, constants, utils
 
 _REQUIRED_COLUMNS = {
-    TectType.SUBDUCTION_INTERFACE: {"mag", "rrup", "vs30"},
-    TectType.SUBDUCTION_SLAB: {"mag", "rrup", "vs30", "hypo_depth", "backarc"},
+    constants.TectType.SUBDUCTION_INTERFACE: {"mag", "rrup", "vs30"},
+    constants.TectType.SUBDUCTION_SLAB: {
+        "mag",
+        "rrup",
+        "vs30",
+        "hypo_depth",
+        "backarc",
+    },
 }
 
 
 def run_p21(
-    tect_type: TectType,
+    tect_type: constants.TectType,
     rupture_df: pd.DataFrame,
     im: str,
     periods: Sequence[float] | None = None,
-    epistemic_branch: EpistemicBranch = EpistemicBranch.CENTRAL,
+    epistemic_branch: constants.EpistemicBranch = constants.EpistemicBranch.CENTRAL,
     modified_sigma: bool = True,
 ) -> xr.Dataset:
     """Run the P_21 (NZ NSHM2022 Parker et al. 2020) model, global (GLO) region.
@@ -57,14 +61,14 @@ def run_p21(
         ``pSA``), with the model settings as attributes. See
         `gm_models.utils.evaluate_ims`.
     """
-    validate_columns(rupture_df, _REQUIRED_COLUMNS[tect_type])
+    utils.validate_columns(rupture_df, _REQUIRED_COLUMNS[tect_type])
 
     mag, rrup, vs30 = (
         rupture_df[col].to_numpy(dtype=np.float64) for col in ("mag", "rrup", "vs30")
     )
     inputs = (
         _core.P21Inputs.interface(mag, rrup, vs30)
-        if tect_type is TectType.SUBDUCTION_INTERFACE
+        if tect_type is constants.TectType.SUBDUCTION_INTERFACE
         else _core.P21Inputs.slab(
             mag,
             rrup,
@@ -73,9 +77,12 @@ def run_p21(
             rupture_df["backarc"].to_numpy(dtype=np.bool_),
         )
     )
-    return evaluate_ims(
+    return utils.evaluate_ims(
         lambda core_im: _core.p21(
-            inputs, core_im, SIGMA_MU_EPSILON[epistemic_branch], modified_sigma
+            inputs,
+            core_im,
+            constants.SIGMA_MU_EPSILON[epistemic_branch],
+            modified_sigma,
         ),
         rupture_df.index,
         im,

@@ -11,13 +11,11 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from gm_models import _core
-from gm_models.constants import SIGMA_MU_EPSILON, EpistemicBranch, TectType
-from gm_models.utils import evaluate_ims, validate_columns
+from . import _core, constants, utils
 
 
 def _inputs(
-    tect_type: TectType,
+    tect_type: constants.TectType,
     rupture_df: pd.DataFrame,
     required: set[str],
     z1pt0: np.ndarray,
@@ -48,16 +46,19 @@ def _inputs(
     ValueError
         If `tect_type` is unsupported, or `rupture_df` is missing columns.
     """
-    if tect_type not in (TectType.SUBDUCTION_INTERFACE, TectType.SUBDUCTION_SLAB):
+    if tect_type not in (
+        constants.TectType.SUBDUCTION_INTERFACE,
+        constants.TectType.SUBDUCTION_SLAB,
+    ):
         raise ValueError(
             f"Kuehn et al. (2020) does not support tectonic type {tect_type}"
         )
-    validate_columns(rupture_df, required)
+    utils.validate_columns(rupture_df, required)
     mag, rrup, vs30, ztor = (
         rupture_df[col].to_numpy(dtype=np.float64)
         for col in ("mag", "rrup", "vs30", "ztor")
     )
-    if tect_type is TectType.SUBDUCTION_INTERFACE:
+    if tect_type is constants.TectType.SUBDUCTION_INTERFACE:
         return _core.K20Inputs.interface(mag, rrup, vs30, ztor, z1pt0)
     return _core.K20Inputs.slab(
         mag,
@@ -70,11 +71,11 @@ def _inputs(
 
 
 def run_k20(
-    tect_type: TectType,
+    tect_type: constants.TectType,
     rupture_df: pd.DataFrame,
     im: str,
     periods: Sequence[float] | None = None,
-    epistemic_branch: EpistemicBranch = EpistemicBranch.CENTRAL,
+    epistemic_branch: constants.EpistemicBranch = constants.EpistemicBranch.CENTRAL,
     modified_sigma: bool = True,
 ) -> xr.Dataset:
     """Run the K_20 (NZ NSHM2022 Kuehn et al. 2020) model, global (GLO) region.
@@ -111,7 +112,7 @@ def run_k20(
         If `tect_type` is unsupported, or `rupture_df` is missing columns.
     """
     required = {"mag", "rrup", "vs30", "ztor"}
-    if tect_type is TectType.SUBDUCTION_SLAB:
+    if tect_type is constants.TectType.SUBDUCTION_SLAB:
         required.add("backarc")
     inputs = _inputs(
         tect_type,
@@ -120,12 +121,15 @@ def run_k20(
         # No basin term in the global region: NaN depths are ignored.
         np.full(len(rupture_df), np.nan),
         rupture_df["backarc"].to_numpy(dtype=np.bool_)
-        if tect_type is TectType.SUBDUCTION_SLAB
+        if tect_type is constants.TectType.SUBDUCTION_SLAB
         else None,
     )
-    return evaluate_ims(
+    return utils.evaluate_ims(
         lambda core_im: _core.k20(
-            inputs, core_im, SIGMA_MU_EPSILON[epistemic_branch], modified_sigma
+            inputs,
+            core_im,
+            constants.SIGMA_MU_EPSILON[epistemic_branch],
+            modified_sigma,
         ),
         rupture_df.index,
         im,
@@ -141,7 +145,7 @@ def run_k20(
 
 
 def run_k20_nz(
-    tect_type: TectType,
+    tect_type: constants.TectType,
     rupture_df: pd.DataFrame,
     im: str,
     periods: Sequence[float] | None = None,
@@ -174,7 +178,7 @@ def run_k20_nz(
         If `tect_type` is unsupported, `rupture_df` is missing columns, or
         ``z1pt0`` looks like metres (any value of 10 or more), as in `oq_wrapper`.
     """
-    validate_columns(rupture_df, {"z1pt0"})
+    utils.validate_columns(rupture_df, {"z1pt0"})
     z1pt0 = rupture_df["z1pt0"].to_numpy(dtype=np.float64)
     if np.any(z1pt0 >= 10):
         raise ValueError(
@@ -188,7 +192,7 @@ def run_k20_nz(
         z1pt0 * 1000,
         None,
     )
-    return evaluate_ims(
+    return utils.evaluate_ims(
         lambda core_im: _core.k20_nz(inputs, core_im),
         rupture_df.index,
         im,

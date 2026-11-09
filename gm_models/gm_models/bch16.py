@@ -11,18 +11,16 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from gm_models import _core
-from gm_models.constants import TectType
-from gm_models.utils import evaluate_ims, validate_columns
+from . import _core, constants, utils
 
 _REQUIRED_COLUMNS = {
-    TectType.SUBDUCTION_INTERFACE: {"mag", "rrup", "vs30"},
-    TectType.SUBDUCTION_SLAB: {"mag", "rhypo", "vs30", "hypo_depth"},
+    constants.TectType.SUBDUCTION_INTERFACE: {"mag", "rrup", "vs30"},
+    constants.TectType.SUBDUCTION_SLAB: {"mag", "rhypo", "vs30", "hypo_depth"},
 }
 
 
 def run_bch16(
-    tect_type: TectType,
+    tect_type: constants.TectType,
     rupture_df: pd.DataFrame,
     im: str,
     periods: Sequence[float] | None = None,
@@ -58,7 +56,7 @@ def run_bch16(
     """
     if tect_type not in _REQUIRED_COLUMNS:
         raise ValueError(f"BCH_16 does not support tectonic type {tect_type}")
-    validate_columns(rupture_df, _REQUIRED_COLUMNS[tect_type])
+    utils.validate_columns(rupture_df, _REQUIRED_COLUMNS[tect_type])
 
     mag, vs30 = (rupture_df[col].to_numpy(dtype=np.float64) for col in ("mag", "vs30"))
     xvf = (
@@ -70,7 +68,7 @@ def run_bch16(
         _core.Bch16Inputs.interface(
             mag, rupture_df["rrup"].to_numpy(dtype=np.float64), vs30, xvf
         )
-        if tect_type is TectType.SUBDUCTION_INTERFACE
+        if tect_type is constants.TectType.SUBDUCTION_INTERFACE
         else _core.Bch16Inputs.slab(
             mag,
             rupture_df["rhypo"].to_numpy(dtype=np.float64),
@@ -79,7 +77,7 @@ def run_bch16(
             rupture_df["hypo_depth"].to_numpy(dtype=np.float64),
         )
     )
-    return evaluate_ims(
+    return utils.evaluate_ims(
         lambda core_im: _core.bch16(inputs, core_im),
         rupture_df.index,
         im,

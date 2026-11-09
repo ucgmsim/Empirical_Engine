@@ -10,17 +10,15 @@ from collections.abc import Sequence
 import pandas as pd
 import xarray as xr
 
-from gm_models import _core
-from gm_models.constants import SIGMA_MU_EPSILON, EpistemicBranch, TectType
-from gm_models.utils import evaluate_ims, validate_columns
+from . import _core, constants, utils
 
 
 def run_bssa14(
-    tect_type: TectType,
+    tect_type: constants.TectType,
     rupture_df: pd.DataFrame,
     im: str,
     periods: Sequence[float] | None = None,
-    epistemic_branch: EpistemicBranch = EpistemicBranch.CENTRAL,
+    epistemic_branch: constants.EpistemicBranch = constants.EpistemicBranch.CENTRAL,
 ) -> xr.Dataset:
     """Run the BSSA_14 (Boore et al. 2014) model, global model without basin term.
 
@@ -52,16 +50,19 @@ def run_bssa14(
     ValueError
         If `tect_type` is not active shallow or volcanic, or columns are missing.
     """
-    if tect_type not in (TectType.ACTIVE_SHALLOW, TectType.VOLCANIC):
+    if tect_type not in (
+        constants.TectType.ACTIVE_SHALLOW,
+        constants.TectType.VOLCANIC,
+    ):
         raise ValueError(f"BSSA_14 does not support tect_type {tect_type}")
     columns = ("mag", "rake", "rjb", "rrup", "vs30")
-    validate_columns(rupture_df, set(columns))
+    utils.validate_columns(rupture_df, set(columns))
     inputs = _core.Bssa14Inputs(
         *(rupture_df[col].to_numpy(dtype="float64") for col in columns)
     )
-    return evaluate_ims(
+    return utils.evaluate_ims(
         lambda core_im: _core.bssa14(
-            inputs, core_im, SIGMA_MU_EPSILON[epistemic_branch]
+            inputs, core_im, constants.SIGMA_MU_EPSILON[epistemic_branch]
         ),
         rupture_df.index,
         im,

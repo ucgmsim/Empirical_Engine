@@ -11,9 +11,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from gm_models import _core
-from gm_models.constants import SIGMA_MU_EPSILON, EpistemicBranch, TectType
-from gm_models.utils import evaluate_ims, validate_columns
+from . import _core, constants, utils
 
 _REQUIRED_COLUMNS = {
     "mag",
@@ -29,11 +27,11 @@ _REQUIRED_COLUMNS = {
 
 
 def run_cy14(
-    tect_type: TectType,
+    tect_type: constants.TectType,
     rupture_df: pd.DataFrame,
     im: str,
     periods: Sequence[float] | None = None,
-    epistemic_branch: EpistemicBranch = EpistemicBranch.CENTRAL,
+    epistemic_branch: constants.EpistemicBranch = constants.EpistemicBranch.CENTRAL,
 ) -> xr.Dataset:
     """Run the CY_14 (Chiou and Youngs, 2014) model with OpenQuake's default arguments.
 
@@ -67,9 +65,12 @@ def run_cy14(
         If `tect_type` is not active shallow or volcanic, or required columns
         are missing.
     """
-    if tect_type not in (TectType.ACTIVE_SHALLOW, TectType.VOLCANIC):
+    if tect_type not in (
+        constants.TectType.ACTIVE_SHALLOW,
+        constants.TectType.VOLCANIC,
+    ):
         raise ValueError(f"CY_14 does not support tectonic type {tect_type}")
-    validate_columns(rupture_df, _REQUIRED_COLUMNS)
+    utils.validate_columns(rupture_df, _REQUIRED_COLUMNS)
     if (rupture_df["z1pt0"] >= 10).any():
         raise ValueError(
             "Z1.0 values are too high. Did you pass in metre values instead of kilometres?"
@@ -94,8 +95,10 @@ def run_cy14(
         # km -> m, as oq_wrapper does for OpenQuake.
         rupture_df["z1pt0"].to_numpy(dtype=np.float64) * 1000,
     )
-    return evaluate_ims(
-        lambda core_im: _core.cy14(inputs, core_im, SIGMA_MU_EPSILON[epistemic_branch]),
+    return utils.evaluate_ims(
+        lambda core_im: _core.cy14(
+            inputs, core_im, constants.SIGMA_MU_EPSILON[epistemic_branch]
+        ),
         rupture_df.index,
         im,
         periods,

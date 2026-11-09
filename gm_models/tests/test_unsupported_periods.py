@@ -5,9 +5,7 @@ import math
 import pandas as pd
 import pytest
 
-from gm_models.constants import TectType
-from gm_models.p21 import run_p21
-from gm_models.za06 import run_za06
+import gm_models as gmm
 
 RUPTURES = pd.DataFrame(
     {
@@ -22,11 +20,15 @@ RUPTURES = pd.DataFrame(
 
 def test_period_above_table_raises_unless_za06_extrapolates() -> None:
     with pytest.raises(ValueError, match="period"):
-        run_za06(TectType.SUBDUCTION_INTERFACE, RUPTURES, "pSA", periods=[6.0])
+        gmm.run_za06(
+            gmm.constants.TectType.SUBDUCTION_INTERFACE, RUPTURES, "pSA", periods=[6.0]
+        )
     with pytest.raises(ValueError, match="period"):
-        run_p21(TectType.SUBDUCTION_INTERFACE, RUPTURES, "pSA", periods=[12.0])
-    ds = run_za06(
-        TectType.SUBDUCTION_INTERFACE,
+        gmm.run_p21(
+            gmm.constants.TectType.SUBDUCTION_INTERFACE, RUPTURES, "pSA", periods=[12.0]
+        )
+    ds = gmm.run_za06(
+        gmm.constants.TectType.SUBDUCTION_INTERFACE,
         RUPTURES,
         "pSA",
         periods=[5.0, 6.0],

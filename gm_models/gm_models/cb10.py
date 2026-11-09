@@ -10,15 +10,13 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from gm_models import _core
-from gm_models.constants import TectType
-from gm_models.utils import evaluate_ims, validate_columns
+from . import _core, constants, utils
 
 _COLUMNS = ("mag", "dip", "rake", "ztor", "rrup", "rjb", "vs30", "z2pt5")
 
 
 def run_cb10(
-    tect_type: TectType,
+    tect_type: constants.TectType,
     rupture_df: pd.DataFrame,
     im: str,
     periods: Sequence[float] | None = None,
@@ -51,14 +49,14 @@ def run_cb10(
         If `tect_type` is not active shallow, or `rupture_df` is missing
         columns.
     """
-    if tect_type is not TectType.ACTIVE_SHALLOW:
+    if tect_type is not constants.TectType.ACTIVE_SHALLOW:
         raise ValueError(f"CB_10 does not support tectonic type {tect_type}")
-    validate_columns(rupture_df, set(_COLUMNS))
+    utils.validate_columns(rupture_df, set(_COLUMNS))
 
     inputs = _core.CB10Inputs(
         *(rupture_df[col].to_numpy(dtype=np.float64) for col in _COLUMNS)
     )
-    return evaluate_ims(
+    return utils.evaluate_ims(
         lambda core_im: _core.cb10(inputs, core_im),
         rupture_df.index,
         im,

@@ -11,23 +11,15 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from gm_models import _core
-from gm_models.constants import EpistemicBranch, TectType
-from gm_models.utils import evaluate_ims, validate_columns
-
-_BRANCHES = {
-    EpistemicBranch.LOWER: _core.Branch.Lower,
-    EpistemicBranch.CENTRAL: _core.Branch.Central,
-    EpistemicBranch.UPPER: _core.Branch.Upper,
-}
+from . import _core, constants, utils
 
 
 def run_a22(
-    tect_type: TectType,
+    tect_type: constants.TectType,
     rupture_df: pd.DataFrame,
     im: str,
     periods: Sequence[float] | None = None,
-    epistemic_branch: EpistemicBranch = EpistemicBranch.CENTRAL,
+    epistemic_branch: constants.EpistemicBranch = constants.EpistemicBranch.CENTRAL,
     modified_sigma: bool = True,
 ) -> xr.Dataset:
     """Run the A_22 (Atkinson 2022 NZ NSHM backbone) model.
@@ -65,27 +57,27 @@ def run_a22(
         If `tect_type` is unsupported, `rupture_df` lacks required columns, or
         `im` is not defined by the model.
     """
-    if tect_type not in TectType:
+    if tect_type not in constants.TectType:
         raise ValueError(f"Unsupported tect_type {tect_type!r}")
     required = {"mag", "rrup", "vs30"}
-    if tect_type is TectType.SUBDUCTION_SLAB:
+    if tect_type is constants.TectType.SUBDUCTION_SLAB:
         required.add("backarc")
-    validate_columns(rupture_df, required)
+    utils.validate_columns(rupture_df, required)
 
     mag, rrup, vs30 = (
         rupture_df[col].to_numpy(dtype=np.float64) for col in ("mag", "rrup", "vs30")
     )
-    if tect_type is TectType.SUBDUCTION_SLAB:
+    if tect_type is constants.TectType.SUBDUCTION_SLAB:
         inputs = _core.A22Inputs.slab(
             mag, rrup, vs30, rupture_df["backarc"].to_numpy(dtype=np.bool_)
         )
-    elif tect_type is TectType.SUBDUCTION_INTERFACE:
+    elif tect_type is constants.TectType.SUBDUCTION_INTERFACE:
         inputs = _core.A22Inputs.interface(mag, rrup, vs30)
     else:
         inputs = _core.A22Inputs.crust(mag, rrup, vs30)
-    return evaluate_ims(
+    return utils.evaluate_ims(
         lambda core_im: _core.a22(
-            inputs, core_im, _BRANCHES[epistemic_branch], modified_sigma
+            inputs, core_im, constants.CORE_BRANCHES[epistemic_branch], modified_sigma
         ),
         rupture_df.index,
         im,

@@ -11,19 +11,17 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from gm_models import _core
-from gm_models.constants import SIGMA_MU_EPSILON, EpistemicBranch, TectType
-from gm_models.utils import estimate_width_ask14, evaluate_ims, validate_columns
+from . import _core, constants, utils
 
 _REQUIRED_COLUMNS = {"mag", "rrup", "rx", "dip", "ztor", "rake", "vs30", "z1pt0"}
 
 
 def run_ask14(
-    tect_type: TectType,
+    tect_type: constants.TectType,
     rupture_df: pd.DataFrame,
     im: str,
     periods: Sequence[float] | None = None,
-    epistemic_branch: EpistemicBranch = EpistemicBranch.CENTRAL,
+    epistemic_branch: constants.EpistemicBranch = constants.EpistemicBranch.CENTRAL,
 ) -> xr.Dataset:
     """Run the ASK_14 (Abrahamson et al. 2014) model, default California model, mainshocks.
 
@@ -58,9 +56,12 @@ def run_ask14(
         If `tect_type` is not active shallow or volcanic, columns are missing,
         z1pt0 looks like metres, or `rupture_df` flags aftershocks.
     """
-    if tect_type not in (TectType.ACTIVE_SHALLOW, TectType.VOLCANIC):
+    if tect_type not in (
+        constants.TectType.ACTIVE_SHALLOW,
+        constants.TectType.VOLCANIC,
+    ):
         raise ValueError(f"ASK_14 does not support tect_type {tect_type}")
-    validate_columns(rupture_df, _REQUIRED_COLUMNS)
+    utils.validate_columns(rupture_df, _REQUIRED_COLUMNS)
     if rupture_df.get("is_aftershock", pd.Series(False)).any():
         raise ValueError("ASK_14 aftershock scaling is not supported")
     if (rupture_df["z1pt0"] >= 10).any():
@@ -88,7 +89,7 @@ def run_ask14(
     width = (
         column("width")
         if "width" in rupture_df
-        else estimate_width_ask14(column("dip"), column("mag"))
+        else utils.estimate_width_ask14(column("dip"), column("mag"))
     )
     vs30measured = (
         rupture_df["vs30measured"].to_numpy(dtype=np.bool_)
@@ -108,9 +109,9 @@ def run_ask14(
         column("z1pt0") * 1000,  # km -> m, as oq_wrapper does for OpenQuake
         vs30measured,
     )
-    return evaluate_ims(
+    return utils.evaluate_ims(
         lambda core_im: _core.ask14(
-            inputs, core_im, SIGMA_MU_EPSILON[epistemic_branch]
+            inputs, core_im, constants.SIGMA_MU_EPSILON[epistemic_branch]
         ),
         rupture_df.index,
         im,
