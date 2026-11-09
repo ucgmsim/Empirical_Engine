@@ -34,8 +34,9 @@ def run_bch16(
     rupture_df : pd.DataFrame
         Rupture/site dataframe. Must contain ``mag``, ``vs30`` and ``rrup``
         (interface) or ``rhypo`` and ``hypo_depth`` (slab). The optional
-        ``xvf`` column (signed distance to the volcanic front in km, negative
-        on the forearc side) defaults to 0, as in `oq_wrapper`.
+        ``xvf`` column (signed distance to the volcanic front in km, positive
+        on the forearc side, negative on the backarc side) defaults to 0, as in
+        `oq_wrapper`.
     im : str
         Intensity measure: one of ``"PGA"``, ``"pSA"``.
     periods : Sequence[float], optional

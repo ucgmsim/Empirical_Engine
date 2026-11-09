@@ -60,7 +60,8 @@ const C1: f64 = 7.8;
 const DC1_SLAB: f64 = -0.3;
 
 /// BCH_16 input columns, one value per rupture-site pair. `xvf` is the signed
-/// distance to the volcanic front (km, negative on the forearc side). The slab
+/// distance to the volcanic front (km, positive on the forearc side, negative on
+/// the backarc side, as in OpenQuake). The slab
 /// model uses hypocentral distance and depth. Exposed to Python as
 /// `gm_models._core.Bch16Inputs`, built with `Bch16Inputs.interface(...)` or
 /// `Bch16Inputs.slab(...)`. Column lengths are checked in [`Bch16Inputs::iter`].
@@ -295,7 +296,7 @@ pub fn compute(c: &Bch16Coeffs, c_pga: &Bch16Coeffs, row: &Bch16Row) -> MeanStd 
             + c.theta6 * dist
             + theta10;
         // ESHM20 forearc/backarc term with the "Step" taper: applied in full
-        // for xvf < 0, not at all otherwise.
+        // for backarc sites (xvf < 0), not at all for forearc ones.
         let faba_term = if -xvf > 0.0 {
             faba_a + faba_b * (dist.max(faba_min_dist) / 40.0).ln()
         } else {

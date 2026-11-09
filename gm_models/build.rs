@@ -304,7 +304,7 @@ impl Coeffs {{
     /// `CoeffsTable.__getitem__` (`opt=0`, `logratio=True`): the tabulated row
     /// if there is one, else linear interpolation in ln(period) between the
     /// neighbouring rows, else (below the smallest SA period, if the table
-    /// has PGA) interpolation from PGA anchored at {{PGA_ANCHOR}} s. Other
+    /// has PGA) interpolation from PGA anchored at [`PGA_ANCHOR`]. Other
     /// periods are errors.
     pub fn for_sa_period(period: f64) -> Result<Self, GMMError> {{
         let (min, max) = (SA_PERIODS[0], SA_PERIODS[SA_PERIODS.len() - 1]);
