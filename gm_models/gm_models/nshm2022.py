@@ -62,7 +62,7 @@ def run_nshm2022(
     tect_type: constants.TectType,
     rupture_df: pd.DataFrame,
     im: str,
-    periods: Sequence[float],
+    periods: Sequence[float] | np.ndarray,
 ) -> xr.Dataset:
     """Run the NZ NSHM 2022 GMCM logic tree.
 
@@ -80,7 +80,7 @@ def run_nshm2022(
         needs (the parameters of its inputs constructors, see `Model`).
     im : str
         Intensity measure, only ``"pSA"`` (the logic tree defines no other).
-    periods : Sequence[float]
+    periods : Sequence[float] or np.ndarray
         Periods to compute.
 
     Returns

@@ -163,12 +163,8 @@ class AG20Inputs:
     ) -> AG20Inputs:
         """Subduction slab inputs."""
 
-def ag20(
-    inputs: AG20Inputs,
-    im: IM,
-    new_zealand_region: bool,
-    sigma_mu_epsilon: float,
-) -> GMMResult: ...
+def ag20(inputs: AG20Inputs, im: IM, sigma_mu_epsilon: float) -> GMMResult: ...
+def ag20_nz(inputs: AG20Inputs, im: IM) -> GMMResult: ...
 
 class Branch:
     """Epistemic mean branch."""
@@ -300,8 +296,8 @@ def cy14(
 class Br13Inputs:
     """Br13 input columns, one value per rupture-site pair (z1pt0 in metres)."""
 
-    def __init__(
-        self,
+    @staticmethod
+    def crust(
         mag: npt.NDArray[np.float64],
         dip: npt.NDArray[np.float64],
         rake: npt.NDArray[np.float64],
@@ -313,14 +309,26 @@ class Br13Inputs:
         vs30measured: npt.NDArray[np.bool_],
         z1pt0: npt.NDArray[np.float64],
         is_aftershock: npt.NDArray[np.bool_],
-    ) -> None: ...
+    ) -> Br13Inputs:
+        """Active shallow crust inputs (`Bradley2013`)."""
 
-def br13(
-    inputs: Br13Inputs,
-    im: IM,
-    sigma_mu_epsilon: float,
-    volcanic: bool,
-) -> GMMResult: ...
+    @staticmethod
+    def volcanic(
+        mag: npt.NDArray[np.float64],
+        dip: npt.NDArray[np.float64],
+        rake: npt.NDArray[np.float64],
+        ztor: npt.NDArray[np.float64],
+        rrup: npt.NDArray[np.float64],
+        rjb: npt.NDArray[np.float64],
+        rx: npt.NDArray[np.float64],
+        vs30: npt.NDArray[np.float64],
+        vs30measured: npt.NDArray[np.bool_],
+        z1pt0: npt.NDArray[np.float64],
+        is_aftershock: npt.NDArray[np.bool_],
+    ) -> Br13Inputs:
+        """Volcanic inputs (`Bradley2013Volc`)."""
+
+def br13(inputs: Br13Inputs, im: IM, sigma_mu_epsilon: float) -> GMMResult: ...
 
 class CB14Inputs:
     """CB14 input columns, one value per rupture-site pair (degrees, km)."""

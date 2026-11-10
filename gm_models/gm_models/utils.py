@@ -49,9 +49,9 @@ def evaluate_ims(
     compute: Callable[[_core.IM], _core.GMMResult],
     index: pd.Index,
     im: str,
-    periods: Sequence[float] | None = None,
+    periods: Sequence[float] | np.ndarray | None = None,
     attrs: dict[str, str | int | float] | None = None,
-    frequencies: Sequence[float] | None = None,
+    frequencies: Sequence[float] | np.ndarray | None = None,
 ) -> xr.Dataset:
     """Evaluate a model for one IM type and collect the results in a Dataset.
 
@@ -65,11 +65,11 @@ def evaluate_ims(
     im : str
         Intensity measure: ``"pSA"``, ``"EAS"``, or one of ``"PGA"``,
         ``"PGV"``, ``"CAV"``, ``"Ds575"``, ``"Ds595"``, ``"Ds2080"``.
-    periods : Sequence[float], optional
+    periods : Sequence[float] or np.ndarray, optional
         Periods to compute, required if `im` is ``"pSA"``. Ignored otherwise.
     attrs : dict[str, str | int | float], optional
         Extra Dataset attributes, e.g. the model name and its settings.
-    frequencies : Sequence[float], optional
+    frequencies : Sequence[float] or np.ndarray, optional
         Frequencies (Hz) to compute, required if `im` is ``"EAS"``. Ignored
         otherwise.
 

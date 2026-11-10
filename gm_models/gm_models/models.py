@@ -91,9 +91,9 @@ class Model:
         tect_type: TectType,
         rupture_df: pd.DataFrame,
         im: str,
-        periods: Sequence[float] | None = None,
+        periods: Sequence[float] | np.ndarray | None = None,
         *,
-        frequencies: Sequence[float] | None = None,
+        frequencies: Sequence[float] | np.ndarray | None = None,
         epistemic_branch: EpistemicBranch | None = None,
         modified_sigma: bool | None = None,
         **options: bool,
@@ -109,9 +109,9 @@ class Model:
             `tect_type` (a missing one is reported).
         im : str
             Intensity measure, see `gm_models.utils.evaluate_ims`.
-        periods : Sequence[float], optional
+        periods : Sequence[float] or np.ndarray, optional
             Periods to compute, required if `im` is ``"pSA"``.
-        frequencies : Sequence[float], optional
+        frequencies : Sequence[float] or np.ndarray, optional
             Frequencies (Hz) to compute, required if `im` is ``"EAS"``.
         epistemic_branch : EpistemicBranch, optional
             Epistemic branch, `EpistemicBranch.CENTRAL` by default. Only for
@@ -169,7 +169,10 @@ class Model:
 
         # Attributes as int where bool: netCDF attributes can't be bool.
         args: list[object] = []
-        attrs: dict[str, str | int] = {"model": self.name, "tect_type": str(tect_type)}
+        attrs: dict[str, str | int | float] = {
+            "model": self.name,
+            "tect_type": str(tect_type),
+        }
         if self.epistemic is not None:
             epistemic_branch = epistemic_branch or EpistemicBranch.CENTRAL
             args.append(self.epistemic[epistemic_branch])
@@ -191,6 +194,7 @@ class Model:
 
 
 _CRUSTAL = (TectType.ACTIVE_SHALLOW, TectType.VOLCANIC)
+
 
 def _reject_aftershocks(rupture_df: pd.DataFrame) -> None:
     """Raise ``ValueError`` if `rupture_df` flags aftershocks (ASK_14 has no aftershock term).
