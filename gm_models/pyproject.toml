@@ -20,6 +20,10 @@ dependencies = [
 [tool.setuptools_scm]
 root = ".."
 
+# Each package is released from its own tags, e.g. gm_models-v2026.11.1.
+[tool.setuptools_scm.scm.git]
+describe_command = "git describe --dirty --tags --long --match gm_models-v*"
+
 [project.optional-dependencies]
 test = ["pytest", "pyarrow"]
 types = ["pandas-stubs"]
