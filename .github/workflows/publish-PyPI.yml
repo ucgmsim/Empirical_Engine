@@ -57,7 +57,7 @@ jobs:
         with:
           name: ${{ needs.build.outputs.artifact-name }}
           path: dist/
-      - uses: pypa/gh-action-pypi-publish@v1.13.0
+      - uses: pypa/gh-action-pypi-publish@v1.14.3
         with:
           # Prints PyPI's response, which carries the reason an upload is rejected.
           verbose: true
