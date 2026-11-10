@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=77", "setuptools-scm", "setuptools-rust>=1.1.0"]
+requires = ["setuptools>=77", "setuptools-scm>=9", "setuptools-rust>=1.1.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -19,6 +19,10 @@ dependencies = [
 
 [tool.setuptools_scm]
 root = ".."
+
+# Each package is released from its own tags, e.g. gm_models-v2026.11.1.
+[tool.setuptools_scm.scm.git]
+describe_command = "git describe --dirty --tags --long --match gm_models-v*"
 
 [project.optional-dependencies]
 test = ["pytest", "pyarrow"]
