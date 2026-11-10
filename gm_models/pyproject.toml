@@ -27,6 +27,8 @@ dev = ["ruff", "deptry", "ty"]
 
 [tool.deptry]
 pep621_dev_dependency_groups = ["test", "dev", "types"]
+# Scripts run in an OpenQuake environment, not gm_models' own.
+extend_exclude = ["scripts"]
 
 [tool.setuptools.packages]
 find = { where = ["."], include = ["gm_models"], exclude = ["tests", "src-rust"] }

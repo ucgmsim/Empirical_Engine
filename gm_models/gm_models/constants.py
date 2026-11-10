@@ -2,10 +2,14 @@
 
 from enum import StrEnum
 
+from . import _core
+
 
 class TectType(StrEnum):
     """Tectonic type."""
 
+    ACTIVE_SHALLOW = "ACTIVE_SHALLOW"
+    VOLCANIC = "VOLCANIC"
     SUBDUCTION_INTERFACE = "SUBDUCTION_INTERFACE"
     SUBDUCTION_SLAB = "SUBDUCTION_SLAB"
 
@@ -25,4 +29,12 @@ SIGMA_MU_EPSILON = {
     EpistemicBranch.LOWER: -1.2815,
     EpistemicBranch.CENTRAL: 0.0,
     EpistemicBranch.UPPER: 1.2815,
+}
+
+# Epistemic branch -> Rust branch, for the models with asymmetric branches
+# (A_22, S_22) rather than `sigma_mu_epsilon`.
+CORE_BRANCHES = {
+    EpistemicBranch.LOWER: _core.Branch.Lower,
+    EpistemicBranch.CENTRAL: _core.Branch.Central,
+    EpistemicBranch.UPPER: _core.Branch.Upper,
 }

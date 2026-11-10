@@ -5,7 +5,7 @@
 //! (backarc term, "modified sigma" model, epistemic sigma_mu adjustment)
 //! and `openquake.hazardlib.gsim.parker_2020` (magnitude/path/depth/site
 //! terms, original sigma model), specialised to
-//! `region=None, saturation_region=None, basin=None` — the only
+//! `region=None, saturation_region=None, basin=None`, the only
 //! configuration `oq_wrapper`'s NSHM2022 logic tree ever instantiates
 //! this model with. That means the basin term (which requires `z2pt5`
 //! and is 0 whenever a rupture context has no `z2pt5`) is always 0 and
@@ -30,12 +30,13 @@ pub mod coeffs {
 }
 
 use crate::error::GMMError;
+use crate::gmm::{evaluate, GMM};
 use crate::im::IM;
-use crate::nz22_const::{PERIODS, PERIODS_AG20, RHO_BS, RHO_WS, THETA7S, THETA8S};
+use crate::nz22_const::{backarc_term, PERIODS_AG20, RHO_BS, RHO_WS};
 use crate::result::{GMMResult, MeanStd};
-use crate::utils::{check_lengths, log_interp};
-use coeffs::{Coeffs, PGA_COEFFS, PGV_COEFFS, SA_COEFFS, SA_PERIODS};
-use numpy::PyReadonlyArray1;
+use crate::row_inputs;
+use crate::utils::log_interp;
+use coeffs::{Coeffs, PGA_COEFFS};
 use pyo3::prelude::*;
 
 /// b4 in Eq. 2.
@@ -57,163 +58,19 @@ const V2: f64 = 500.0;
 const MB_DEFAULT_INTERFACE: f64 = 7.9;
 const MB_DEFAULT_SLAB: f64 = 7.6;
 
-/// P21 input columns, one value per rupture-site pair. Slab-only columns
-/// exist only on the `Slab` variant. Exposed to Python as
-/// `gm_models._core.P21Inputs`, built with `P21Inputs.interface(...)` or
-/// `P21Inputs.slab(...)`. Column lengths are checked in [`P21Inputs::iter`].
-#[pyclass(frozen, module = "gm_models._core")]
-#[derive(Debug)]
-pub enum P21Inputs {
-    Interface {
-        mag: Vec<f64>,
-        rrup: Vec<f64>,
-        vs30: Vec<f64>,
-    },
-    Slab {
-        mag: Vec<f64>,
-        rrup: Vec<f64>,
-        vs30: Vec<f64>,
-        hypo_depth: Vec<f64>,
-        backarc: Vec<bool>,
-    },
-}
-
-/// A single row of [`P21Inputs`].
-#[derive(Debug, Clone, Copy)]
-pub enum P21Row {
-    Interface {
-        mag: f64,
-        rrup: f64,
-        vs30: f64,
-    },
-    Slab {
-        mag: f64,
-        rrup: f64,
-        vs30: f64,
-        hypo_depth: f64,
-        backarc: bool,
-    },
-}
-
-impl P21Inputs {
-    /// The rupture-site pairs, in order. Fails if the columns differ in length.
-    pub fn iter(&self) -> Result<impl Iterator<Item = P21Row> + '_, GMMError> {
-        let n = match self {
-            Self::Interface { mag, rrup, vs30 } => check_lengths(&[
-                ("mag", mag.len()),
-                ("rrup", rrup.len()),
-                ("vs30", vs30.len()),
-            ]),
-            Self::Slab {
-                mag,
-                rrup,
-                vs30,
-                hypo_depth,
-                backarc,
-            } => check_lengths(&[
-                ("mag", mag.len()),
-                ("rrup", rrup.len()),
-                ("vs30", vs30.len()),
-                ("hypo_depth", hypo_depth.len()),
-                ("backarc", backarc.len()),
-            ]),
-        }?;
-        Ok((0..n).map(move |i| match self {
-            Self::Interface { mag, rrup, vs30 } => P21Row::Interface {
-                mag: mag[i],
-                rrup: rrup[i],
-                vs30: vs30[i],
-            },
-            Self::Slab {
-                mag,
-                rrup,
-                vs30,
-                hypo_depth,
-                backarc,
-            } => P21Row::Slab {
-                mag: mag[i],
-                rrup: rrup[i],
-                vs30: vs30[i],
-                hypo_depth: hypo_depth[i],
-                backarc: backarc[i],
-            },
-        }))
+row_inputs! {
+    /// P21 inputs, one row per rupture-site pair. Exposed to Python as
+    /// `gm_models._core.P21Inputs`, built with `P21Inputs.interface(...)` or
+    /// `P21Inputs.slab(...)`.
+    P21Inputs, P21Row {
+        /// Subduction interface inputs.
+        Interface => interface { mag: f64, rrup: f64, vs30: f64 },
+        /// Subduction slab inputs.
+        Slab => slab { mag: f64, rrup: f64, vs30: f64, hypo_depth: f64, backarc: bool },
     }
 }
 
-#[pymethods]
-impl P21Inputs {
-    /// Subduction interface inputs.
-    #[staticmethod]
-    fn interface(
-        mag: PyReadonlyArray1<f64>,
-        rrup: PyReadonlyArray1<f64>,
-        vs30: PyReadonlyArray1<f64>,
-    ) -> Self {
-        Self::Interface {
-            mag: mag.as_array().to_vec(),
-            rrup: rrup.as_array().to_vec(),
-            vs30: vs30.as_array().to_vec(),
-        }
-    }
-
-    /// Subduction slab inputs.
-    #[staticmethod]
-    fn slab(
-        mag: PyReadonlyArray1<f64>,
-        rrup: PyReadonlyArray1<f64>,
-        vs30: PyReadonlyArray1<f64>,
-        hypo_depth: PyReadonlyArray1<f64>,
-        backarc: PyReadonlyArray1<bool>,
-    ) -> Self {
-        Self::Slab {
-            mag: mag.as_array().to_vec(),
-            rrup: rrup.as_array().to_vec(),
-            vs30: vs30.as_array().to_vec(),
-            hypo_depth: hypo_depth.as_array().to_vec(),
-            backarc: backarc.as_array().to_vec(),
-        }
-    }
-}
-
-impl Coeffs {
-    /// Coefficients for `im`. Fails only for SA periods above the largest
-    /// tabulated period.
-    pub fn for_im(im: IM) -> Result<Self, GMMError> {
-        match im {
-            IM::PGA {} => Ok(PGA_COEFFS),
-            IM::PGV {} => Ok(PGV_COEFFS),
-            IM::SA { period } => Self::for_period(period),
-        }
-    }
-
-    /// Coefficient-table lookup, reproducing OpenQuake's `CoeffsTable.__getitem__`
-    /// (`opt=0` path, see `openquake/hazardlib/gsim/coeffs_table.py:237-307`):
-    /// exact match if the period is tabulated; otherwise linear interpolation in
-    /// `ln(period)` between the nearest tabulated periods below and above; and,
-    /// only for periods below the smallest tabulated SA period, linear (not
-    /// log-linear) interpolation between PGA (treated as period 0) and the
-    /// smallest tabulated SA period.
-    fn for_period(period: f64) -> Result<Self, GMMError> {
-        let max = SA_PERIODS[SA_PERIODS.len() - 1];
-        if period.is_nan() || period > max {
-            return Err(GMMError::UnsupportedPeriod { period, max });
-        }
-        // First index with SA_PERIODS[i] >= period; SA_PERIODS is ascending.
-        let i = SA_PERIODS.partition_point(|&p| p < period);
-        if SA_PERIODS[i] == period {
-            return Ok(SA_COEFFS[i]);
-        }
-        if i == 0 {
-            return Ok(PGA_COEFFS.interp(&SA_COEFFS[0], period / SA_PERIODS[0]));
-        }
-        let (below, above) = (SA_PERIODS[i - 1].ln(), SA_PERIODS[i].ln());
-        let ratio = (period.ln() - below) / (above - below);
-        Ok(SA_COEFFS[i - 1].interp(&SA_COEFFS[i], ratio))
-    }
-}
-
-/// (c0, c1, a0, c4, c5, c6) for the given tectonic type — interface reads the
+/// (c0, c1, a0, c4, c5, c6) for the given tectonic type: interface reads the
 /// unsuffixed columns, slab reads the `*slab` columns (`SUFFIX` in the
 /// Python source).
 fn select(row: &P21Row, c: &Coeffs) -> (f64, f64, f64, f64, f64, f64) {
@@ -266,25 +123,6 @@ fn depth_scaling(hypo_depth: f64, d: f64, m: f64, db: f64) -> f64 {
 /// f2, Eq. 10.
 fn f2(f4: f64, f5: f64, vs30: f64) -> f64 {
     f4 * ((f5 * (vs30.min(VREF_FNL) - VB)).exp() - (f5 * (VREF_FNL - VB)).exp())
-}
-
-/// BC Hydro 2016 / Abrahamson et al. (2016)-style backarc correction.
-/// NZ-specific; applied only to slab backarc sites.
-fn backarc_term(im: IM, rrup: f64) -> Result<f64, GMMError> {
-    let w_epi_factor = 1.008;
-    let min_dist = 85.0;
-    let (theta7, theta8) = match im {
-        IM::SA { period } if period >= 0.02 => (
-            log_interp(&PERIODS[1..], &THETA7S[1..], period)?,
-            log_interp(&PERIODS[1..], &THETA8S[1..], period)?,
-        ),
-        // Includes PGV: OpenQuake's "no correction for PGV" branch tests
-        // `imt.period < 0`, but `PGV().period` is 0.0, so PGV gets the PGA
-        // correction. Reproduced here since we verify against OpenQuake output.
-        _ => (THETA7S[0], THETA8S[0]),
-    };
-    let dist = rrup.max(min_dist);
-    Ok((theta7 + theta8 * (dist / 40.0).ln()) * w_epi_factor)
 }
 
 /// Epistemic standard deviation sigma_e(T), Eq. 27, with the NZ-NSHM2022
@@ -364,10 +202,32 @@ fn stddevs_nonlinear(
     Ok(((tau2_nl + phi2_nl).sqrt(), tau2_nl.sqrt(), phi2_nl.sqrt()))
 }
 
-/// Mean + standard deviations for `NZNSHM2022_ParkerEtAl2020SInter` /
-/// `NZNSHM2022_ParkerEtAl2020SSlab` (global/GLO region), one value per
-/// rupture-site pair in `inputs`. The tectonic type is set by how
-/// `inputs` was built (`P21Inputs.interface` or `P21Inputs.slab`).
+/// The P_21 model: `NZNSHM2022_ParkerEtAl2020SInter` /
+/// `NZNSHM2022_ParkerEtAl2020SSlab` (global/GLO region). SA periods outside
+/// the table are an error.
+pub struct P21;
+
+impl GMM for P21 {
+    type Row = P21Row;
+    type Coeffs = Coeffs;
+    /// `sigma_mu_epsilon` and `modified_sigma`.
+    type Params = (f64, bool);
+
+    fn coeffs(im: IM, _: Self::Params) -> Result<Coeffs, GMMError> {
+        Coeffs::for_im(im)
+    }
+
+    fn compute(
+        im: IM,
+        c: &Coeffs,
+        row: &P21Row,
+        (sigma_mu_epsilon, modified_sigma): Self::Params,
+    ) -> Result<MeanStd, GMMError> {
+        compute(im, c, row, sigma_mu_epsilon, modified_sigma)
+    }
+}
+
+/// [`P21`] for every row. The tectonic type is set by how `inputs` was built.
 /// Exposed to Python as `gm_models._core.p21`.
 #[pyfunction]
 pub fn p21(
@@ -377,16 +237,7 @@ pub fn p21(
     sigma_mu_epsilon: f64,
     modified_sigma: bool,
 ) -> PyResult<GMMResult> {
-    let coeffs = Coeffs::for_im(im)?;
-    let inputs = &*inputs;
-    // Releases the GIL: `inputs` owns copies of the arrays, so no Python object
-    // is touched while other threads run.
-    Ok(py.detach(|| {
-        inputs
-            .iter()?
-            .map(|row| compute(im, &coeffs, &row, sigma_mu_epsilon, modified_sigma))
-            .collect::<Result<GMMResult, _>>()
-    })?)
+    evaluate::<P21>(py, &inputs.rows, im, (sigma_mu_epsilon, modified_sigma))
 }
 
 /// Computes mean + standard deviations for a single site/rupture pair.
@@ -537,6 +388,7 @@ mod tests {
 mod proptests {
     use super::*;
     use approx::relative_eq;
+    use coeffs::{SA_COEFFS, SA_PERIODS};
     use proptest::prelude::*;
 
     fn im() -> impl Strategy<Value = IM> {
@@ -602,34 +454,6 @@ mod proptests {
         for (&period, row) in SA_PERIODS.iter().zip(SA_COEFFS.iter()) {
             assert_eq!(Coeffs::for_im(IM::SA { period }).unwrap(), *row);
         }
-    }
-
-    #[test]
-    fn inputs_reject_mismatched_lengths_and_iterate_rows() {
-        let slab = |backarc: Vec<bool>| P21Inputs::Slab {
-            mag: vec![7.0, 8.0],
-            rrup: vec![10.0, 20.0],
-            vs30: vec![400.0, 500.0],
-            hypo_depth: vec![30.0, 40.0],
-            backarc,
-        };
-        assert!(slab(vec![true]).iter().is_err());
-        let rows: Vec<P21Row> = slab(vec![false, true]).iter().unwrap().collect();
-        assert!(matches!(
-            rows[..],
-            [
-                P21Row::Slab {
-                    mag: 7.0,
-                    backarc: false,
-                    ..
-                },
-                P21Row::Slab {
-                    mag: 8.0,
-                    backarc: true,
-                    ..
-                },
-            ]
-        ));
     }
 
     #[test]

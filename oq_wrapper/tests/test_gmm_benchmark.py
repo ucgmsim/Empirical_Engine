@@ -54,6 +54,17 @@ def test_gmm_benchmarks(benchmark_ffp: Path, shared_rupture_df: pd.DataFrame) ->
         ]
     )
 
+    # Get EAS frequencies
+    frequencies = (
+        None
+        if im != "EAS"
+        else [
+            float(col.removeprefix("EAS_").removesuffix("_mean"))
+            for col in bench_df.columns
+            if col.endswith("mean")
+        ]
+    )
+
     # Get the GMM and TectType
     gmm_name, tect_type_name = benchmark_ffp.stem.split("TectType")
     epistemic_branch = oqw.constants.EpistemicBranch.CENTRAL
@@ -74,6 +85,7 @@ def test_gmm_benchmarks(benchmark_ffp: Path, shared_rupture_df: pd.DataFrame) ->
             cur_rupture_df,
             im,
             periods=periods,
+            frequencies=frequencies,
             epistemic_branch=epistemic_branch,
         )
         assert_frame_equal(result_df, bench_df)

@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from gm_models import _core
+from . import _core
 
 
 def validate_columns(rupture_df: pd.DataFrame, required: set[str]) -> None:
@@ -24,12 +24,34 @@ def validate_columns(rupture_df: pd.DataFrame, required: set[str]) -> None:
         raise ValueError(f"rupture_df is missing required columns: {sorted(missing)}")
 
 
+# Scalar IMs, and the ln_mean units of every IM.
+_SCALAR_IMS = {
+    "PGA": _core.IM.PGA,
+    "PGV": _core.IM.PGV,
+    "CAV": _core.IM.CAV,
+    "Ds575": _core.IM.Ds575,
+    "Ds595": _core.IM.Ds595,
+    "Ds2080": _core.IM.Ds2080,
+}
+_UNITS = {
+    "PGA": "ln(g)",
+    "pSA": "ln(g)",
+    "PGV": "ln(cm/s)",
+    "CAV": "ln(g-s)",
+    "EAS": "ln(g-s)",
+    "Ds575": "ln(s)",
+    "Ds595": "ln(s)",
+    "Ds2080": "ln(s)",
+}
+
+
 def evaluate_ims(
     compute: Callable[[_core.IM], _core.GMMResult],
     index: pd.Index,
     im: str,
-    periods: Sequence[float] | None = None,
+    periods: Sequence[float] | np.ndarray | None = None,
     attrs: dict[str, str | int | float] | None = None,
+    frequencies: Sequence[float] | np.ndarray | None = None,
 ) -> xr.Dataset:
     """Evaluate a model for one IM type and collect the results in a Dataset.
 
@@ -41,50 +63,62 @@ def evaluate_ims(
         Rupture-site index, in the order `compute` returns values. Its name
         (``"index"`` if unnamed) becomes the site dimension.
     im : str
-        Intensity measure: one of ``"PGA"``, ``"PGV"``, ``"pSA"``.
-    periods : Sequence[float], optional
+        Intensity measure: ``"pSA"``, ``"EAS"``, or one of ``"PGA"``,
+        ``"PGV"``, ``"CAV"``, ``"Ds575"``, ``"Ds595"``, ``"Ds2080"``.
+    periods : Sequence[float] or np.ndarray, optional
         Periods to compute, required if `im` is ``"pSA"``. Ignored otherwise.
     attrs : dict[str, str | int | float], optional
         Extra Dataset attributes, e.g. the model name and its settings.
+    frequencies : Sequence[float] or np.ndarray, optional
+        Frequencies (Hz) to compute, required if `im` is ``"EAS"``. Ignored
+        otherwise.
 
     Returns
     -------
     xr.Dataset
         Variables ``ln_mean`` (natural-log space), ``std_total``, ``std_inter``
-        and ``std_intra``, with dimensions ``(site, period)`` for ``pSA`` and
-        ``(site,)`` for PGA/PGV.
+        and ``std_intra``, with dimensions ``(site, period)`` for ``pSA``,
+        ``(site, frequency)`` for ``EAS``, and ``(site,)`` otherwise.
 
     Raises
     ------
     ValueError
-        If `im` is unsupported, or `im` is ``"pSA"`` without `periods`.
+        If `im` is unsupported, or `im` is ``"pSA"`` without `periods` or
+        ``"EAS"`` without `frequencies`.
     """
     variables = ("ln_mean", "std_total", "std_inter", "std_intra")
     site_dim = index.name or "index"
-    if im == "pSA":
-        if not periods:
-            raise ValueError("periods must be provided when im='pSA'")
-        # Filled one period at a time, so only one period's results are held
-        # alongside the output. Fortran order keeps each period's column contiguous.
+    if im in ("pSA", "EAS"):
+        dim, values, unit, make_im = (
+            ("period", periods, "s", lambda v: _core.IM.SA(period=v))
+            if im == "pSA"
+            else ("frequency", frequencies, "Hz", lambda v: _core.IM.EAS(frequency=v))
+        )
+        if values is None or len(values) == 0:
+            raise ValueError(f"{dim} values must be provided when im='{im}'")
+        # Filled one column at a time, so only one column's results are held
+        # alongside the output. Fortran order keeps each column contiguous.
         arrays = {
-            var: np.empty((len(index), len(periods)), order="F") for var in variables
+            var: np.empty((len(index), len(values)), order="F") for var in variables
         }
-        for j, period in enumerate(periods):
-            result = compute(_core.IM.SA(period=float(period)))
+        for j, value in enumerate(values):
+            result = compute(make_im(float(value)))
             for var, arr in arrays.items():
                 arr[:, j] = getattr(result, var)
-        data = {var: ((site_dim, "period"), arr) for var, arr in arrays.items()}
+        data = {var: ((site_dim, dim), arr) for var, arr in arrays.items()}
         coords = {
             site_dim: index,
-            "period": ("period", np.asarray(periods, dtype=np.float64), {"units": "s"}),
+            dim: (dim, np.asarray(values, dtype=np.float64), {"units": unit}),
         }
-    elif im in ("PGA", "PGV"):
-        result = compute(_core.IM.PGA() if im == "PGA" else _core.IM.PGV())
+    elif im in _SCALAR_IMS:
+        result = compute(_SCALAR_IMS[im]())
         data = {var: ((site_dim,), getattr(result, var)) for var in variables}
         coords = {site_dim: index}
     else:
-        raise ValueError(f"Unsupported im '{im}': expected one of 'PGA', 'PGV', 'pSA'")
+        raise ValueError(
+            f"Unsupported im '{im}': expected 'pSA', 'EAS' or one of {list(_SCALAR_IMS)}"
+        )
 
     ds = xr.Dataset(data, coords=coords, attrs={"im": im, **(attrs or {})})
-    ds["ln_mean"].attrs["units"] = "ln(cm/s)" if im == "PGV" else "ln(g)"
+    ds["ln_mean"].attrs["units"] = _UNITS[im]
     return ds

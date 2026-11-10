@@ -18,7 +18,11 @@ jobs:
     env:
       # One reference data directory per model, relative to
       # openquake/hazardlib/tests/gsim/data.
-      DATA_DIRS: nz22/NZNSH2022_PARKER20
+      DATA_DIRS: >-
+        as16 BA18 ag2020 ASK14 bchydro18 BRADLEY13 BSSA2014 CB08 CB14 eshm20_bchydro
+        kuehn2020 NGA/CY14 PARKER20 ZHAO06
+        nz22/ag2020 nz22/ATKINSON2022 nz22/kuehn2020 nz22/NZNSH2022_PARKER20
+        nz22/STAFFORD2022
     steps:
       - uses: actions/checkout@v4
       # Compares git tree hashes, so no reference data is downloaded.

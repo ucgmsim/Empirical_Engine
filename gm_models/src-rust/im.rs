@@ -13,4 +13,14 @@ pub enum IM {
     SA {
         period: f64,
     },
+    /// Cumulative absolute velocity.
+    CAV {},
+    /// Significant durations (OpenQuake's `RSD575`, `RSD595`, `RSD2080`).
+    Ds575 {},
+    Ds595 {},
+    Ds2080 {},
+    /// Effective amplitude spectrum at `frequency` Hz.
+    EAS {
+        frequency: f64,
+    },
 }
