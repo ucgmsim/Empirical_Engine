@@ -28,12 +28,12 @@ pub mod coeffs {
 }
 
 use crate::error::GMMError;
+use crate::gmm::{evaluate, GMM};
 use crate::im::IM;
 use crate::nz22_const::backarc_term;
 use crate::result::{GMMResult, MeanStd};
-use crate::utils::check_lengths;
+use crate::row_inputs;
 use coeffs::{Coeffs, PGA_COEFFS};
-use numpy::PyReadonlyArray1;
 use pyo3::prelude::*;
 
 /// Region-independent constants (OpenQuake's `CONSTS`).
@@ -56,122 +56,15 @@ pub enum Region {
     NewZealand,
 }
 
-/// AG20 input columns, one value per rupture-site pair. Slab-only columns
-/// exist only on the `Slab` variant. Exposed to Python as
-/// `gm_models._core.AG20Inputs`, built with `AG20Inputs.interface(...)` or
-/// `AG20Inputs.slab(...)`. Column lengths are checked in [`AG20Inputs::iter`].
-#[pyclass(frozen, module = "gm_models._core")]
-#[derive(Debug)]
-pub enum AG20Inputs {
-    Interface {
-        mag: Vec<f64>,
-        rrup: Vec<f64>,
-        vs30: Vec<f64>,
-    },
-    Slab {
-        mag: Vec<f64>,
-        rrup: Vec<f64>,
-        vs30: Vec<f64>,
-        ztor: Vec<f64>,
-        backarc: Vec<bool>,
-    },
-}
-
-/// A single row of [`AG20Inputs`].
-#[derive(Debug, Clone, Copy)]
-pub enum AG20Row {
-    Interface {
-        mag: f64,
-        rrup: f64,
-        vs30: f64,
-    },
-    Slab {
-        mag: f64,
-        rrup: f64,
-        vs30: f64,
-        ztor: f64,
-        backarc: bool,
-    },
-}
-
-impl AG20Inputs {
-    /// The rupture-site pairs, in order. Fails if the columns differ in length.
-    pub fn iter(&self) -> Result<impl Iterator<Item = AG20Row> + '_, GMMError> {
-        let n = match self {
-            Self::Interface { mag, rrup, vs30 } => check_lengths(&[
-                ("mag", mag.len()),
-                ("rrup", rrup.len()),
-                ("vs30", vs30.len()),
-            ]),
-            Self::Slab {
-                mag,
-                rrup,
-                vs30,
-                ztor,
-                backarc,
-            } => check_lengths(&[
-                ("mag", mag.len()),
-                ("rrup", rrup.len()),
-                ("vs30", vs30.len()),
-                ("ztor", ztor.len()),
-                ("backarc", backarc.len()),
-            ]),
-        }?;
-        Ok((0..n).map(move |i| match self {
-            Self::Interface { mag, rrup, vs30 } => AG20Row::Interface {
-                mag: mag[i],
-                rrup: rrup[i],
-                vs30: vs30[i],
-            },
-            Self::Slab {
-                mag,
-                rrup,
-                vs30,
-                ztor,
-                backarc,
-            } => AG20Row::Slab {
-                mag: mag[i],
-                rrup: rrup[i],
-                vs30: vs30[i],
-                ztor: ztor[i],
-                backarc: backarc[i],
-            },
-        }))
-    }
-}
-
-#[pymethods]
-impl AG20Inputs {
-    /// Subduction interface inputs.
-    #[staticmethod]
-    fn interface(
-        mag: PyReadonlyArray1<f64>,
-        rrup: PyReadonlyArray1<f64>,
-        vs30: PyReadonlyArray1<f64>,
-    ) -> Self {
-        Self::Interface {
-            mag: mag.as_array().to_vec(),
-            rrup: rrup.as_array().to_vec(),
-            vs30: vs30.as_array().to_vec(),
-        }
-    }
-
-    /// Subduction slab inputs.
-    #[staticmethod]
-    fn slab(
-        mag: PyReadonlyArray1<f64>,
-        rrup: PyReadonlyArray1<f64>,
-        vs30: PyReadonlyArray1<f64>,
-        ztor: PyReadonlyArray1<f64>,
-        backarc: PyReadonlyArray1<bool>,
-    ) -> Self {
-        Self::Slab {
-            mag: mag.as_array().to_vec(),
-            rrup: rrup.as_array().to_vec(),
-            vs30: vs30.as_array().to_vec(),
-            ztor: ztor.as_array().to_vec(),
-            backarc: backarc.as_array().to_vec(),
-        }
+row_inputs! {
+    /// AG20 inputs, one row per rupture-site pair. Exposed to Python as
+    /// `gm_models._core.AG20Inputs`, built with `AG20Inputs.interface(...)` or
+    /// `AG20Inputs.slab(...)`.
+    AG20Inputs, AG20Row {
+        /// Subduction interface inputs.
+        Interface => interface { mag: f64, rrup: f64, vs30: f64 },
+        /// Subduction slab inputs.
+        Slab => slab { mag: f64, rrup: f64, vs30: f64, ztor: f64, backarc: bool },
     }
 }
 
@@ -238,34 +131,50 @@ fn ln_median(c: &Coeffs, region: Region, row: &AG20Row, vs30: f64, pga1000: f64,
     a1 + f_mag + f_r + a6 * rrup + slab + site_term(c, a12, vs30, pga1000) + fba
 }
 
-/// Mean + standard deviations for `AbrahamsonGulerce2020SInter` / `SSlab`
-/// (`region`) with the NZ22 backarc term and epistemic shift (the shift is
-/// ignored for the base model by passing 0, and the backarc term is zero unless
-/// the slab row is flagged). One value per rupture-site pair in `inputs`.
-/// SA periods outside the table are an error. Exposed to Python as `gm_models._core.ag20`.
+/// The Abrahamson and Gulerce (2020) model, `AbrahamsonGulerce2020SInter` /
+/// `SSlab` for the region in [`GMM::Params`], with the NZ22 backarc term (zero
+/// unless the slab row is flagged) and epistemic shift. SA periods outside the
+/// table are an error.
+pub struct AG20;
+
+impl GMM for AG20 {
+    type Row = AG20Row;
+    type Coeffs = Coeffs;
+    /// Region and `sigma_mu_epsilon`.
+    type Params = (Region, f64);
+
+    fn coeffs(im: IM, _: Self::Params) -> Result<Coeffs, GMMError> {
+        Coeffs::for_im(im)
+    }
+
+    fn compute(
+        im: IM,
+        c: &Coeffs,
+        row: &AG20Row,
+        (region, sigma_mu_epsilon): Self::Params,
+    ) -> Result<MeanStd, GMMError> {
+        compute(im, c, region, row, sigma_mu_epsilon)
+    }
+}
+
+/// [`AG20`] for the global region with the NZ22 backarc term and epistemic
+/// shift ("AG_20" in `oq_wrapper`), for every row. The tectonic type is set by
+/// how `inputs` was built. Exposed to Python as `gm_models._core.ag20`.
 #[pyfunction]
 pub fn ag20(
     py: Python<'_>,
     inputs: PyRef<'_, AG20Inputs>,
     im: IM,
-    new_zealand_region: bool,
     sigma_mu_epsilon: f64,
 ) -> PyResult<GMMResult> {
-    let region = if new_zealand_region {
-        Region::NewZealand
-    } else {
-        Region::Global
-    };
-    let coeffs = Coeffs::for_im(im)?;
-    let inputs = &*inputs;
-    // Releases the GIL: `inputs` owns copies of the arrays, so no Python object
-    // is touched while other threads run.
-    Ok(py.detach(|| {
-        inputs
-            .iter()?
-            .map(|row| compute(im, &coeffs, region, &row, sigma_mu_epsilon))
-            .collect::<Result<GMMResult, GMMError>>()
-    })?)
+    evaluate::<AG20>(py, &inputs.rows, im, (Region::Global, sigma_mu_epsilon))
+}
+
+/// [`AG20`] for the New Zealand region ("AG_20_NZ" in `oq_wrapper`), for every
+/// row. Exposed to Python as `gm_models._core.ag20_nz`.
+#[pyfunction]
+pub fn ag20_nz(py: Python<'_>, inputs: PyRef<'_, AG20Inputs>, im: IM) -> PyResult<GMMResult> {
+    evaluate::<AG20>(py, &inputs.rows, im, (Region::NewZealand, 0.0))
 }
 
 /// Computes mean + standard deviations for a single rupture-site pair.
@@ -463,17 +372,5 @@ mod proptests {
             assert_eq!(Coeffs::for_im(IM::SA { period }).unwrap(), *row);
         }
         assert!(Coeffs::for_im(IM::PGV {}).is_err());
-    }
-
-    #[test]
-    fn inputs_reject_mismatched_lengths() {
-        let slab = AG20Inputs::Slab {
-            mag: vec![7.0, 8.0],
-            rrup: vec![10.0, 20.0],
-            vs30: vec![400.0, 500.0],
-            ztor: vec![30.0, 40.0],
-            backarc: vec![true],
-        };
-        assert!(slab.iter().is_err());
     }
 }

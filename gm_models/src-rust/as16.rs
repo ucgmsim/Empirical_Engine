@@ -23,11 +23,11 @@ pub mod coeffs {
 }
 
 use crate::error::GMMError;
+use crate::gmm::{evaluate, GMM};
 use crate::im::IM;
 use crate::result::{GMMResult, MeanStd};
-use crate::utils::check_lengths;
+use crate::row_inputs;
 use coeffs::Coeffs;
-use numpy::PyReadonlyArray1;
 use pyo3::prelude::*;
 
 /// Constants of Eqs. 3 to 9 (`CONSTANTS` in OpenQuake).
@@ -40,69 +40,18 @@ const DZ1_REF: f64 = 200.0;
 /// OpenQuake's "no measured z1pt0" sentinel, replaced by the reference value.
 const Z1PT0_MISSING: f64 = -999.0;
 
-/// AS16 input columns, one value per rupture-site pair. `z1pt0` is in metres.
-/// Exposed to Python as `gm_models._core.AS16Inputs`. Column lengths are
-/// checked in [`AS16Inputs::iter`].
-#[pyclass(frozen, module = "gm_models._core")]
-#[derive(Debug)]
-pub struct AS16Inputs {
-    mag: Vec<f64>,
-    rake: Vec<f64>,
-    rrup: Vec<f64>,
-    vs30: Vec<f64>,
-    z1pt0: Vec<f64>,
-}
-
-/// A single row of [`AS16Inputs`].
-#[derive(Debug, Clone, Copy)]
-pub struct AS16Row {
-    pub mag: f64,
-    pub rake: f64,
-    pub rrup: f64,
-    pub vs30: f64,
-    pub z1pt0: f64,
-}
-
-impl AS16Inputs {
-    /// The rupture-site pairs, in order. Fails if the columns differ in length.
-    pub fn iter(&self) -> Result<impl Iterator<Item = AS16Row> + '_, GMMError> {
-        let n = check_lengths(&[
-            ("mag", self.mag.len()),
-            ("rake", self.rake.len()),
-            ("rrup", self.rrup.len()),
-            ("vs30", self.vs30.len()),
-            ("z1pt0", self.z1pt0.len()),
-        ])?;
-        Ok((0..n).map(|i| AS16Row {
-            mag: self.mag[i],
-            rake: self.rake[i],
-            rrup: self.rrup[i],
-            vs30: self.vs30[i],
-            z1pt0: self.z1pt0[i],
-        }))
+row_inputs! {
+    /// AS16 inputs, one row per rupture-site pair. Exposed to Python as
+    /// `gm_models._core.AS16Inputs`.
+    AS16Inputs, AS16Row {
+        mag: f64,
+        rake: f64,
+        rrup: f64,
+        vs30: f64,
+        /// Metres.
+        z1pt0: f64,
     }
 }
-
-#[pymethods]
-impl AS16Inputs {
-    #[new]
-    fn new(
-        mag: PyReadonlyArray1<f64>,
-        rake: PyReadonlyArray1<f64>,
-        rrup: PyReadonlyArray1<f64>,
-        vs30: PyReadonlyArray1<f64>,
-        z1pt0: PyReadonlyArray1<f64>,
-    ) -> Self {
-        Self {
-            mag: mag.as_array().to_vec(),
-            rake: rake.as_array().to_vec(),
-            rrup: rrup.as_array().to_vec(),
-            vs30: vs30.as_array().to_vec(),
-            z1pt0: z1pt0.as_array().to_vec(),
-        }
-    }
-}
-
 /// Magnitude scaling term (Eq. 3): the source duration 1/f0, with the corner
 /// frequency f0 from Eq. 4, the seismic moment from Eq. 5 and the
 /// magnitude-dependent stress drop from Eq. 6. Below `m1` the duration is the
@@ -183,18 +132,29 @@ pub fn compute(c: &Coeffs, row: &AS16Row) -> MeanStd {
     }
 }
 
-/// Mean + standard deviations for `AfshariStewart2016`, one value per
-/// rupture-site pair in `inputs`. Supports `Ds575`, `Ds595` and `Ds2080`.
-/// Exposed to Python as `gm_models._core.as16`.
-#[pyfunction]
-pub fn as16(py: Python<'_>, inputs: PyRef<'_, AS16Inputs>, im: IM) -> PyResult<GMMResult> {
-    let coeffs = Coeffs::for_im(im)?;
-    let inputs = &*inputs;
-    // Releases the GIL: `inputs` owns copies of the arrays.
-    Ok(py
-        .detach(|| Ok::<_, GMMError>(inputs.iter()?.map(|row| compute(&coeffs, &row)).collect()))?)
+/// The AS_16 model: `AfshariStewart2016`. Supports `Ds575`, `Ds595` and
+/// `Ds2080`.
+pub struct AS16;
+
+impl GMM for AS16 {
+    type Row = AS16Row;
+    type Coeffs = Coeffs;
+    type Params = ();
+
+    fn coeffs(im: IM, (): ()) -> Result<Coeffs, GMMError> {
+        Coeffs::for_im(im)
+    }
+
+    fn compute(_im: IM, c: &Coeffs, row: &AS16Row, (): ()) -> Result<MeanStd, GMMError> {
+        Ok(compute(c, row))
+    }
 }
 
+/// [`AS16`] for every row. Exposed to Python as `gm_models._core.as16`.
+#[pyfunction]
+pub fn as16(py: Python<'_>, inputs: PyRef<'_, AS16Inputs>, im: IM) -> PyResult<GMMResult> {
+    evaluate::<AS16>(py, &inputs.rows, im, ())
+}
 /// Verification against OpenQuake's reference tables (generated from the SCEC
 /// Broadband Platform implementation), read from the `external/oq-engine`
 /// submodule (`#[ignore]`d so a plain `cargo test` works without it; run them
@@ -291,19 +251,5 @@ mod proptests {
         ] {
             assert!(Coeffs::for_im(im).is_err());
         }
-    }
-
-    #[test]
-    fn inputs_reject_mismatched_lengths() {
-        let col = |n| vec![1.0; n];
-        let inputs = |z1pt0_len| AS16Inputs {
-            mag: col(2),
-            rake: col(2),
-            rrup: col(2),
-            vs30: col(2),
-            z1pt0: col(z1pt0_len),
-        };
-        assert!(inputs(1).iter().is_err());
-        assert_eq!(inputs(2).iter().unwrap().count(), 2);
     }
 }

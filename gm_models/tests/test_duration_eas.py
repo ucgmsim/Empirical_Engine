@@ -19,16 +19,16 @@ RUPTURES = pd.DataFrame(
 
 
 def test_outputs_have_expected_shapes_and_are_finite() -> None:
-    durations = gmm.run_as16(gmm.constants.TectType.ACTIVE_SHALLOW, RUPTURES, "Ds595")
+    durations = gmm.AS_16.run(gmm.constants.TectType.ACTIVE_SHALLOW, RUPTURES, "Ds595")
     assert durations["ln_mean"].shape == (2,)
-    eas = gmm.run_ba18(
+    eas = gmm.BA_18.run(
         gmm.constants.TectType.ACTIVE_SHALLOW, RUPTURES, "EAS", frequencies=[0.5, 5.0]
     )
     assert eas["ln_mean"].shape == (2, 2)
     assert np.isfinite(eas["ln_mean"]).all()
 
 
-@pytest.mark.parametrize("run", [gmm.run_as16, gmm.run_ba18])
+@pytest.mark.parametrize("run", [gmm.AS_16.run, gmm.BA_18.run])
 def test_rejects_other_tect_types_and_z1pt0_in_metres(run) -> None:  # noqa: ANN001
     with pytest.raises(ValueError, match="tectonic type"):
         run(gmm.constants.TectType.SUBDUCTION_SLAB, RUPTURES, "EAS")
@@ -38,8 +38,8 @@ def test_rejects_other_tect_types_and_z1pt0_in_metres(run) -> None:  # noqa: ANN
 
 def test_ba18_rejects_out_of_range_frequency_and_other_ims() -> None:
     with pytest.raises(ValueError, match="not supported"):
-        gmm.run_ba18(
+        gmm.BA_18.run(
             gmm.constants.TectType.ACTIVE_SHALLOW, RUPTURES, "EAS", frequencies=[0.05]
         )
-    with pytest.raises(ValueError, match="EAS"):
-        gmm.run_ba18(gmm.constants.TectType.ACTIVE_SHALLOW, RUPTURES, "PGA")
+    with pytest.raises(ValueError, match="not supported"):
+        gmm.BA_18.run(gmm.constants.TectType.ACTIVE_SHALLOW, RUPTURES, "PGA")

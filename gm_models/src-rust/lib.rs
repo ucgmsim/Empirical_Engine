@@ -1,8 +1,9 @@
 //! Rust implementations of ground motion models, exposed to Python as
-//! `gm_models._core`. Each model is one Rust module (e.g. [`p21`]) plus a thin
-//! Python wrapper (e.g. `gm_models/p21.py`) that validates the rupture
-//! dataframe, builds the model's input pyclass, and calls
-//! `gm_models.utils.evaluate_ims`.
+//! `gm_models._core`. Each model is one Rust module (e.g. [`p21`]): its input
+//! pyclass from [`row_inputs!`], a [`gmm::GMM`] implementation and a
+//! pyfunction calling [`gmm::evaluate`]. The Python side (`gm_models.Model`)
+//! builds the inputs from the rupture dataframe, the constructor signatures
+//! naming the columns, and calls the pyfunction per IM.
 //!
 //! # Tectonic type
 //!
@@ -25,6 +26,7 @@ pub mod cb10;
 pub mod cb14;
 pub mod cy14;
 pub mod error;
+pub mod gmm;
 pub mod im;
 pub mod k20;
 pub mod nz22_const;
@@ -46,7 +48,7 @@ mod _core {
     #[pymodule_export]
     use crate::a22::{a22, A22Inputs};
     #[pymodule_export]
-    use crate::ag20::{ag20, AG20Inputs};
+    use crate::ag20::{ag20, ag20_nz, AG20Inputs};
     #[pymodule_export]
     use crate::as16::{as16, AS16Inputs};
     #[pymodule_export]

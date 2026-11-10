@@ -27,11 +27,11 @@ pub mod coeffs {
 
 use crate::branch::Branch;
 use crate::error::GMMError;
+use crate::gmm::{evaluate, GMM};
 use crate::im::IM;
 use crate::result::{GMMResult, MeanStd};
-use crate::utils::check_lengths;
+use crate::row_inputs;
 use coeffs::Coeffs;
-use numpy::PyReadonlyArray1;
 use pyo3::prelude::*;
 
 /// CY14 constants c2, c4, c4a, crb (the table's own columns equal them).
@@ -49,91 +49,20 @@ const EPISTEMIC_Z: f64 = 1.28155 * 0.893;
 /// Correlation between the empirical and saturation epistemic terms.
 const RHO_EH_EX: f64 = 0.4;
 
-/// S22 input columns, one value per rupture-site pair. `z1pt0` is in metres.
-/// Exposed to Python as `gm_models._core.S22Inputs`. Column lengths are checked
-/// in [`S22Inputs::iter`].
-#[pyclass(frozen, module = "gm_models._core")]
-#[derive(Debug)]
-pub struct S22Inputs {
-    mag: Vec<f64>,
-    rake: Vec<f64>,
-    dip: Vec<f64>,
-    ztor: Vec<f64>,
-    rrup: Vec<f64>,
-    rjb: Vec<f64>,
-    rx: Vec<f64>,
-    vs30: Vec<f64>,
-    z1pt0: Vec<f64>,
-}
-
-/// A single row of [`S22Inputs`].
-#[derive(Debug, Clone, Copy)]
-pub struct S22Row {
-    pub mag: f64,
-    pub rake: f64,
-    pub dip: f64,
-    pub ztor: f64,
-    pub rrup: f64,
-    pub rjb: f64,
-    pub rx: f64,
-    pub vs30: f64,
-    pub z1pt0: f64,
-}
-
-impl S22Inputs {
-    /// The rupture-site pairs, in order. Fails if the columns differ in length.
-    pub fn iter(&self) -> Result<impl Iterator<Item = S22Row> + '_, GMMError> {
-        let n = check_lengths(&[
-            ("mag", self.mag.len()),
-            ("rake", self.rake.len()),
-            ("dip", self.dip.len()),
-            ("ztor", self.ztor.len()),
-            ("rrup", self.rrup.len()),
-            ("rjb", self.rjb.len()),
-            ("rx", self.rx.len()),
-            ("vs30", self.vs30.len()),
-            ("z1pt0", self.z1pt0.len()),
-        ])?;
-        Ok((0..n).map(move |i| S22Row {
-            mag: self.mag[i],
-            rake: self.rake[i],
-            dip: self.dip[i],
-            ztor: self.ztor[i],
-            rrup: self.rrup[i],
-            rjb: self.rjb[i],
-            rx: self.rx[i],
-            vs30: self.vs30[i],
-            z1pt0: self.z1pt0[i],
-        }))
-    }
-}
-
-#[pymethods]
-impl S22Inputs {
-    #[new]
-    #[allow(clippy::too_many_arguments)]
-    fn new(
-        mag: PyReadonlyArray1<f64>,
-        rake: PyReadonlyArray1<f64>,
-        dip: PyReadonlyArray1<f64>,
-        ztor: PyReadonlyArray1<f64>,
-        rrup: PyReadonlyArray1<f64>,
-        rjb: PyReadonlyArray1<f64>,
-        rx: PyReadonlyArray1<f64>,
-        vs30: PyReadonlyArray1<f64>,
-        z1pt0: PyReadonlyArray1<f64>,
-    ) -> Self {
-        Self {
-            mag: mag.as_array().to_vec(),
-            rake: rake.as_array().to_vec(),
-            dip: dip.as_array().to_vec(),
-            ztor: ztor.as_array().to_vec(),
-            rrup: rrup.as_array().to_vec(),
-            rjb: rjb.as_array().to_vec(),
-            rx: rx.as_array().to_vec(),
-            vs30: vs30.as_array().to_vec(),
-            z1pt0: z1pt0.as_array().to_vec(),
-        }
+row_inputs! {
+    /// S22 inputs, one row per rupture-site pair. Exposed to Python as
+    /// `gm_models._core.S22Inputs`.
+    S22Inputs, S22Row {
+        mag: f64,
+        rake: f64,
+        dip: f64,
+        ztor: f64,
+        rrup: f64,
+        rjb: f64,
+        rx: f64,
+        vs30: f64,
+        /// Metres.
+        z1pt0: f64,
     }
 }
 
@@ -317,9 +246,31 @@ fn period_and_coeffs(im: IM) -> Result<(f64, Coeffs), GMMError> {
     }
 }
 
-/// Mean + standard deviations of `Stafford2022` (`sigma_branch="Central"`),
-/// one value per rupture-site pair in `inputs`. SA periods outside the table
-/// are an error. Exposed to Python as `gm_models._core.s22`.
+/// The S_22 model: `Stafford2022` (`sigma_branch="Central"`). SA periods
+/// outside the table are an error.
+pub struct S22;
+
+impl GMM for S22 {
+    type Row = S22Row;
+    /// The period and its coefficients, from [`period_and_coeffs`].
+    type Coeffs = (f64, Coeffs);
+    type Params = Branch;
+
+    fn coeffs(im: IM, _: Branch) -> Result<(f64, Coeffs), GMMError> {
+        period_and_coeffs(im)
+    }
+
+    fn compute(
+        _im: IM,
+        (t, c): &(f64, Coeffs),
+        row: &S22Row,
+        branch: Branch,
+    ) -> Result<MeanStd, GMMError> {
+        Ok(compute(*t, c, row, branch))
+    }
+}
+
+/// [`S22`] for every row. Exposed to Python as `gm_models._core.s22`.
 #[pyfunction]
 pub fn s22(
     py: Python<'_>,
@@ -327,15 +278,7 @@ pub fn s22(
     im: IM,
     branch: Branch,
 ) -> PyResult<GMMResult> {
-    let (t, coeffs) = period_and_coeffs(im)?;
-    let inputs = &*inputs;
-    // Releases the GIL: `inputs` owns copies of the arrays.
-    Ok(py.detach(|| {
-        inputs
-            .iter()?
-            .map(|row| Ok(compute(t, &coeffs, &row, branch)))
-            .collect::<Result<GMMResult, GMMError>>()
-    })?)
+    evaluate::<S22>(py, &inputs.rows, im, branch)
 }
 
 /// Computes mean + standard deviations for a single site/rupture pair at

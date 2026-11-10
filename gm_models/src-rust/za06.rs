@@ -35,192 +35,26 @@ pub mod sslab {
 }
 
 use crate::error::GMMError;
+use crate::gmm::{evaluate, GMM};
 use crate::im::IM;
 use crate::result::{GMMResult, MeanStd};
-use crate::utils::check_lengths;
-use numpy::PyReadonlyArray1;
+use crate::row_inputs;
 use pyo3::prelude::*;
 
 /// Standard gravity (m/s^2), `scipy.constants.g`.
 const G: f64 = 9.80665;
 
-/// ZA_06 input columns, one value per rupture-site pair. `rake` exists only on
-/// the `Asc` variant. Exposed to Python as `gm_models._core.Za06Inputs`, built
-/// with `Za06Inputs.asc(...)`, `.interface(...)` or `.slab(...)`. Column
-/// lengths are checked in [`Za06Inputs::iter`].
-#[pyclass(frozen, module = "gm_models._core")]
-#[derive(Debug)]
-pub enum Za06Inputs {
-    Asc {
-        mag: Vec<f64>,
-        rrup: Vec<f64>,
-        vs30: Vec<f64>,
-        hypo_depth: Vec<f64>,
-        rake: Vec<f64>,
-    },
-    Interface {
-        mag: Vec<f64>,
-        rrup: Vec<f64>,
-        vs30: Vec<f64>,
-        hypo_depth: Vec<f64>,
-    },
-    Slab {
-        mag: Vec<f64>,
-        rrup: Vec<f64>,
-        vs30: Vec<f64>,
-        hypo_depth: Vec<f64>,
-    },
-}
-
-/// A single row of [`Za06Inputs`].
-#[derive(Debug, Clone, Copy)]
-pub enum Za06Row {
-    Asc {
-        mag: f64,
-        rrup: f64,
-        vs30: f64,
-        hypo_depth: f64,
-        rake: f64,
-    },
-    Interface {
-        mag: f64,
-        rrup: f64,
-        vs30: f64,
-        hypo_depth: f64,
-    },
-    Slab {
-        mag: f64,
-        rrup: f64,
-        vs30: f64,
-        hypo_depth: f64,
-    },
-}
-
-impl Za06Inputs {
-    /// The rupture-site pairs, in order. Fails if the columns differ in length.
-    pub fn iter(&self) -> Result<impl Iterator<Item = Za06Row> + '_, GMMError> {
-        let n = match self {
-            Self::Asc {
-                mag,
-                rrup,
-                vs30,
-                hypo_depth,
-                rake,
-            } => check_lengths(&[
-                ("mag", mag.len()),
-                ("rrup", rrup.len()),
-                ("vs30", vs30.len()),
-                ("hypo_depth", hypo_depth.len()),
-                ("rake", rake.len()),
-            ]),
-            Self::Interface {
-                mag,
-                rrup,
-                vs30,
-                hypo_depth,
-            }
-            | Self::Slab {
-                mag,
-                rrup,
-                vs30,
-                hypo_depth,
-            } => check_lengths(&[
-                ("mag", mag.len()),
-                ("rrup", rrup.len()),
-                ("vs30", vs30.len()),
-                ("hypo_depth", hypo_depth.len()),
-            ]),
-        }?;
-        Ok((0..n).map(move |i| match self {
-            Self::Asc {
-                mag,
-                rrup,
-                vs30,
-                hypo_depth,
-                rake,
-            } => Za06Row::Asc {
-                mag: mag[i],
-                rrup: rrup[i],
-                vs30: vs30[i],
-                hypo_depth: hypo_depth[i],
-                rake: rake[i],
-            },
-            Self::Interface {
-                mag,
-                rrup,
-                vs30,
-                hypo_depth,
-            } => Za06Row::Interface {
-                mag: mag[i],
-                rrup: rrup[i],
-                vs30: vs30[i],
-                hypo_depth: hypo_depth[i],
-            },
-            Self::Slab {
-                mag,
-                rrup,
-                vs30,
-                hypo_depth,
-            } => Za06Row::Slab {
-                mag: mag[i],
-                rrup: rrup[i],
-                vs30: vs30[i],
-                hypo_depth: hypo_depth[i],
-            },
-        }))
-    }
-}
-
-#[pymethods]
-impl Za06Inputs {
-    /// Active shallow crust inputs.
-    #[staticmethod]
-    fn asc(
-        mag: PyReadonlyArray1<f64>,
-        rrup: PyReadonlyArray1<f64>,
-        vs30: PyReadonlyArray1<f64>,
-        hypo_depth: PyReadonlyArray1<f64>,
-        rake: PyReadonlyArray1<f64>,
-    ) -> Self {
-        Self::Asc {
-            mag: mag.as_array().to_vec(),
-            rrup: rrup.as_array().to_vec(),
-            vs30: vs30.as_array().to_vec(),
-            hypo_depth: hypo_depth.as_array().to_vec(),
-            rake: rake.as_array().to_vec(),
-        }
-    }
-
-    /// Subduction interface inputs.
-    #[staticmethod]
-    fn interface(
-        mag: PyReadonlyArray1<f64>,
-        rrup: PyReadonlyArray1<f64>,
-        vs30: PyReadonlyArray1<f64>,
-        hypo_depth: PyReadonlyArray1<f64>,
-    ) -> Self {
-        Self::Interface {
-            mag: mag.as_array().to_vec(),
-            rrup: rrup.as_array().to_vec(),
-            vs30: vs30.as_array().to_vec(),
-            hypo_depth: hypo_depth.as_array().to_vec(),
-        }
-    }
-
-    /// Subduction slab inputs.
-    #[staticmethod]
-    fn slab(
-        mag: PyReadonlyArray1<f64>,
-        rrup: PyReadonlyArray1<f64>,
-        vs30: PyReadonlyArray1<f64>,
-        hypo_depth: PyReadonlyArray1<f64>,
-    ) -> Self {
-        Self::Slab {
-            mag: mag.as_array().to_vec(),
-            rrup: rrup.as_array().to_vec(),
-            vs30: vs30.as_array().to_vec(),
-            hypo_depth: hypo_depth.as_array().to_vec(),
-        }
+row_inputs! {
+    /// ZA_06 inputs, one row per rupture-site pair. Exposed to Python as
+    /// `gm_models._core.Za06Inputs`, built with `Za06Inputs.asc(...)`,
+    /// `.interface(...)` or `.slab(...)`.
+    Za06Inputs, Za06Row {
+        /// Active shallow crust inputs.
+        Asc => asc { mag: f64, rrup: f64, vs30: f64, hypo_depth: f64, rake: f64 },
+        /// Subduction interface inputs.
+        Interface => interface { mag: f64, rrup: f64, vs30: f64, hypo_depth: f64 },
+        /// Subduction slab inputs.
+        Slab => slab { mag: f64, rrup: f64, vs30: f64, hypo_depth: f64 },
     }
 }
 
@@ -250,14 +84,48 @@ fn magnitude_squared(p: f64, hinge: f64, q: f64, w: f64, mag: f64) -> f64 {
     p * (mag - hinge) + q * (mag - hinge).powi(2) + w
 }
 
-/// Mean + standard deviations for `ZhaoEtAl2006Asc`, `ZhaoEtAl2006SInter` or
-/// `ZhaoEtAl2006SSlab`, one value per rupture-site pair in `inputs`. The
-/// tectonic type is set by how `inputs` was built. SA periods above the table
-/// are an error unless `extrapolate` is true, in which case they are
-/// extrapolated as in `oq_wrapper` (`_oq_run_pSA`): evaluated at the largest
-/// tabulated period `max`, with 2 ln(max / period) added to the ln mean
-/// (constant spectral displacement). Exposed to Python as
-/// `gm_models._core.za06`.
+/// The ZA_06 model: `ZhaoEtAl2006Asc`, `ZhaoEtAl2006SInter` or
+/// `ZhaoEtAl2006SSlab`. SA periods above the table are an error unless
+/// `extrapolate` ([`GMM::Params`]) is true, in which case they are extrapolated
+/// as in `oq_wrapper` (`_oq_run_pSA`): evaluated at the largest tabulated
+/// period `max`, with 2 ln(max / period) added to the ln mean (constant
+/// spectral displacement).
+pub struct Za06;
+
+impl GMM for Za06 {
+    type Row = Za06Row;
+    /// Coefficients and the extrapolation shift of the ln mean.
+    type Coeffs = (Za06Coeffs, f64);
+    /// `extrapolate`.
+    type Params = bool;
+
+    fn coeffs(im: IM, extrapolate: bool) -> Result<Self::Coeffs, GMMError> {
+        let max = asc::SA_PERIODS[asc::SA_PERIODS.len() - 1];
+        let (im, ln_shift) = match im {
+            IM::SA { period } if extrapolate && period > max => {
+                (IM::SA { period: max }, 2.0 * (max / period).ln())
+            }
+            _ => (im, 0.0),
+        };
+        Ok((Za06Coeffs::for_im(im)?, ln_shift))
+    }
+
+    fn compute(
+        _im: IM,
+        (c, ln_shift): &Self::Coeffs,
+        row: &Za06Row,
+        _: bool,
+    ) -> Result<MeanStd, GMMError> {
+        let r = compute(c, row);
+        Ok(MeanStd {
+            mean: r.mean + ln_shift,
+            ..r
+        })
+    }
+}
+
+/// [`Za06`] for every row. The tectonic type is set by how `inputs` was built.
+/// Exposed to Python as `gm_models._core.za06`.
 #[pyfunction]
 pub fn za06(
     py: Python<'_>,
@@ -265,28 +133,7 @@ pub fn za06(
     im: IM,
     extrapolate: bool,
 ) -> PyResult<GMMResult> {
-    let max = asc::SA_PERIODS[asc::SA_PERIODS.len() - 1];
-    let (im, ln_shift) = match im {
-        IM::SA { period } if extrapolate && period > max => {
-            (IM::SA { period: max }, 2.0 * (max / period).ln())
-        }
-        _ => (im, 0.0),
-    };
-    let coeffs = Za06Coeffs::for_im(im)?;
-    let inputs = &*inputs;
-    // Releases the GIL: `inputs` owns copies of the arrays.
-    Ok(py.detach(|| {
-        inputs
-            .iter()?
-            .map(|row| {
-                let r = compute(&coeffs, &row);
-                Ok(MeanStd {
-                    mean: r.mean + ln_shift,
-                    ..r
-                })
-            })
-            .collect::<Result<GMMResult, GMMError>>()
-    })?)
+    evaluate::<Za06>(py, &inputs.rows, im, extrapolate)
 }
 
 /// Computes mean + standard deviations for a single rupture-site pair, with
@@ -507,17 +354,5 @@ mod proptests {
         let c = asc::Coeffs::for_im(IM::SA { period: 0.02 }).unwrap();
         assert!(c.a > pga.a.min(first.a) && c.a < pga.a.max(first.a));
         assert_eq!(asc::Coeffs::for_im(IM::SA { period: 0.01 }).unwrap(), pga);
-    }
-
-    #[test]
-    fn inputs_reject_mismatched_lengths_and_iterate_rows() {
-        let slab = |hypo_depth: Vec<f64>| Za06Inputs::Slab {
-            mag: vec![7.0, 8.0],
-            rrup: vec![10.0, 20.0],
-            vs30: vec![400.0, 500.0],
-            hypo_depth,
-        };
-        assert!(slab(vec![30.0]).iter().is_err());
-        assert_eq!(slab(vec![30.0, 40.0]).iter().unwrap().count(), 2);
     }
 }

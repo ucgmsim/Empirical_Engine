@@ -42,10 +42,10 @@ pub mod mag_scale {
 
 use crate::a18::{site_response, N};
 use crate::error::GMMError;
+use crate::gmm::{evaluate, GMM};
 use crate::im::IM;
 use crate::result::{GMMResult, MeanStd};
-use crate::utils::check_lengths;
-use numpy::PyReadonlyArray1;
+use crate::row_inputs;
 use pyo3::prelude::*;
 
 /// Period-independent coefficients (Table 2 of the paper).
@@ -59,140 +59,18 @@ const C1: f64 = 7.8;
 /// Slab magnitude-scaling shift DeltaC1 (central branch).
 const DC1_SLAB: f64 = -0.3;
 
-/// BCH_16 input columns, one value per rupture-site pair. `xvf` is the signed
-/// distance to the volcanic front (km, positive on the forearc side, negative on
-/// the backarc side, as in OpenQuake). The slab
-/// model uses hypocentral distance and depth. Exposed to Python as
-/// `gm_models._core.Bch16Inputs`, built with `Bch16Inputs.interface(...)` or
-/// `Bch16Inputs.slab(...)`. Column lengths are checked in [`Bch16Inputs::iter`].
-#[pyclass(frozen, module = "gm_models._core")]
-#[derive(Debug)]
-pub enum Bch16Inputs {
-    Interface {
-        mag: Vec<f64>,
-        rrup: Vec<f64>,
-        vs30: Vec<f64>,
-        xvf: Vec<f64>,
-    },
-    Slab {
-        mag: Vec<f64>,
-        rhypo: Vec<f64>,
-        vs30: Vec<f64>,
-        xvf: Vec<f64>,
-        hypo_depth: Vec<f64>,
-    },
-}
-
-/// A single row of [`Bch16Inputs`].
-#[derive(Debug, Clone, Copy)]
-pub enum Bch16Row {
-    Interface {
-        mag: f64,
-        rrup: f64,
-        vs30: f64,
-        xvf: f64,
-    },
-    Slab {
-        mag: f64,
-        rhypo: f64,
-        vs30: f64,
-        xvf: f64,
-        hypo_depth: f64,
-    },
-}
-
-impl Bch16Inputs {
-    /// The rupture-site pairs, in order. Fails if the columns differ in length.
-    pub fn iter(&self) -> Result<impl Iterator<Item = Bch16Row> + '_, GMMError> {
-        let n = match self {
-            Self::Interface {
-                mag,
-                rrup,
-                vs30,
-                xvf,
-            } => check_lengths(&[
-                ("mag", mag.len()),
-                ("rrup", rrup.len()),
-                ("vs30", vs30.len()),
-                ("xvf", xvf.len()),
-            ]),
-            Self::Slab {
-                mag,
-                rhypo,
-                vs30,
-                xvf,
-                hypo_depth,
-            } => check_lengths(&[
-                ("mag", mag.len()),
-                ("rhypo", rhypo.len()),
-                ("vs30", vs30.len()),
-                ("xvf", xvf.len()),
-                ("hypo_depth", hypo_depth.len()),
-            ]),
-        }?;
-        Ok((0..n).map(move |i| match self {
-            Self::Interface {
-                mag,
-                rrup,
-                vs30,
-                xvf,
-            } => Bch16Row::Interface {
-                mag: mag[i],
-                rrup: rrup[i],
-                vs30: vs30[i],
-                xvf: xvf[i],
-            },
-            Self::Slab {
-                mag,
-                rhypo,
-                vs30,
-                xvf,
-                hypo_depth,
-            } => Bch16Row::Slab {
-                mag: mag[i],
-                rhypo: rhypo[i],
-                vs30: vs30[i],
-                xvf: xvf[i],
-                hypo_depth: hypo_depth[i],
-            },
-        }))
-    }
-}
-
-#[pymethods]
-impl Bch16Inputs {
-    /// Subduction interface inputs.
-    #[staticmethod]
-    fn interface(
-        mag: PyReadonlyArray1<f64>,
-        rrup: PyReadonlyArray1<f64>,
-        vs30: PyReadonlyArray1<f64>,
-        xvf: PyReadonlyArray1<f64>,
-    ) -> Self {
-        Self::Interface {
-            mag: mag.as_array().to_vec(),
-            rrup: rrup.as_array().to_vec(),
-            vs30: vs30.as_array().to_vec(),
-            xvf: xvf.as_array().to_vec(),
-        }
-    }
-
-    /// Subduction slab inputs.
-    #[staticmethod]
-    fn slab(
-        mag: PyReadonlyArray1<f64>,
-        rhypo: PyReadonlyArray1<f64>,
-        vs30: PyReadonlyArray1<f64>,
-        xvf: PyReadonlyArray1<f64>,
-        hypo_depth: PyReadonlyArray1<f64>,
-    ) -> Self {
-        Self::Slab {
-            mag: mag.as_array().to_vec(),
-            rhypo: rhypo.as_array().to_vec(),
-            vs30: vs30.as_array().to_vec(),
-            xvf: xvf.as_array().to_vec(),
-            hypo_depth: hypo_depth.as_array().to_vec(),
-        }
+row_inputs! {
+    /// BCH_16 inputs, one row per rupture-site pair. `xvf` is the signed
+    /// distance to the volcanic front (km, positive on the forearc side,
+    /// negative on the backarc side, as in OpenQuake). The slab model uses
+    /// hypocentral distance and depth. Exposed to Python as
+    /// `gm_models._core.Bch16Inputs`, built with `Bch16Inputs.interface(...)` or
+    /// `Bch16Inputs.slab(...)`.
+    Bch16Inputs, Bch16Row {
+        /// Subduction interface inputs.
+        Interface => interface { mag: f64, rrup: f64, vs30: f64, xvf: f64 },
+        /// Subduction slab inputs.
+        Slab => slab { mag: f64, rhypo: f64, vs30: f64, xvf: f64, hypo_depth: f64 },
     }
 }
 
@@ -226,25 +104,40 @@ impl Bch16Coeffs {
     }
 }
 
-/// Mean + standard deviations for `BCHydroESHM20SInter` / `BCHydroESHM20SSlab`
-/// (`faba_taper_model="Step"`), one value per rupture-site pair in `inputs`.
-/// The tectonic type is set by how `inputs` was built. SA periods outside the
-/// table are an error. Exposed to Python as `gm_models._core.bch16`.
+/// The BCH_16 model: `BCHydroESHM20SInter` / `BCHydroESHM20SSlab`
+/// (`faba_taper_model="Step"`). SA periods outside the table are an error.
+pub struct Bch16;
+
+impl GMM for Bch16 {
+    type Row = Bch16Row;
+    /// Coefficients at the IM and at PGA.
+    type Coeffs = (Bch16Coeffs, Bch16Coeffs);
+    /// Whether the rows are slab rows.
+    type Params = bool;
+
+    fn coeffs(im: IM, slab: bool) -> Result<Self::Coeffs, GMMError> {
+        Ok((
+            Bch16Coeffs::for_im(im, slab)?,
+            Bch16Coeffs::for_im(IM::PGA {}, slab)?,
+        ))
+    }
+
+    fn compute(
+        _im: IM,
+        (c, c_pga): &Self::Coeffs,
+        row: &Bch16Row,
+        _: bool,
+    ) -> Result<MeanStd, GMMError> {
+        Ok(compute(c, c_pga, row))
+    }
+}
+
+/// [`Bch16`] for every row. The tectonic type is set by how `inputs` was
+/// built. Exposed to Python as `gm_models._core.bch16`.
 #[pyfunction]
 pub fn bch16(py: Python<'_>, inputs: PyRef<'_, Bch16Inputs>, im: IM) -> PyResult<GMMResult> {
-    let inputs = &*inputs;
-    let slab = matches!(inputs, Bch16Inputs::Slab { .. });
-    let (c, c_pga) = (
-        Bch16Coeffs::for_im(im, slab)?,
-        Bch16Coeffs::for_im(IM::PGA {}, slab)?,
-    );
-    // Releases the GIL: `inputs` owns copies of the arrays.
-    Ok(py.detach(|| {
-        inputs
-            .iter()?
-            .map(|row| Ok(compute(&c, &c_pga, &row)))
-            .collect::<Result<GMMResult, GMMError>>()
-    })?)
+    let slab = matches!(inputs.rows.first(), Some(Bch16Row::Slab { .. }));
+    evaluate::<Bch16>(py, &inputs.rows, im, slab)
 }
 
 /// Computes mean + standard deviations for a single rupture-site pair.
@@ -421,18 +314,5 @@ mod proptests {
         fn periods_above_table_are_rejected(period in 10.0001..1e3f64) {
             prop_assert!(Bch16Coeffs::for_im(IM::SA { period }, false).is_err(), "period {period} accepted");
         }
-    }
-
-    #[test]
-    fn inputs_reject_mismatched_lengths_and_iterate_rows() {
-        let slab = |xvf: Vec<f64>| Bch16Inputs::Slab {
-            mag: vec![7.0, 8.0],
-            rhypo: vec![10.0, 20.0],
-            vs30: vec![400.0, 500.0],
-            xvf,
-            hypo_depth: vec![30.0, 40.0],
-        };
-        assert!(slab(vec![0.0]).iter().is_err());
-        assert_eq!(slab(vec![0.0, 1.0]).iter().unwrap().count(), 2);
     }
 }

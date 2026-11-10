@@ -28,14 +28,16 @@ pub mod coeffs {
 }
 
 use crate::error::GMMError;
+use crate::gmm::{evaluate, GMM};
 use crate::im::IM;
 use crate::result::{GMMResult, MeanStd};
-use crate::utils::{check_lengths, nga_west2_epistemic_sigma};
+use crate::row_inputs;
+use crate::utils::nga_west2_epistemic_sigma;
 use coeffs::Coeffs;
-use numpy::PyReadonlyArray1;
 use pyo3::prelude::*;
 
-/// A single rupture-site pair. `z1pt0` is in metres, angles in degrees.
+/// A single rupture-site pair of [`Br13Inputs`]. `z1pt0` is in metres, angles
+/// in degrees. `volcanic` rows use `Bradley2013Volc`.
 #[derive(Debug, Clone, Copy)]
 pub struct Br13Row {
     pub mag: f64,
@@ -49,96 +51,53 @@ pub struct Br13Row {
     pub vs30measured: bool,
     pub z1pt0: f64,
     pub is_aftershock: bool,
+    pub volcanic: bool,
 }
 
-/// Br13 input columns, one value per rupture-site pair. Exposed to Python as
-/// `gm_models._core.Br13Inputs`. Column lengths are checked in
-/// [`Br13Inputs::iter`].
-#[pyclass(frozen, module = "gm_models._core")]
-#[derive(Debug)]
-pub struct Br13Inputs {
-    mag: Vec<f64>,
-    dip: Vec<f64>,
-    rake: Vec<f64>,
-    ztor: Vec<f64>,
-    rrup: Vec<f64>,
-    rjb: Vec<f64>,
-    rx: Vec<f64>,
-    vs30: Vec<f64>,
-    vs30measured: Vec<bool>,
-    z1pt0: Vec<f64>,
-    is_aftershock: Vec<bool>,
-}
-
-impl Br13Inputs {
-    /// The rupture-site pairs, in order. Fails if the columns differ in length.
-    pub fn iter(&self) -> Result<impl Iterator<Item = Br13Row> + '_, GMMError> {
-        let n = check_lengths(&[
-            ("mag", self.mag.len()),
-            ("dip", self.dip.len()),
-            ("rake", self.rake.len()),
-            ("ztor", self.ztor.len()),
-            ("rrup", self.rrup.len()),
-            ("rjb", self.rjb.len()),
-            ("rx", self.rx.len()),
-            ("vs30", self.vs30.len()),
-            ("vs30measured", self.vs30measured.len()),
-            ("z1pt0", self.z1pt0.len()),
-            ("is_aftershock", self.is_aftershock.len()),
-        ])?;
-        Ok((0..n).map(move |i| Br13Row {
-            mag: self.mag[i],
-            dip: self.dip[i],
-            rake: self.rake[i],
-            ztor: self.ztor[i],
-            rrup: self.rrup[i],
-            rjb: self.rjb[i],
-            rx: self.rx[i],
-            vs30: self.vs30[i],
-            vs30measured: self.vs30measured[i],
-            z1pt0: self.z1pt0[i],
-            is_aftershock: self.is_aftershock[i],
-        }))
+row_inputs! {
+    /// Br13 inputs, one row per rupture-site pair. Exposed to Python as
+    /// `gm_models._core.Br13Inputs`, built with `Br13Inputs.crust(...)` or
+    /// `Br13Inputs.volcanic(...)`.
+    Br13Inputs, Br13Row {
+        /// Active shallow crust inputs (`Bradley2013`).
+        crust(
+            mag: f64,
+            dip: f64,
+            rake: f64,
+            ztor: f64,
+            rrup: f64,
+            rjb: f64,
+            rx: f64,
+            vs30: f64,
+            vs30measured: bool,
+            z1pt0: f64,
+            is_aftershock: bool,
+        ) {
+            volcanic: false,
+        },
+        /// Volcanic inputs (`Bradley2013Volc`).
+        volcanic(
+            mag: f64,
+            dip: f64,
+            rake: f64,
+            ztor: f64,
+            rrup: f64,
+            rjb: f64,
+            rx: f64,
+            vs30: f64,
+            vs30measured: bool,
+            z1pt0: f64,
+            is_aftershock: bool,
+        ) {
+            volcanic: true,
+        },
     }
 }
 
-#[pymethods]
-impl Br13Inputs {
-    #[new]
-    #[allow(clippy::too_many_arguments)]
-    fn new(
-        mag: PyReadonlyArray1<f64>,
-        dip: PyReadonlyArray1<f64>,
-        rake: PyReadonlyArray1<f64>,
-        ztor: PyReadonlyArray1<f64>,
-        rrup: PyReadonlyArray1<f64>,
-        rjb: PyReadonlyArray1<f64>,
-        rx: PyReadonlyArray1<f64>,
-        vs30: PyReadonlyArray1<f64>,
-        vs30measured: PyReadonlyArray1<bool>,
-        z1pt0: PyReadonlyArray1<f64>,
-        is_aftershock: PyReadonlyArray1<bool>,
-    ) -> Self {
-        Self {
-            mag: mag.as_array().to_vec(),
-            dip: dip.as_array().to_vec(),
-            rake: rake.as_array().to_vec(),
-            ztor: ztor.as_array().to_vec(),
-            rrup: rrup.as_array().to_vec(),
-            rjb: rjb.as_array().to_vec(),
-            rx: rx.as_array().to_vec(),
-            vs30: vs30.as_array().to_vec(),
-            vs30measured: vs30measured.as_array().to_vec(),
-            z1pt0: z1pt0.as_array().to_vec(),
-            is_aftershock: is_aftershock.as_array().to_vec(),
-        }
-    }
-}
-
-/// ln of the reference-rock median, Eq. 4. `volcanic` sets `rtvz = rrup`.
-fn ln_y_ref(c: &Coeffs, r: &Br13Row, volcanic: bool) -> f64 {
+/// ln of the reference-rock median, Eq. 4. Volcanic rows set `rtvz = rrup`.
+fn ln_y_ref(c: &Coeffs, r: &Br13Row) -> f64 {
     let (mag, rrup) = (r.mag, r.rrup);
-    let rtvz = if volcanic { rrup } else { 0.0 };
+    let rtvz = if r.volcanic { rrup } else { 0.0 };
     let frv = f64::from((30.0..=150.0).contains(&r.rake));
     let fnm = f64::from((-120.0..=-60.0).contains(&r.rake));
     let fhw = f64::from(r.rx >= 0.0);
@@ -167,37 +126,50 @@ fn v1(period: f64) -> f64 {
     }
 }
 
-/// Mean + standard deviations of `Bradley2013` (`volcanic = false`) or
-/// `Bradley2013Volc` (`volcanic = true`), one value per rupture-site pair in
-/// `inputs`. SA periods outside the table are an error. PGV is an error. Exposed to Python as
-/// `gm_models._core.br13`.
+/// The Br_13 model: `Bradley2013`, or `Bradley2013Volc` for volcanic rows.
+/// SA periods outside the table are an error. PGV is an error.
+pub struct Br13;
+
+impl GMM for Br13 {
+    type Row = Br13Row;
+    type Coeffs = Coeffs;
+    /// `sigma_mu_epsilon`.
+    type Params = f64;
+
+    fn coeffs(im: IM, _: f64) -> Result<Coeffs, GMMError> {
+        Coeffs::for_im(im)
+    }
+
+    fn compute(
+        im: IM,
+        c: &Coeffs,
+        row: &Br13Row,
+        sigma_mu_epsilon: f64,
+    ) -> Result<MeanStd, GMMError> {
+        Ok(compute(im, c, row, sigma_mu_epsilon))
+    }
+}
+
+/// [`Br13`] for every row. The tectonic type is set by how `inputs` was
+/// built. Exposed to Python as `gm_models._core.br13`.
 #[pyfunction]
 pub fn br13(
     py: Python<'_>,
     inputs: PyRef<'_, Br13Inputs>,
     im: IM,
     sigma_mu_epsilon: f64,
-    volcanic: bool,
 ) -> PyResult<GMMResult> {
-    let coeffs = Coeffs::for_im(im)?;
-    let inputs = &*inputs;
-    // Releases the GIL: `inputs` owns copies of the arrays.
-    Ok(py.detach(|| {
-        inputs
-            .iter()?
-            .map(|row| Ok(compute(im, &coeffs, &row, sigma_mu_epsilon, volcanic)))
-            .collect::<Result<GMMResult, GMMError>>()
-    })?)
+    evaluate::<Br13>(py, &inputs.rows, im, sigma_mu_epsilon)
 }
 
 /// Computes mean + standard deviations for a single rupture-site pair. `c`
 /// must be `Coeffs::for_im(im)`.
-pub fn compute(im: IM, c: &Coeffs, r: &Br13Row, sigma_mu_epsilon: f64, volcanic: bool) -> MeanStd {
+pub fn compute(im: IM, c: &Coeffs, r: &Br13Row, sigma_mu_epsilon: f64) -> MeanStd {
     let period = match im {
         IM::SA { period } => period,
         _ => 0.0,
     };
-    let ln_y_ref = ln_y_ref(c, r, volcanic);
+    let ln_y_ref = ln_y_ref(c, r);
     let y_ref = ln_y_ref.exp();
     // exp1 and exp2 of Eq. 7.
     let exp1 = (c.phi3 * (r.vs30.min(1130.0) - 360.0)).exp();
@@ -261,19 +233,19 @@ mod tests {
             vs30measured: num("site_vs30measured") != 0.0,
             z1pt0: num("site_z1pt0"),
             is_aftershock: false,
+            volcanic: false,
         }
     }
 
     fn check(file: &str, volcanic: bool, pick: fn(&MeanStd) -> f64) {
-        check_csv(&format!("BRADLEY13/{file}"), row, |im, row| {
-            pick(&compute(
-                im,
-                &Coeffs::for_im(im).unwrap(),
-                row,
-                0.0,
+        check_csv(
+            &format!("BRADLEY13/{file}"),
+            |rec| Br13Row {
                 volcanic,
-            ))
-        });
+                ..row(rec)
+            },
+            |im, row| pick(&compute(im, &Coeffs::for_im(im).unwrap(), row, 0.0)),
+        );
     }
 
     #[test]
@@ -329,13 +301,14 @@ mod proptests {
                 any::<bool>(),
                 0.0..2000.0f64,
                 any::<bool>(),
+                any::<bool>(),
             ),
         )
             .prop_map(
                 |(
                     (mag, dip, rake, ztor),
                     (rrup, rjb, rx),
-                    (vs30, vs30measured, z1pt0, is_aftershock),
+                    (vs30, vs30measured, z1pt0, is_aftershock, volcanic),
                 )| Br13Row {
                     mag,
                     dip,
@@ -348,6 +321,7 @@ mod proptests {
                     vs30measured,
                     z1pt0,
                     is_aftershock,
+                    volcanic,
                 },
             )
     }
@@ -358,9 +332,8 @@ mod proptests {
             im in im(),
             row in row(),
             sigma_mu_epsilon in -1.2815..=1.2815f64,
-            volcanic in any::<bool>(),
         ) {
-            let r = compute(im, &Coeffs::for_im(im).unwrap(), &row, sigma_mu_epsilon, volcanic);
+            let r = compute(im, &Coeffs::for_im(im).unwrap(), &row, sigma_mu_epsilon);
             prop_assert!(r.mean.is_finite());
             prop_assert!(r.inter > 0.0 && r.intra > 0.0);
             let (lhs, rhs) = (r.total.powi(2), r.inter.powi(2) + r.intra.powi(2));

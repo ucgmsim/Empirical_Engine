@@ -27,11 +27,11 @@ pub mod coeffs {
 }
 
 use crate::error::GMMError;
+use crate::gmm::{evaluate, GMM};
 use crate::im::IM;
 use crate::result::{GMMResult, MeanStd};
-use crate::utils::check_lengths;
+use crate::row_inputs;
 use coeffs::{Coeffs, PGA_COEFFS};
-use numpy::PyReadonlyArray1;
 use pyo3::prelude::*;
 
 /// Site-term exponent n and constant c (shared with the BC Hydro 2016 model).
@@ -45,117 +45,17 @@ const A10: f64 = 1.73;
 const C1_SLAB: f64 = 7.2;
 const PHI_AMP: f64 = 0.3;
 
-/// A18 input columns, one value per rupture-site pair. `ztor` (top of rupture
-/// depth, km) exists only on the `Slab` variant. Exposed to Python as
-/// `gm_models._core.A18Inputs`, built with `A18Inputs.interface(...)` or
-/// `A18Inputs.slab(...)`. Column lengths are checked in [`A18Inputs::iter`].
-#[pyclass(frozen, module = "gm_models._core")]
-#[derive(Debug)]
-pub enum A18Inputs {
-    Interface {
-        mag: Vec<f64>,
-        rrup: Vec<f64>,
-        vs30: Vec<f64>,
-    },
-    Slab {
-        mag: Vec<f64>,
-        rrup: Vec<f64>,
-        vs30: Vec<f64>,
-        ztor: Vec<f64>,
-    },
-}
-
-/// A single row of [`A18Inputs`].
-#[derive(Debug, Clone, Copy)]
-pub enum A18Row {
-    Interface {
-        mag: f64,
-        rrup: f64,
-        vs30: f64,
-    },
-    Slab {
-        mag: f64,
-        rrup: f64,
-        vs30: f64,
-        ztor: f64,
-    },
-}
-
-impl A18Inputs {
-    /// The rupture-site pairs, in order. Fails if the columns differ in length.
-    pub fn iter(&self) -> Result<impl Iterator<Item = A18Row> + '_, GMMError> {
-        let n = match self {
-            Self::Interface { mag, rrup, vs30 } => check_lengths(&[
-                ("mag", mag.len()),
-                ("rrup", rrup.len()),
-                ("vs30", vs30.len()),
-            ]),
-            Self::Slab {
-                mag,
-                rrup,
-                vs30,
-                ztor,
-            } => check_lengths(&[
-                ("mag", mag.len()),
-                ("rrup", rrup.len()),
-                ("vs30", vs30.len()),
-                ("ztor", ztor.len()),
-            ]),
-        }?;
-        Ok((0..n).map(move |i| match self {
-            Self::Interface { mag, rrup, vs30 } => A18Row::Interface {
-                mag: mag[i],
-                rrup: rrup[i],
-                vs30: vs30[i],
-            },
-            Self::Slab {
-                mag,
-                rrup,
-                vs30,
-                ztor,
-            } => A18Row::Slab {
-                mag: mag[i],
-                rrup: rrup[i],
-                vs30: vs30[i],
-                ztor: ztor[i],
-            },
-        }))
+row_inputs! {
+    /// A18 inputs, one row per rupture-site pair. Exposed to Python as
+    /// `gm_models._core.A18Inputs`, built with `A18Inputs.interface(...)` or
+    /// `A18Inputs.slab(...)`.
+    A18Inputs, A18Row {
+        /// Subduction interface inputs.
+        Interface => interface { mag: f64, rrup: f64, vs30: f64 },
+        /// Subduction slab inputs. `ztor` is the top of rupture depth (km).
+        Slab => slab { mag: f64, rrup: f64, vs30: f64, ztor: f64 },
     }
 }
-
-#[pymethods]
-impl A18Inputs {
-    /// Subduction interface inputs.
-    #[staticmethod]
-    fn interface(
-        mag: PyReadonlyArray1<f64>,
-        rrup: PyReadonlyArray1<f64>,
-        vs30: PyReadonlyArray1<f64>,
-    ) -> Self {
-        Self::Interface {
-            mag: mag.as_array().to_vec(),
-            rrup: rrup.as_array().to_vec(),
-            vs30: vs30.as_array().to_vec(),
-        }
-    }
-
-    /// Subduction slab inputs.
-    #[staticmethod]
-    fn slab(
-        mag: PyReadonlyArray1<f64>,
-        rrup: PyReadonlyArray1<f64>,
-        vs30: PyReadonlyArray1<f64>,
-        ztor: PyReadonlyArray1<f64>,
-    ) -> Self {
-        Self::Slab {
-            mag: mag.as_array().to_vec(),
-            rrup: rrup.as_array().to_vec(),
-            vs30: vs30.as_array().to_vec(),
-            ztor: ztor.as_array().to_vec(),
-        }
-    }
-}
-
 /// Site amplification of the Walling et al. (2008) form shared by the BC Hydro
 /// models: `lin` is `a12` (A_18) or `theta12` (BC Hydro 2016), `b` and `vlin`
 /// the period-dependent coefficients, `pga1000` the median PGA on
@@ -170,24 +70,30 @@ pub(crate) fn site_response(lin: f64, b: f64, vlin: f64, vs30: f64, pga1000: f64
     }
 }
 
-/// Mean + standard deviations for `AbrahamsonEtAl2018SInter` /
-/// `AbrahamsonEtAl2018SSlab` (default arguments), one value per rupture-site
-/// pair in `inputs`. The tectonic type is set by how `inputs` was built. SA
-/// periods outside the table are an error. Exposed to Python as
-/// `gm_models._core.a18`.
-#[pyfunction]
-pub fn a18(py: Python<'_>, inputs: PyRef<'_, A18Inputs>, im: IM) -> PyResult<GMMResult> {
-    let coeffs = Coeffs::for_im(im)?;
-    let inputs = &*inputs;
-    // Releases the GIL: `inputs` owns copies of the arrays.
-    Ok(py.detach(|| {
-        inputs
-            .iter()?
-            .map(|row| Ok(compute(&coeffs, &row)))
-            .collect::<Result<GMMResult, GMMError>>()
-    })?)
+/// The A_18 model: `AbrahamsonEtAl2018SInter` / `AbrahamsonEtAl2018SSlab`
+/// (default arguments). SA periods outside the table are an error.
+pub struct A18;
+
+impl GMM for A18 {
+    type Row = A18Row;
+    type Coeffs = Coeffs;
+    type Params = ();
+
+    fn coeffs(im: IM, (): ()) -> Result<Coeffs, GMMError> {
+        Coeffs::for_im(im)
+    }
+
+    fn compute(_im: IM, c: &Coeffs, row: &A18Row, (): ()) -> Result<MeanStd, GMMError> {
+        Ok(compute(c, row))
+    }
 }
 
+/// [`A18`] for every row. The tectonic type is set by how `inputs` was built.
+/// Exposed to Python as `gm_models._core.a18`.
+#[pyfunction]
+pub fn a18(py: Python<'_>, inputs: PyRef<'_, A18Inputs>, im: IM) -> PyResult<GMMResult> {
+    evaluate::<A18>(py, &inputs.rows, im, ())
+}
 /// Computes mean + standard deviations for a single rupture-site pair, with
 /// `c` from `Coeffs::for_im`.
 pub fn compute(c: &Coeffs, row: &A18Row) -> MeanStd {
@@ -355,17 +261,5 @@ mod proptests {
         fn periods_above_table_are_rejected(period in 10.0001..1e3f64) {
             prop_assert!(Coeffs::for_im(IM::SA { period }).is_err(), "period {period} accepted");
         }
-    }
-
-    #[test]
-    fn inputs_reject_mismatched_lengths_and_iterate_rows() {
-        let slab = |ztor: Vec<f64>| A18Inputs::Slab {
-            mag: vec![7.0, 8.0],
-            rrup: vec![10.0, 20.0],
-            vs30: vec![400.0, 500.0],
-            ztor,
-        };
-        assert!(slab(vec![30.0]).iter().is_err());
-        assert_eq!(slab(vec![30.0, 40.0]).iter().unwrap().count(), 2);
     }
 }

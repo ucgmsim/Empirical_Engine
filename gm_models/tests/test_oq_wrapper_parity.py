@@ -2,7 +2,7 @@
 
 This does not prove a model is *correct* (see the Rust `cargo test`
 OpenQuake-verification suites in `src-rust/` for that, Layer 1). It checks
-that each `run_*` gives the same values as `oq_wrapper.run_gmm` (units,
+that each model gives the same values as `oq_wrapper.run_gmm` (units,
 epistemic-branch wiring, rupture-df handling) on the fixtures `oq_wrapper`'s
 own test suite uses. The output format differs (an xarray Dataset rather than
 `oq_wrapper`'s flat DataFrame), so each fixture column is matched to its
@@ -30,26 +30,30 @@ RUPTURE_PATH = BENCHMARK_DATA_DIR / "nzgmdb_v4p3_rupture_df.parquet"
 # im), plus periods= for pSA, frequencies= for EAS and, for models with
 # branches, epistemic_branch=.
 MODELS: dict[str, Callable[..., xr.Dataset]] = {
-    "K_20": gmm.run_k20,
-    "K_20_NZ": gmm.run_k20_nz,
-    "P_20": gmm.run_p20,
-    "P_21": gmm.run_p21,
-    "AG_20": gmm.run_ag20,
-    "AG_20_NZ": gmm.run_ag20_nz,
-    "A_22": gmm.run_a22,
-    "S_22": gmm.run_s22,
-    "ASK_14": gmm.run_ask14,
-    "BSSA_14": gmm.run_bssa14,
-    "CY_14": gmm.run_cy14,
-    "Br_13": gmm.run_br13,
-    "CB_14": gmm.run_cb14,
-    "CB_10": gmm.run_cb10,
+    model.name: model.run
+    for model in (
+        gmm.K_20,
+        gmm.K_20_NZ,
+        gmm.P_20,
+        gmm.P_21,
+        gmm.AG_20,
+        gmm.AG_20_NZ,
+        gmm.A_22,
+        gmm.S_22,
+        gmm.ASK_14,
+        gmm.BSSA_14,
+        gmm.CY_14,
+        gmm.Br_13,
+        gmm.CB_14,
+        gmm.CB_10,
+        gmm.A_18,
+        gmm.BCH_16,
+        gmm.AS_16,
+        gmm.BA_18,
+    )
+} | {
     # The fixtures include 6 to 10 s columns, which oq_wrapper extrapolates.
-    "ZA_06": partial(gmm.run_za06, extrapolate=True),
-    "A_18": gmm.run_a18,
-    "BCH_16": gmm.run_bch16,
-    "AS_16": gmm.run_as16,
-    "BA_18": gmm.run_ba18,
+    "ZA_06": partial(gmm.ZA_06.run, extrapolate=True),
     "NSHM2022": gmm.run_nshm2022,
 }
 
@@ -85,7 +89,7 @@ OQ_WRAPPER_COLUMN = re.compile(
     r"(?:PGA|PGV|CAV|Ds575|Ds595|Ds2080|(?:pSA|EAS)_(?P<value>[\d.]+))"
     r"_(?P<stat>mean|std_\w+)"
 )
-# Spectral IMs: the run_* keyword and Dataset dimension of their column values.
+# Spectral IMs: the run keyword and Dataset dimension of their column values.
 SPECTRAL = {"pSA": ("periods", "period"), "EAS": ("frequencies", "frequency")}
 
 
@@ -114,6 +118,14 @@ def test_matches_oq_wrapper_benchmark(
     # Same preprocessing as oq_wrapper's tests/test_gmm_benchmark.py.
     cur_rupture_df = shared_rupture_df.loc[bench_df.index.values]
     cur_rupture_df = cur_rupture_df.rename(columns=NZGMDB_OQ_COL_MAPPING)
+    # oq_wrapper renames ry to ry0 for ASK_14; gm_models requires ry0.
+    cur_rupture_df = cur_rupture_df.rename(columns={"ry": "ry0"})
+    # oq_wrapper estimates the missing ASK_14 width as below (Hua and Baker's
+    # NGA-West2 MATLAB default); gm_models requires it.
+    cur_rupture_df["width"] = np.minimum(
+        18 / np.sin(np.radians(cur_rupture_df["dip"])),
+        10 ** (-1.75 + 0.45 * cur_rupture_df["mag"]),
+    )
     cur_rupture_df["vs30measured"] = True
     cur_rupture_df["backarc"] = False
     cur_rupture_df["z1pt0"] = cur_rupture_df["z1pt0"] / 1000

@@ -26,12 +26,13 @@ pub mod coeffs {
 
 use crate::branch::Branch;
 use crate::error::GMMError;
+use crate::gmm::{evaluate, GMM};
 use crate::im::IM;
 use crate::nz22_const::{backarc_term, PERIODS_AG20, RHO_BS, RHO_WS};
 use crate::result::{GMMResult, MeanStd};
-use crate::utils::{check_lengths, log_interp};
+use crate::row_inputs;
+use crate::utils::log_interp;
 use coeffs::{Coeffs, PGA_COEFFS};
-use numpy::PyReadonlyArray1;
 use pyo3::prelude::*;
 
 /// The model's coefficients are in cm/s^2; the output is converted to g.
@@ -57,22 +58,8 @@ pub enum Tect {
     Slab,
 }
 
-/// A22 input columns, one value per rupture-site pair. Exposed to Python as
-/// `gm_models._core.A22Inputs`, built with `A22Inputs.crust(...)`,
-/// `A22Inputs.interface(...)` or `A22Inputs.slab(...)`. `backarc` is only used
-/// (and must only be given) for slab. Column lengths are checked in
-/// [`A22Inputs::iter`].
-#[pyclass(frozen, module = "gm_models._core")]
-#[derive(Debug)]
-pub struct A22Inputs {
-    tect: Tect,
-    mag: Vec<f64>,
-    rrup: Vec<f64>,
-    vs30: Vec<f64>,
-    backarc: Vec<bool>,
-}
-
-/// A single row of [`A22Inputs`]. `backarc` is false unless `tect` is slab.
+/// A single rupture-site pair of [`A22Inputs`]. `backarc` is false unless
+/// `tect` is slab.
 #[derive(Debug, Clone, Copy)]
 pub struct A22Row {
     pub tect: Tect,
@@ -82,72 +69,17 @@ pub struct A22Row {
     pub backarc: bool,
 }
 
-impl A22Inputs {
-    /// The rupture-site pairs, in order. Fails if the columns differ in length.
-    pub fn iter(&self) -> Result<impl Iterator<Item = A22Row> + '_, GMMError> {
-        let mut columns = vec![
-            ("mag", self.mag.len()),
-            ("rrup", self.rrup.len()),
-            ("vs30", self.vs30.len()),
-        ];
-        if self.tect == Tect::Slab {
-            columns.push(("backarc", self.backarc.len()));
-        }
-        let n = check_lengths(&columns)?;
-        Ok((0..n).map(move |i| A22Row {
-            tect: self.tect,
-            mag: self.mag[i],
-            rrup: self.rrup[i],
-            vs30: self.vs30[i],
-            backarc: self.tect == Tect::Slab && self.backarc[i],
-        }))
-    }
-}
-
-#[pymethods]
-impl A22Inputs {
-    /// Active shallow crust (and volcanic) inputs.
-    #[staticmethod]
-    fn crust(
-        mag: PyReadonlyArray1<f64>,
-        rrup: PyReadonlyArray1<f64>,
-        vs30: PyReadonlyArray1<f64>,
-    ) -> Self {
-        Self {
-            tect: Tect::Crust,
-            mag: mag.as_array().to_vec(),
-            rrup: rrup.as_array().to_vec(),
-            vs30: vs30.as_array().to_vec(),
-            backarc: Vec::new(),
-        }
-    }
-
-    /// Subduction interface inputs.
-    #[staticmethod]
-    fn interface(
-        mag: PyReadonlyArray1<f64>,
-        rrup: PyReadonlyArray1<f64>,
-        vs30: PyReadonlyArray1<f64>,
-    ) -> Self {
-        Self {
-            tect: Tect::Interface,
-            ..Self::crust(mag, rrup, vs30)
-        }
-    }
-
-    /// Subduction slab inputs.
-    #[staticmethod]
-    fn slab(
-        mag: PyReadonlyArray1<f64>,
-        rrup: PyReadonlyArray1<f64>,
-        vs30: PyReadonlyArray1<f64>,
-        backarc: PyReadonlyArray1<bool>,
-    ) -> Self {
-        Self {
-            tect: Tect::Slab,
-            backarc: backarc.as_array().to_vec(),
-            ..Self::crust(mag, rrup, vs30)
-        }
+row_inputs! {
+    /// A22 inputs, one row per rupture-site pair. Exposed to Python as
+    /// `gm_models._core.A22Inputs`, built with `A22Inputs.crust(...)`,
+    /// `A22Inputs.interface(...)` or `A22Inputs.slab(...)`.
+    A22Inputs, A22Row {
+        /// Active shallow crust (and volcanic) inputs.
+        crust(mag: f64, rrup: f64, vs30: f64) { tect: Tect::Crust, backarc: false },
+        /// Subduction interface inputs.
+        interface(mag: f64, rrup: f64, vs30: f64) { tect: Tect::Interface, backarc: false },
+        /// Subduction slab inputs.
+        slab(mag: f64, rrup: f64, vs30: f64, backarc: bool) { tect: Tect::Slab },
     }
 }
 
@@ -252,10 +184,32 @@ fn stddevs_nonlinear(
     Ok(((tau2_nl + phi2_nl).sqrt(), tau2_nl.sqrt(), phi2_nl.sqrt()))
 }
 
-/// Mean + standard deviations of `Atkinson2022Crust` / `Atkinson2022SInter` /
-/// `Atkinson2022SSlab`, one value per rupture-site pair in `inputs`. The
-/// tectonic type is set by how `inputs` was built. SA periods outside the table
-/// are an error. Exposed to Python as `gm_models._core.a22`.
+/// The A_22 model: `Atkinson2022Crust` / `Atkinson2022SInter` /
+/// `Atkinson2022SSlab`. SA periods outside the table are an error.
+pub struct A22;
+
+impl GMM for A22 {
+    type Row = A22Row;
+    type Coeffs = Coeffs;
+    /// Epistemic branch and `modified_sigma`.
+    type Params = (Branch, bool);
+
+    fn coeffs(im: IM, _: Self::Params) -> Result<Coeffs, GMMError> {
+        Coeffs::for_im(im)
+    }
+
+    fn compute(
+        im: IM,
+        c: &Coeffs,
+        row: &A22Row,
+        (branch, modified_sigma): Self::Params,
+    ) -> Result<MeanStd, GMMError> {
+        compute(im, c, row, branch, modified_sigma)
+    }
+}
+
+/// [`A22`] for every row. The tectonic type is set by how `inputs` was built.
+/// Exposed to Python as `gm_models._core.a22`.
 #[pyfunction]
 pub fn a22(
     py: Python<'_>,
@@ -264,15 +218,7 @@ pub fn a22(
     branch: Branch,
     modified_sigma: bool,
 ) -> PyResult<GMMResult> {
-    let coeffs = Coeffs::for_im(im)?;
-    let inputs = &*inputs;
-    // Releases the GIL: `inputs` owns copies of the arrays.
-    Ok(py.detach(|| {
-        inputs
-            .iter()?
-            .map(|row| compute(im, &coeffs, &row, branch, modified_sigma))
-            .collect::<Result<GMMResult, GMMError>>()
-    })?)
+    evaluate::<A22>(py, &inputs.rows, im, (branch, modified_sigma))
 }
 
 /// Computes mean + standard deviations for a single site/rupture pair.
@@ -488,25 +434,5 @@ mod proptests {
             prop_assert!(mean(Branch::Lower) < mean(Branch::Central));
             prop_assert!(mean(Branch::Central) < mean(Branch::Upper));
         }
-    }
-
-    #[test]
-    fn inputs_reject_mismatched_lengths() {
-        let slab = |backarc: Vec<bool>| A22Inputs {
-            tect: Tect::Slab,
-            mag: vec![7.0, 8.0],
-            rrup: vec![10.0, 20.0],
-            vs30: vec![400.0, 500.0],
-            backarc,
-        };
-        assert!(slab(vec![true]).iter().is_err());
-        assert!(
-            slab(vec![false, true])
-                .iter()
-                .unwrap()
-                .last()
-                .unwrap()
-                .backarc
-        );
     }
 }

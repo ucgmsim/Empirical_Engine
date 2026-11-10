@@ -23,11 +23,12 @@ pub mod coeffs {
 }
 
 use crate::error::GMMError;
+use crate::gmm::{evaluate, GMM};
 use crate::im::IM;
 use crate::result::{GMMResult, MeanStd};
-use crate::utils::{check_lengths, nga_west2_epistemic_sigma};
+use crate::row_inputs;
+use crate::utils::nga_west2_epistemic_sigma;
 use coeffs::{Coeffs, PGA_COEFFS};
-use numpy::PyReadonlyArray1;
 use pyo3::prelude::*;
 
 /// Constants `c` and `n` in Eq. 17 to 19 and 31, and `h4` in Eq. 10.
@@ -37,27 +38,26 @@ const H4: f64 = 1.0;
 /// Vs30 of the reference rock used for PGA1100.
 const VS30_REF: f64 = 1100.0;
 
-/// CB14 input columns, one value per rupture-site pair. Angles are in degrees,
-/// distances and depths in km. `zbot` is only used to estimate the rupture
-/// width (Eq. 39). Exposed to Python as `gm_models._core.CB14Inputs`. Column
-/// lengths are checked in [`CB14Inputs::iter`].
-#[pyclass(frozen, module = "gm_models._core")]
-#[derive(Debug)]
-pub struct CB14Inputs {
-    mag: Vec<f64>,
-    rake: Vec<f64>,
-    dip: Vec<f64>,
-    ztor: Vec<f64>,
-    zbot: Vec<f64>,
-    hypo_depth: Vec<f64>,
-    rrup: Vec<f64>,
-    rjb: Vec<f64>,
-    rx: Vec<f64>,
-    vs30: Vec<f64>,
-    z2pt5: Vec<f64>,
+row_inputs! {
+    /// CB14 inputs, one row per rupture-site pair. Angles are in degrees,
+    /// distances and depths in km. `zbot` is only used to estimate the rupture
+    /// width (Eq. 39). Exposed to Python as `gm_models._core.CB14Inputs`.
+    CB14Inputs, CB14Site {
+        mag: f64,
+        rake: f64,
+        dip: f64,
+        ztor: f64,
+        zbot: f64,
+        hypo_depth: f64,
+        rrup: f64,
+        rjb: f64,
+        rx: f64,
+        vs30: f64,
+        z2pt5: f64,
+    }
 }
 
-/// A single row of [`CB14Inputs`], with the rupture width (km) already known.
+/// A single rupture-site pair, with the rupture width (km) known.
 #[derive(Debug, Clone, Copy)]
 pub struct CB14Row {
     pub mag: f64,
@@ -75,81 +75,30 @@ pub struct CB14Row {
     pub z2pt5: f64,
 }
 
-impl CB14Inputs {
-    /// The rupture-site pairs, in order, with the width estimated from Eq. 39 as
-    /// OpenQuake's `_update_ctx` does for `estimate_width=True`. Fails if the
-    /// columns differ in length.
-    pub fn iter(&self) -> Result<impl Iterator<Item = CB14Row> + '_, GMMError> {
-        let n = check_lengths(&[
-            ("mag", self.mag.len()),
-            ("rake", self.rake.len()),
-            ("dip", self.dip.len()),
-            ("ztor", self.ztor.len()),
-            ("zbot", self.zbot.len()),
-            ("hypo_depth", self.hypo_depth.len()),
-            ("rrup", self.rrup.len()),
-            ("rjb", self.rjb.len()),
-            ("rx", self.rx.len()),
-            ("vs30", self.vs30.len()),
-            ("z2pt5", self.z2pt5.len()),
-        ])?;
-        Ok((0..n).map(move |i| {
-            let (mag, dip) = (self.mag[i], self.dip[i]);
-            let width = 10f64.powf((mag - 4.07) / 0.98).sqrt();
-            // OpenQuake only applies the zbot cap where sin(dip) != 0.
-            let sin_dip = dip.to_radians().sin();
-            let width = if sin_dip.abs() > 0.0 {
-                width.min((self.zbot[i] - self.ztor[i]) / sin_dip)
-            } else {
-                width
-            };
-            CB14Row {
-                mag,
-                rake: self.rake[i],
-                dip,
-                ztor: self.ztor[i],
-                width,
-                hypo_depth: self.hypo_depth[i],
-                rrup: self.rrup[i],
-                rjb: self.rjb[i],
-                rx: self.rx[i],
-                vs30: self.vs30[i],
-                z2pt5: self.z2pt5[i],
-            }
-        }))
-    }
-}
-
-#[pymethods]
-impl CB14Inputs {
-    #[new]
-    #[allow(clippy::too_many_arguments)]
-    fn new(
-        mag: PyReadonlyArray1<f64>,
-        rake: PyReadonlyArray1<f64>,
-        dip: PyReadonlyArray1<f64>,
-        ztor: PyReadonlyArray1<f64>,
-        zbot: PyReadonlyArray1<f64>,
-        hypo_depth: PyReadonlyArray1<f64>,
-        rrup: PyReadonlyArray1<f64>,
-        rjb: PyReadonlyArray1<f64>,
-        rx: PyReadonlyArray1<f64>,
-        vs30: PyReadonlyArray1<f64>,
-        z2pt5: PyReadonlyArray1<f64>,
-    ) -> Self {
-        let v = |a: PyReadonlyArray1<f64>| a.as_array().to_vec();
-        Self {
-            mag: v(mag),
-            rake: v(rake),
-            dip: v(dip),
-            ztor: v(ztor),
-            zbot: v(zbot),
-            hypo_depth: v(hypo_depth),
-            rrup: v(rrup),
-            rjb: v(rjb),
-            rx: v(rx),
-            vs30: v(vs30),
-            z2pt5: v(z2pt5),
+impl CB14Site {
+    /// The row with the width estimated from Eq. 39, as OpenQuake's
+    /// `_update_ctx` does for `estimate_width=True`.
+    pub fn row(&self) -> CB14Row {
+        let width = 10f64.powf((self.mag - 4.07) / 0.98).sqrt();
+        // OpenQuake only applies the zbot cap where sin(dip) != 0.
+        let sin_dip = self.dip.to_radians().sin();
+        let width = if sin_dip.abs() > 0.0 {
+            width.min((self.zbot - self.ztor) / sin_dip)
+        } else {
+            width
+        };
+        CB14Row {
+            mag: self.mag,
+            rake: self.rake,
+            dip: self.dip,
+            ztor: self.ztor,
+            width,
+            hypo_depth: self.hypo_depth,
+            rrup: self.rrup,
+            rjb: self.rjb,
+            rx: self.rx,
+            vs30: self.vs30,
+            z2pt5: self.z2pt5,
         }
     }
 }
@@ -300,9 +249,31 @@ fn phi_lny(c: &Coeffs, mag: f64) -> f64 {
     c.phi2 + (c.phi1 - c.phi2) * (5.5 - mag.clamp(4.5, 5.5))
 }
 
-/// Mean + standard deviations for OpenQuake's `CampbellBozorgnia2014(estimate_width=True)`,
-/// one value per rupture-site pair in `inputs`. SA periods outside the table
-/// are an error. Exposed to Python as `gm_models._core.cb14`.
+/// The CB_14 model: OpenQuake's `CampbellBozorgnia2014(estimate_width=True)`.
+/// SA periods outside the table are an error.
+pub struct CB14;
+
+impl GMM for CB14 {
+    type Row = CB14Site;
+    type Coeffs = Coeffs;
+    /// `sigma_mu_epsilon`.
+    type Params = f64;
+
+    fn coeffs(im: IM, _: f64) -> Result<Coeffs, GMMError> {
+        Coeffs::for_im(im)
+    }
+
+    fn compute(
+        im: IM,
+        c: &Coeffs,
+        site: &CB14Site,
+        sigma_mu_epsilon: f64,
+    ) -> Result<MeanStd, GMMError> {
+        Ok(compute(im, c, &site.row(), sigma_mu_epsilon))
+    }
+}
+
+/// [`CB14`] for every row. Exposed to Python as `gm_models._core.cb14`.
 #[pyfunction]
 pub fn cb14(
     py: Python<'_>,
@@ -310,15 +281,7 @@ pub fn cb14(
     im: IM,
     sigma_mu_epsilon: f64,
 ) -> PyResult<GMMResult> {
-    let coeffs = Coeffs::for_im(im)?;
-    let inputs = &*inputs;
-    // Releases the GIL: `inputs` owns copies of the arrays.
-    Ok(py.detach(|| -> Result<GMMResult, GMMError> {
-        Ok(inputs
-            .iter()?
-            .map(|row| compute(im, &coeffs, &row, sigma_mu_epsilon))
-            .collect())
-    })?)
+    evaluate::<CB14>(py, &inputs.rows, im, sigma_mu_epsilon)
 }
 
 /// Computes mean + standard deviations for a single site/rupture pair.
@@ -494,28 +457,26 @@ mod proptests {
     }
 
     #[test]
-    fn inputs_estimate_width_and_reject_mismatched_lengths() {
-        let make = |zbot: Vec<f64>| CB14Inputs {
-            mag: vec![7.0],
-            rake: vec![90.0],
-            dip: vec![45.0],
-            ztor: vec![2.0],
+    fn width_is_estimated() {
+        let site = |zbot| CB14Site {
+            mag: 7.0,
+            rake: 90.0,
+            dip: 45.0,
+            ztor: 2.0,
             zbot,
-            hypo_depth: vec![10.0],
-            rrup: vec![10.0],
-            rjb: vec![10.0],
-            rx: vec![10.0],
-            vs30: vec![400.0],
-            z2pt5: vec![1.0],
+            hypo_depth: 10.0,
+            rrup: 10.0,
+            rjb: 10.0,
+            rx: 10.0,
+            vs30: 400.0,
+            z2pt5: 1.0,
         };
-        assert!(make(vec![15.0, 15.0]).iter().is_err());
         // Eq. 39: min(sqrt(10^((M - 4.07) / 0.98)), (zbot - ztor) / sin(dip)).
-        let uncapped = 10f64.powf((7.0 - 4.07) / 0.98).sqrt();
         assert_eq!(
-            make(vec![1000.0]).iter().unwrap().next().unwrap().width,
-            uncapped
+            site(1000.0).row().width,
+            10f64.powf((7.0 - 4.07) / 0.98).sqrt()
         );
-        let capped = make(vec![5.0]).iter().unwrap().next().unwrap().width;
+        let capped = site(5.0).row().width;
         assert!((capped - 3.0 / 45f64.to_radians().sin()).abs() < 1e-12);
     }
 }

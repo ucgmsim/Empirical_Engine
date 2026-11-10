@@ -94,7 +94,7 @@ def evaluate_ims(
             if im == "pSA"
             else ("frequency", frequencies, "Hz", lambda v: _core.IM.EAS(frequency=v))
         )
-        if not values:
+        if values is None or len(values) == 0:
             raise ValueError(f"{dim} values must be provided when im='{im}'")
         # Filled one column at a time, so only one column's results are held
         # alongside the output. Fortran order keeps each column contiguous.
@@ -122,24 +122,3 @@ def evaluate_ims(
     ds = xr.Dataset(data, coords=coords, attrs={"im": im, **(attrs or {})})
     ds["ln_mean"].attrs["units"] = _UNITS[im]
     return ds
-
-
-def estimate_width_ask14(dip: np.ndarray, mag: np.ndarray) -> np.ndarray:
-    """Rupture width (km) from dip and magnitude, as in ASK14 (NGA-West2).
-
-    Copy of `oq_wrapper.estimations.estimate_width_ASK14`, which `oq_wrapper`
-    uses for ASK_14 and GA_11 when `width` is missing.
-
-    Parameters
-    ----------
-    dip : np.ndarray
-        Fault dip (degrees).
-    mag : np.ndarray
-        Moment magnitude.
-
-    Returns
-    -------
-    np.ndarray
-        Estimated rupture width (km).
-    """
-    return np.minimum(18 / np.sin(np.radians(dip)), 10 ** (-1.75 + 0.45 * mag))

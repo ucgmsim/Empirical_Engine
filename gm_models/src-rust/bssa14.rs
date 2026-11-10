@@ -23,11 +23,13 @@ pub mod coeffs {
     include!(concat!(env!("OUT_DIR"), "/bssa14_coefficients.rs"));
 }
 
+use crate::error::GMMError;
+use crate::gmm::{evaluate, GMM};
 use crate::im::IM;
 use crate::result::{GMMResult, MeanStd};
-use crate::utils::{check_lengths, nga_west2_epistemic_sigma};
+use crate::row_inputs;
+use crate::utils::nga_west2_epistemic_sigma;
 use coeffs::{Coeffs, PGA_COEFFS};
-use numpy::PyReadonlyArray1;
 use pyo3::prelude::*;
 
 /// Mref and Rref in Eqs. 2 and 3.
@@ -41,59 +43,15 @@ const F3: f64 = 0.1;
 const V1: f64 = 225.0;
 const V2: f64 = 300.0;
 
-/// A single rupture-site pair (distances in km, rake in degrees).
-#[derive(Debug, Clone, Copy)]
-pub struct Bssa14Row {
-    pub mag: f64,
-    pub rake: f64,
-    pub rjb: f64,
-    pub rrup: f64,
-    pub vs30: f64,
-}
-
-/// BSSA14 inputs, one value per rupture-site pair. Exposed to Python as
-/// `gm_models._core.Bssa14Inputs`. Columns are copied and their lengths checked
-/// on construction.
-#[pyclass(frozen, module = "gm_models._core")]
-#[derive(Debug)]
-pub struct Bssa14Inputs {
-    rows: Vec<Bssa14Row>,
-}
-
-#[pymethods]
-impl Bssa14Inputs {
-    #[new]
-    fn new(
-        mag: PyReadonlyArray1<f64>,
-        rake: PyReadonlyArray1<f64>,
-        rjb: PyReadonlyArray1<f64>,
-        rrup: PyReadonlyArray1<f64>,
-        vs30: PyReadonlyArray1<f64>,
-    ) -> PyResult<Self> {
-        let (mag, rake, rjb, rrup, vs30) = (
-            mag.as_array(),
-            rake.as_array(),
-            rjb.as_array(),
-            rrup.as_array(),
-            vs30.as_array(),
-        );
-        let n = check_lengths(&[
-            ("mag", mag.len()),
-            ("rake", rake.len()),
-            ("rjb", rjb.len()),
-            ("rrup", rrup.len()),
-            ("vs30", vs30.len()),
-        ])?;
-        let rows = (0..n)
-            .map(|i| Bssa14Row {
-                mag: mag[i],
-                rake: rake[i],
-                rjb: rjb[i],
-                rrup: rrup[i],
-                vs30: vs30[i],
-            })
-            .collect();
-        Ok(Self { rows })
+row_inputs! {
+    /// BSSA14 inputs, one row per rupture-site pair (distances in km, rake in
+    /// degrees). Exposed to Python as `gm_models._core.Bssa14Inputs`.
+    Bssa14Inputs, Bssa14Row {
+        mag: f64,
+        rake: f64,
+        rjb: f64,
+        rrup: f64,
+        vs30: f64,
     }
 }
 
@@ -121,9 +79,31 @@ fn path_scaling(c: &Coeffs, mag: f64, rjb: f64) -> f64 {
     (c.c1 + c.c2 * (mag - MREF)) * (r / RREF).ln() + (c.c3 + c.dc3) * (r - RREF)
 }
 
-/// Mean + standard deviations for `BooreEtAl2014` (`region="nobasin"`), one
-/// value per rupture-site pair. SA periods outside the table are an error. Exposed to Python as
-/// `gm_models._core.bssa14`.
+/// The BSSA_14 model: `BooreEtAl2014` (`region="nobasin"`). SA periods outside
+/// the table are an error.
+pub struct Bssa14;
+
+impl GMM for Bssa14 {
+    type Row = Bssa14Row;
+    type Coeffs = Coeffs;
+    /// `sigma_mu_epsilon`.
+    type Params = f64;
+
+    fn coeffs(im: IM, _: f64) -> Result<Coeffs, GMMError> {
+        Coeffs::for_im(im)
+    }
+
+    fn compute(
+        _im: IM,
+        c: &Coeffs,
+        row: &Bssa14Row,
+        sigma_mu_epsilon: f64,
+    ) -> Result<MeanStd, GMMError> {
+        Ok(compute(c, row, sigma_mu_epsilon))
+    }
+}
+
+/// [`Bssa14`] for every row. Exposed to Python as `gm_models._core.bssa14`.
 #[pyfunction]
 pub fn bssa14(
     py: Python<'_>,
@@ -131,16 +111,7 @@ pub fn bssa14(
     im: IM,
     sigma_mu_epsilon: f64,
 ) -> PyResult<GMMResult> {
-    let coeffs = Coeffs::for_im(im)?;
-    let inputs = &*inputs;
-    // Releases the GIL: `inputs` owns copies of the arrays.
-    Ok(py.detach(|| {
-        inputs
-            .rows
-            .iter()
-            .map(|row| compute(&coeffs, row, sigma_mu_epsilon))
-            .collect::<GMMResult>()
-    }))
+    evaluate::<Bssa14>(py, &inputs.rows, im, sigma_mu_epsilon)
 }
 
 /// Computes mean + standard deviations for a single rupture-site pair.

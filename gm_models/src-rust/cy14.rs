@@ -33,11 +33,12 @@ pub mod coeffs {
 }
 
 use crate::error::GMMError;
+use crate::gmm::{evaluate, GMM};
 use crate::im::IM;
 use crate::result::{GMMResult, MeanStd};
-use crate::utils::{check_lengths, nga_west2_epistemic_sigma};
+use crate::row_inputs;
+use crate::utils::nga_west2_epistemic_sigma;
 use coeffs::{Coeffs, PGA_COEFFS};
-use numpy::PyReadonlyArray1;
 use pyo3::prelude::*;
 
 /// Reference Vs30 (m/s).
@@ -50,98 +51,22 @@ const CRB: f64 = 50.0;
 /// phi6 of Eq. 12.
 const PHI6: f64 = 300.0;
 
-/// A single rupture-site pair. `z1pt0` is in metres, `vs30measured` is the
-/// "measured" flag of the sigma model (Eq. 13), angles are in degrees.
-#[derive(Debug, Clone, Copy)]
-pub struct CY14Row {
-    pub mag: f64,
-    pub dip: f64,
-    pub rake: f64,
-    pub ztor: f64,
-    pub rrup: f64,
-    pub rjb: f64,
-    pub rx: f64,
-    pub vs30: f64,
-    pub vs30measured: bool,
-    pub z1pt0: f64,
-}
-
-/// CY14 input columns, one value per rupture-site pair. Exposed to Python as
-/// `gm_models._core.CY14Inputs`. Column lengths are checked in
-/// [`CY14Inputs::iter`].
-#[pyclass(frozen, module = "gm_models._core")]
-#[derive(Debug)]
-pub struct CY14Inputs {
-    mag: Vec<f64>,
-    dip: Vec<f64>,
-    rake: Vec<f64>,
-    ztor: Vec<f64>,
-    rrup: Vec<f64>,
-    rjb: Vec<f64>,
-    rx: Vec<f64>,
-    vs30: Vec<f64>,
-    vs30measured: Vec<bool>,
-    z1pt0: Vec<f64>,
-}
-
-impl CY14Inputs {
-    /// The rupture-site pairs, in order. Fails if the columns differ in length.
-    pub fn iter(&self) -> Result<impl Iterator<Item = CY14Row> + '_, GMMError> {
-        let n = check_lengths(&[
-            ("mag", self.mag.len()),
-            ("dip", self.dip.len()),
-            ("rake", self.rake.len()),
-            ("ztor", self.ztor.len()),
-            ("rrup", self.rrup.len()),
-            ("rjb", self.rjb.len()),
-            ("rx", self.rx.len()),
-            ("vs30", self.vs30.len()),
-            ("vs30measured", self.vs30measured.len()),
-            ("z1pt0", self.z1pt0.len()),
-        ])?;
-        Ok((0..n).map(move |i| CY14Row {
-            mag: self.mag[i],
-            dip: self.dip[i],
-            rake: self.rake[i],
-            ztor: self.ztor[i],
-            rrup: self.rrup[i],
-            rjb: self.rjb[i],
-            rx: self.rx[i],
-            vs30: self.vs30[i],
-            vs30measured: self.vs30measured[i],
-            z1pt0: self.z1pt0[i],
-        }))
-    }
-}
-
-#[pymethods]
-impl CY14Inputs {
-    #[new]
-    #[allow(clippy::too_many_arguments)]
-    fn new(
-        mag: PyReadonlyArray1<f64>,
-        dip: PyReadonlyArray1<f64>,
-        rake: PyReadonlyArray1<f64>,
-        ztor: PyReadonlyArray1<f64>,
-        rrup: PyReadonlyArray1<f64>,
-        rjb: PyReadonlyArray1<f64>,
-        rx: PyReadonlyArray1<f64>,
-        vs30: PyReadonlyArray1<f64>,
-        vs30measured: PyReadonlyArray1<bool>,
-        z1pt0: PyReadonlyArray1<f64>,
-    ) -> Self {
-        Self {
-            mag: mag.as_array().to_vec(),
-            dip: dip.as_array().to_vec(),
-            rake: rake.as_array().to_vec(),
-            ztor: ztor.as_array().to_vec(),
-            rrup: rrup.as_array().to_vec(),
-            rjb: rjb.as_array().to_vec(),
-            rx: rx.as_array().to_vec(),
-            vs30: vs30.as_array().to_vec(),
-            vs30measured: vs30measured.as_array().to_vec(),
-            z1pt0: z1pt0.as_array().to_vec(),
-        }
+row_inputs! {
+    /// CY14 inputs, one row per rupture-site pair (angles in degrees).
+    /// Exposed to Python as `gm_models._core.CY14Inputs`.
+    CY14Inputs, CY14Row {
+        mag: f64,
+        dip: f64,
+        rake: f64,
+        ztor: f64,
+        rrup: f64,
+        rjb: f64,
+        rx: f64,
+        vs30: f64,
+        /// The "measured" flag of the sigma model (Eq. 13).
+        vs30measured: bool,
+        /// Metres.
+        z1pt0: f64,
     }
 }
 
@@ -231,9 +156,31 @@ fn mean_stddevs(c: &Coeffs, r: &CY14Row) -> MeanStd {
     }
 }
 
-/// Mean + standard deviations of `ChiouYoungs2014` (default arguments), one
-/// value per rupture-site pair in `inputs`. SA periods outside the table are an
-/// error. Exposed to Python as `gm_models._core.cy14`.
+/// The CY_14 model: `ChiouYoungs2014` (default arguments). SA periods outside
+/// the table are an error.
+pub struct CY14;
+
+impl GMM for CY14 {
+    type Row = CY14Row;
+    type Coeffs = Coeffs;
+    /// `sigma_mu_epsilon`.
+    type Params = f64;
+
+    fn coeffs(im: IM, _: f64) -> Result<Coeffs, GMMError> {
+        Coeffs::for_im(im)
+    }
+
+    fn compute(
+        im: IM,
+        c: &Coeffs,
+        row: &CY14Row,
+        sigma_mu_epsilon: f64,
+    ) -> Result<MeanStd, GMMError> {
+        Ok(compute(im, c, row, sigma_mu_epsilon))
+    }
+}
+
+/// [`CY14`] for every row. Exposed to Python as `gm_models._core.cy14`.
 #[pyfunction]
 pub fn cy14(
     py: Python<'_>,
@@ -241,15 +188,7 @@ pub fn cy14(
     im: IM,
     sigma_mu_epsilon: f64,
 ) -> PyResult<GMMResult> {
-    let coeffs = Coeffs::for_im(im)?;
-    let inputs = &*inputs;
-    // Releases the GIL: `inputs` owns copies of the arrays.
-    Ok(py.detach(|| {
-        inputs
-            .iter()?
-            .map(|row| Ok(compute(im, &coeffs, &row, sigma_mu_epsilon)))
-            .collect::<Result<GMMResult, GMMError>>()
-    })?)
+    evaluate::<CY14>(py, &inputs.rows, im, sigma_mu_epsilon)
 }
 
 /// Computes mean + standard deviations for a single rupture-site pair. `c`
@@ -379,22 +318,5 @@ mod proptests {
             let pga = compute(IM::PGA {}, &PGA_COEFFS, &row, 0.0);
             prop_assert!(sa.mean >= pga.mean);
         }
-    }
-
-    #[test]
-    fn inputs_reject_mismatched_lengths() {
-        let inputs = CY14Inputs {
-            mag: vec![7.0, 8.0],
-            dip: vec![90.0],
-            rake: vec![0.0, 0.0],
-            ztor: vec![0.0, 0.0],
-            rrup: vec![1.0, 2.0],
-            rjb: vec![1.0, 2.0],
-            rx: vec![1.0, 2.0],
-            vs30: vec![400.0, 500.0],
-            vs30measured: vec![true, false],
-            z1pt0: vec![100.0, 200.0],
-        };
-        assert!(inputs.iter().is_err());
     }
 }

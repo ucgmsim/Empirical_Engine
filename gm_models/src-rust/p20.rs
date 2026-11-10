@@ -26,11 +26,11 @@ pub mod coeffs {
 }
 
 use crate::error::GMMError;
+use crate::gmm::{evaluate, GMM};
 use crate::im::IM;
 use crate::result::{GMMResult, MeanStd};
-use crate::utils::check_lengths;
+use crate::row_inputs;
 use coeffs::{Coeffs, PGA_COEFFS};
-use numpy::PyReadonlyArray1;
 use pyo3::prelude::*;
 
 /// b4 in Eq. 2.
@@ -52,114 +52,15 @@ const V2: f64 = 500.0;
 const MB_INTERFACE: f64 = 7.9;
 const MB_SLAB: f64 = 7.6;
 
-/// P20 input columns, one value per rupture-site pair. `hypo_depth` exists
-/// only on the `Slab` variant. Exposed to Python as `gm_models._core.P20Inputs`,
-/// built with `P20Inputs.interface(...)` or `P20Inputs.slab(...)`. Column
-/// lengths are checked in [`P20Inputs::iter`].
-#[pyclass(frozen, module = "gm_models._core")]
-#[derive(Debug)]
-pub enum P20Inputs {
-    Interface {
-        mag: Vec<f64>,
-        rrup: Vec<f64>,
-        vs30: Vec<f64>,
-    },
-    Slab {
-        mag: Vec<f64>,
-        rrup: Vec<f64>,
-        vs30: Vec<f64>,
-        hypo_depth: Vec<f64>,
-    },
-}
-
-/// A single row of [`P20Inputs`].
-#[derive(Debug, Clone, Copy)]
-pub enum P20Row {
-    Interface {
-        mag: f64,
-        rrup: f64,
-        vs30: f64,
-    },
-    Slab {
-        mag: f64,
-        rrup: f64,
-        vs30: f64,
-        hypo_depth: f64,
-    },
-}
-
-impl P20Inputs {
-    /// The rupture-site pairs, in order. Fails if the columns differ in length.
-    pub fn iter(&self) -> Result<impl Iterator<Item = P20Row> + '_, GMMError> {
-        let n = match self {
-            Self::Interface { mag, rrup, vs30 } => check_lengths(&[
-                ("mag", mag.len()),
-                ("rrup", rrup.len()),
-                ("vs30", vs30.len()),
-            ]),
-            Self::Slab {
-                mag,
-                rrup,
-                vs30,
-                hypo_depth,
-            } => check_lengths(&[
-                ("mag", mag.len()),
-                ("rrup", rrup.len()),
-                ("vs30", vs30.len()),
-                ("hypo_depth", hypo_depth.len()),
-            ]),
-        }?;
-        Ok((0..n).map(move |i| match self {
-            Self::Interface { mag, rrup, vs30 } => P20Row::Interface {
-                mag: mag[i],
-                rrup: rrup[i],
-                vs30: vs30[i],
-            },
-            Self::Slab {
-                mag,
-                rrup,
-                vs30,
-                hypo_depth,
-            } => P20Row::Slab {
-                mag: mag[i],
-                rrup: rrup[i],
-                vs30: vs30[i],
-                hypo_depth: hypo_depth[i],
-            },
-        }))
-    }
-}
-
-#[pymethods]
-impl P20Inputs {
-    /// Subduction interface inputs.
-    #[staticmethod]
-    fn interface(
-        mag: PyReadonlyArray1<f64>,
-        rrup: PyReadonlyArray1<f64>,
-        vs30: PyReadonlyArray1<f64>,
-    ) -> Self {
-        Self::Interface {
-            mag: mag.as_array().to_vec(),
-            rrup: rrup.as_array().to_vec(),
-            vs30: vs30.as_array().to_vec(),
-        }
-    }
-
-    /// Subduction slab inputs.
-    #[staticmethod]
-    fn slab(
-        mag: PyReadonlyArray1<f64>,
-        rrup: PyReadonlyArray1<f64>,
-        vs30: PyReadonlyArray1<f64>,
-        hypo_depth: PyReadonlyArray1<f64>,
-    ) -> Self {
-        Self::Slab {
-            mag: mag.as_array().to_vec(),
-            rrup: rrup.as_array().to_vec(),
-            vs30: vs30.as_array().to_vec(),
-            hypo_depth: hypo_depth.as_array().to_vec(),
-        }
+row_inputs! {
+    /// P20 inputs, one row per rupture-site pair. Exposed to Python as
+    /// `gm_models._core.P20Inputs`, built with `P20Inputs.interface(...)` or
+    /// `P20Inputs.slab(...)`.
+    P20Inputs, P20Row {
+        /// Subduction interface inputs.
+        Interface => interface { mag: f64, rrup: f64, vs30: f64 },
+        /// Subduction slab inputs.
+        Slab => slab { mag: f64, rrup: f64, vs30: f64, hypo_depth: f64 },
     }
 }
 
@@ -210,25 +111,29 @@ fn depth_scaling(hypo_depth: f64, d: f64, m: f64, db: f64) -> f64 {
     }
 }
 
-/// Mean + standard deviations for `ParkerEtAl2020SInter` /
-/// `ParkerEtAl2020SSlab` (default constructor), one value per rupture-site
-/// pair in `inputs`. The tectonic type is set by how `inputs` was built
-/// (`P20Inputs.interface` or `P20Inputs.slab`). SA periods outside the table
-/// are an error. Exposed to Python as `gm_models._core.p20`.
+/// The P_20 model: `ParkerEtAl2020SInter` / `ParkerEtAl2020SSlab` (default
+/// constructor). SA periods outside the table are an error.
+pub struct P20;
+
+impl GMM for P20 {
+    type Row = P20Row;
+    type Coeffs = Coeffs;
+    type Params = ();
+
+    fn coeffs(im: IM, (): ()) -> Result<Coeffs, GMMError> {
+        Coeffs::for_im(im)
+    }
+
+    fn compute(im: IM, c: &Coeffs, row: &P20Row, (): ()) -> Result<MeanStd, GMMError> {
+        Ok(compute(im, c, row))
+    }
+}
+
+/// [`P20`] for every row. The tectonic type is set by how `inputs` was built.
+/// Exposed to Python as `gm_models._core.p20`.
 #[pyfunction]
 pub fn p20(py: Python<'_>, inputs: PyRef<'_, P20Inputs>, im: IM) -> PyResult<GMMResult> {
-    let coeffs = Coeffs::for_im(im)?;
-    let inputs = &*inputs;
-    // Releases the GIL: `inputs` owns copies of the arrays, so no Python object
-    // is touched while other threads run.
-    Ok(py.detach(|| {
-        Ok::<_, GMMError>(
-            inputs
-                .iter()?
-                .map(|row| compute(im, &coeffs, &row))
-                .collect::<GMMResult>(),
-        )
-    })?)
+    evaluate::<P20>(py, &inputs.rows, im, ())
 }
 
 /// Computes mean + standard deviations for a single site/rupture pair.
@@ -387,17 +292,5 @@ mod proptests {
             let (lhs, rhs) = (r.total.powi(2), r.inter.powi(2) + r.intra.powi(2));
             prop_assert!(relative_eq!(lhs, rhs, max_relative = 1e-12), "total^2 {lhs} != inter^2 + intra^2 {rhs}");
         }
-    }
-
-    #[test]
-    fn inputs_reject_mismatched_lengths() {
-        let slab = |hypo_depth: Vec<f64>| P20Inputs::Slab {
-            mag: vec![7.0, 8.0],
-            rrup: vec![10.0, 20.0],
-            vs30: vec![400.0, 500.0],
-            hypo_depth,
-        };
-        assert!(slab(vec![30.0]).iter().is_err());
-        assert_eq!(slab(vec![30.0, 40.0]).iter().unwrap().count(), 2);
     }
 }

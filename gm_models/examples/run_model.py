@@ -1,10 +1,11 @@
 """Run a single ground motion model (Bradley 2013) for historic NZGMDB records.
 
-Each ``run_*`` function takes the tectonic type, a rupture/site dataframe
+Each model's ``run`` takes the tectonic type, a rupture/site dataframe
 (OpenQuake column names, Z1.0 in km) and the IM, and returns an
 `xarray.Dataset` with ``ln_mean``, ``std_total``, ``std_inter`` and
 ``std_intra`` (plus a ``period`` dimension for pSA). The columns a model needs
-are listed in its ``run_*`` docstring.
+are the parameters of its inputs constructor, e.g.
+``inspect.signature(gmm.Br_13.inputs[TectType.ACTIVE_SHALLOW])``.
 """
 
 from pathlib import Path
@@ -34,8 +35,8 @@ rupture_df = (
 rupture_df["vs30measured"] = True
 rupture_df["z1pt0"] /= 1000  # m -> km
 
-pga = gmm.run_br13(gmm.constants.TectType.ACTIVE_SHALLOW, rupture_df, "PGA")
-psa = gmm.run_br13(
+pga = gmm.Br_13.run(gmm.constants.TectType.ACTIVE_SHALLOW, rupture_df, "PGA")
+psa = gmm.Br_13.run(
     gmm.constants.TectType.ACTIVE_SHALLOW,
     rupture_df,
     "pSA",

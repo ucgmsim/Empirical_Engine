@@ -20,14 +20,14 @@ RUPTURES = pd.DataFrame(
 
 def test_period_above_table_raises_unless_za06_extrapolates() -> None:
     with pytest.raises(ValueError, match="period"):
-        gmm.run_za06(
+        gmm.ZA_06.run(
             gmm.constants.TectType.SUBDUCTION_INTERFACE, RUPTURES, "pSA", periods=[6.0]
         )
     with pytest.raises(ValueError, match="period"):
-        gmm.run_p21(
+        gmm.P_21.run(
             gmm.constants.TectType.SUBDUCTION_INTERFACE, RUPTURES, "pSA", periods=[12.0]
         )
-    ds = gmm.run_za06(
+    ds = gmm.ZA_06.run(
         gmm.constants.TectType.SUBDUCTION_INTERFACE,
         RUPTURES,
         "pSA",

@@ -53,12 +53,13 @@ pub mod coeffs {
 }
 
 use crate::error::GMMError;
+use crate::gmm::{evaluate, GMM};
 use crate::im::IM;
 use crate::nz22_const::{backarc_term, PERIODS_AG20, RHO_BS, RHO_WS};
 use crate::result::{GMMResult, MeanStd};
-use crate::utils::{check_lengths, log_interp};
+use crate::row_inputs;
+use crate::utils::log_interp;
 use coeffs::{Coeffs, PGA_COEFFS};
-use numpy::PyReadonlyArray1;
 use pyo3::prelude::*;
 use std::sync::OnceLock;
 
@@ -90,32 +91,6 @@ pub enum Region {
     Nzl,
 }
 
-/// K20 input columns, one value per rupture-site pair. `backarc` exists only
-/// on the `Slab` variant. `z1pt0` is in metres, with -999 meaning "infer from
-/// vs30" as in OpenQuake; it only matters for [`k20_nz`]. Exposed to Python as
-/// `gm_models._core.K20Inputs`, built with `K20Inputs.interface(...)` or
-/// `K20Inputs.slab(...)`. Column lengths are checked in [`K20Inputs::iter`].
-#[pyclass(frozen, module = "gm_models._core")]
-#[derive(Debug)]
-pub enum K20Inputs {
-    Interface {
-        mag: Vec<f64>,
-        rrup: Vec<f64>,
-        vs30: Vec<f64>,
-        ztor: Vec<f64>,
-        z1pt0: Vec<f64>,
-    },
-    Slab {
-        mag: Vec<f64>,
-        rrup: Vec<f64>,
-        vs30: Vec<f64>,
-        ztor: Vec<f64>,
-        z1pt0: Vec<f64>,
-        backarc: Vec<bool>,
-    },
-}
-
-/// A single row of [`K20Inputs`]. `backarc` is always false for interface rows.
 #[derive(Debug, Clone, Copy)]
 pub struct K20Row {
     pub slab: bool,
@@ -127,84 +102,21 @@ pub struct K20Row {
     pub backarc: bool,
 }
 
-impl K20Inputs {
-    /// The rupture-site pairs, in order. Fails if the columns differ in length.
-    pub fn iter(&self) -> Result<impl Iterator<Item = K20Row> + '_, GMMError> {
-        let (mag, rrup, vs30, ztor, z1pt0, backarc) = match self {
-            Self::Interface {
-                mag,
-                rrup,
-                vs30,
-                ztor,
-                z1pt0,
-            } => (mag, rrup, vs30, ztor, z1pt0, None),
-            Self::Slab {
-                mag,
-                rrup,
-                vs30,
-                ztor,
-                z1pt0,
-                backarc,
-            } => (mag, rrup, vs30, ztor, z1pt0, Some(backarc)),
-        };
-        let n = check_lengths(&[
-            ("mag", mag.len()),
-            ("rrup", rrup.len()),
-            ("vs30", vs30.len()),
-            ("ztor", ztor.len()),
-            ("z1pt0", z1pt0.len()),
-            ("backarc", backarc.map_or(mag.len(), |b| b.len())),
-        ])?;
-        Ok((0..n).map(move |i| K20Row {
-            slab: backarc.is_some(),
-            mag: mag[i],
-            rrup: rrup[i],
-            vs30: vs30[i],
-            ztor: ztor[i],
-            z1pt0: z1pt0[i],
-            backarc: backarc.is_some_and(|b| b[i]),
-        }))
-    }
-}
-
-#[pymethods]
-impl K20Inputs {
-    /// Subduction interface inputs.
-    #[staticmethod]
-    fn interface(
-        mag: PyReadonlyArray1<f64>,
-        rrup: PyReadonlyArray1<f64>,
-        vs30: PyReadonlyArray1<f64>,
-        ztor: PyReadonlyArray1<f64>,
-        z1pt0: PyReadonlyArray1<f64>,
-    ) -> Self {
-        Self::Interface {
-            mag: mag.as_array().to_vec(),
-            rrup: rrup.as_array().to_vec(),
-            vs30: vs30.as_array().to_vec(),
-            ztor: ztor.as_array().to_vec(),
-            z1pt0: z1pt0.as_array().to_vec(),
-        }
-    }
-
-    /// Subduction slab inputs.
-    #[staticmethod]
-    fn slab(
-        mag: PyReadonlyArray1<f64>,
-        rrup: PyReadonlyArray1<f64>,
-        vs30: PyReadonlyArray1<f64>,
-        ztor: PyReadonlyArray1<f64>,
-        z1pt0: PyReadonlyArray1<f64>,
-        backarc: PyReadonlyArray1<bool>,
-    ) -> Self {
-        Self::Slab {
-            mag: mag.as_array().to_vec(),
-            rrup: rrup.as_array().to_vec(),
-            vs30: vs30.as_array().to_vec(),
-            ztor: ztor.as_array().to_vec(),
-            z1pt0: z1pt0.as_array().to_vec(),
-            backarc: backarc.as_array().to_vec(),
-        }
+row_inputs! {
+    /// K20 inputs, one row per rupture-site pair. `z1pt0` is in metres, with
+    /// -999 meaning "infer from vs30" as in OpenQuake; it only matters for
+    /// [`k20_nz`]. Exposed to Python as `gm_models._core.K20Inputs`, built with
+    /// `K20Inputs.interface(...)` or `K20Inputs.slab(...)`.
+    K20Inputs, K20Row {
+        /// Subduction interface inputs.
+        interface(mag: f64, rrup: f64, vs30: f64, ztor: f64, z1pt0: f64) {
+            slab: false,
+            backarc: false,
+        },
+        /// Subduction slab inputs.
+        slab(mag: f64, rrup: f64, vs30: f64, ztor: f64, z1pt0: f64, backarc: bool) {
+            slab: true,
+        },
     }
 }
 
@@ -429,31 +341,34 @@ fn nonlinear_stddevs(c: &Coeffs, im: IM, vs30: f64, pga1100: f64) -> Result<(f64
     Ok((tau2.sqrt(), phi2.sqrt()))
 }
 
-/// Evaluates `inputs` for `region` (shared by [`k20`] and [`k20_nz`]).
-fn evaluate(
-    py: Python<'_>,
-    inputs: &K20Inputs,
-    im: IM,
-    region: Region,
-    sigma_mu_epsilon: f64,
-    modified_sigma: bool,
-) -> PyResult<GMMResult> {
-    let coeffs = Coeffs::for_im(im)?;
-    // Releases the GIL: `inputs` owns copies of the arrays, so no Python object
-    // is touched while other threads run.
-    Ok(py.detach(|| {
-        inputs
-            .iter()?
-            .map(|row| compute(im, &coeffs, &row, region, sigma_mu_epsilon, modified_sigma))
-            .collect::<Result<GMMResult, GMMError>>()
-    })?)
+/// The Kuehn et al. (2020) model, in the configuration set by
+/// [`GMM::Params`]. SA periods outside the table are an error.
+pub struct K20;
+
+impl GMM for K20 {
+    type Row = K20Row;
+    type Coeffs = Coeffs;
+    /// Region, `sigma_mu_epsilon` and `modified_sigma`.
+    type Params = (Region, f64, bool);
+
+    fn coeffs(im: IM, _: Self::Params) -> Result<Coeffs, GMMError> {
+        Coeffs::for_im(im)
+    }
+
+    fn compute(
+        im: IM,
+        c: &Coeffs,
+        row: &K20Row,
+        (region, sigma_mu_epsilon, modified_sigma): Self::Params,
+    ) -> Result<MeanStd, GMMError> {
+        compute(im, c, row, region, sigma_mu_epsilon, modified_sigma)
+    }
 }
 
-/// Mean + standard deviations for `NZNSHM2022_KuehnEtAl2020SInter` /
+/// [`K20`] as `NZNSHM2022_KuehnEtAl2020SInter` /
 /// `NZNSHM2022_KuehnEtAl2020SSlab` (global region, "K_20" in `oq_wrapper`),
-/// one value per rupture-site pair in `inputs` (`z1pt0` is ignored). The
-/// tectonic type is set by how `inputs` was built. SA periods outside the table
-/// are an error. Exposed to Python as `gm_models._core.k20`.
+/// for every row (`z1pt0` is ignored). The tectonic type is set by how
+/// `inputs` was built. Exposed to Python as `gm_models._core.k20`.
 #[pyfunction]
 pub fn k20(
     py: Python<'_>,
@@ -462,23 +377,20 @@ pub fn k20(
     sigma_mu_epsilon: f64,
     modified_sigma: bool,
 ) -> PyResult<GMMResult> {
-    evaluate(
+    evaluate::<K20>(
         py,
-        &inputs,
+        &inputs.rows,
         im,
-        Region::Glo,
-        sigma_mu_epsilon,
-        modified_sigma,
+        (Region::Glo, sigma_mu_epsilon, modified_sigma),
     )
 }
 
-/// Mean + standard deviations for `KuehnEtAl2020SInter` / `KuehnEtAl2020SSlab`
-/// with `region="NZL"` ("K_20_NZ" in `oq_wrapper`), one value per rupture-site
-/// pair in `inputs` (`backarc` is ignored). Exposed to Python as
-/// `gm_models._core.k20_nz`.
+/// [`K20`] as `KuehnEtAl2020SInter` / `KuehnEtAl2020SSlab` with
+/// `region="NZL"` ("K_20_NZ" in `oq_wrapper`), for every row (`backarc` is
+/// ignored). Exposed to Python as `gm_models._core.k20_nz`.
 #[pyfunction]
 pub fn k20_nz(py: Python<'_>, inputs: PyRef<'_, K20Inputs>, im: IM) -> PyResult<GMMResult> {
-    evaluate(py, &inputs, im, Region::Nzl, 0.0, false)
+    evaluate::<K20>(py, &inputs.rows, im, (Region::Nzl, 0.0, false))
 }
 
 /// Computes mean + standard deviations for a single site/rupture pair.
@@ -724,20 +636,5 @@ mod proptests {
             t.at(IM::SA { period: 100.0 }, 6.0, 50.0),
             t.at(IM::SA { period: 10.0 }, 6.0, 50.0)
         );
-    }
-
-    #[test]
-    fn inputs_reject_mismatched_lengths() {
-        let slab = |backarc: Vec<bool>| K20Inputs::Slab {
-            mag: vec![7.0, 8.0],
-            rrup: vec![10.0, 20.0],
-            vs30: vec![400.0, 500.0],
-            ztor: vec![30.0, 40.0],
-            z1pt0: vec![f64::NAN; 2],
-            backarc,
-        };
-        assert!(slab(vec![true]).iter().is_err());
-        let rows: Vec<K20Row> = slab(vec![false, true]).iter().unwrap().collect();
-        assert!(rows[0].slab && !rows[0].backarc && rows[1].backarc);
     }
 }

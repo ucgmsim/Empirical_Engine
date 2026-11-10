@@ -24,11 +24,12 @@ pub mod coeffs {
 }
 
 use crate::error::GMMError;
+use crate::gmm::{evaluate, GMM};
 use crate::im::IM;
 use crate::result::{GMMResult, MeanStd};
-use crate::utils::{check_lengths, nga_west2_epistemic_sigma};
+use crate::row_inputs;
+use crate::utils::nga_west2_epistemic_sigma;
 use coeffs::Coeffs;
-use numpy::PyReadonlyArray1;
 use pyo3::prelude::*;
 
 /// Constants `n`, `m2` (p. 1032), `h1`, `h2`, `h3` (p. 1040).
@@ -45,91 +46,22 @@ const VS30_REF: f64 = 1180.0;
 /// (application guidelines, p. 1044), extended to 6000 m/s as OpenQuake does.
 const BASIN_VS30: [f64; 7] = [0.0, 150.0, 250.0, 400.0, 700.0, 1000.0, 6000.0];
 
-/// A single rupture-site pair. `z1pt0` is in metres (negative means unknown,
-/// replaced by the reference depth), distances in km.
-#[derive(Debug, Clone, Copy)]
-pub struct Ask14Row {
-    pub mag: f64,
-    pub rrup: f64,
-    pub rx: f64,
-    pub ry0: f64,
-    pub dip: f64,
-    pub ztor: f64,
-    pub rake: f64,
-    pub width: f64,
-    pub vs30: f64,
-    pub z1pt0: f64,
-    pub vs30measured: bool,
-}
-
-/// ASK14 inputs, one value per rupture-site pair. Exposed to Python as
-/// `gm_models._core.Ask14Inputs`. Columns are copied and their lengths checked
-/// on construction.
-#[pyclass(frozen, module = "gm_models._core")]
-#[derive(Debug)]
-pub struct Ask14Inputs {
-    rows: Vec<Ask14Row>,
-}
-
-#[pymethods]
-impl Ask14Inputs {
-    #[new]
-    #[allow(clippy::too_many_arguments)]
-    fn new(
-        mag: PyReadonlyArray1<f64>,
-        rrup: PyReadonlyArray1<f64>,
-        rx: PyReadonlyArray1<f64>,
-        ry0: PyReadonlyArray1<f64>,
-        dip: PyReadonlyArray1<f64>,
-        ztor: PyReadonlyArray1<f64>,
-        rake: PyReadonlyArray1<f64>,
-        width: PyReadonlyArray1<f64>,
-        vs30: PyReadonlyArray1<f64>,
-        z1pt0: PyReadonlyArray1<f64>,
-        vs30measured: PyReadonlyArray1<bool>,
-    ) -> PyResult<Self> {
-        let (mag, rrup, rx, ry0, dip, ztor, rake, width, vs30, z1pt0, vs30measured) = (
-            mag.as_array(),
-            rrup.as_array(),
-            rx.as_array(),
-            ry0.as_array(),
-            dip.as_array(),
-            ztor.as_array(),
-            rake.as_array(),
-            width.as_array(),
-            vs30.as_array(),
-            z1pt0.as_array(),
-            vs30measured.as_array(),
-        );
-        let n = check_lengths(&[
-            ("mag", mag.len()),
-            ("rrup", rrup.len()),
-            ("rx", rx.len()),
-            ("ry0", ry0.len()),
-            ("dip", dip.len()),
-            ("ztor", ztor.len()),
-            ("rake", rake.len()),
-            ("width", width.len()),
-            ("vs30", vs30.len()),
-            ("z1pt0", z1pt0.len()),
-            ("vs30measured", vs30measured.len()),
-        ])?;
-        let rows = (0..n)
-            .map(|i| Ask14Row {
-                mag: mag[i],
-                rrup: rrup[i],
-                rx: rx[i],
-                ry0: ry0[i],
-                dip: dip[i],
-                ztor: ztor[i],
-                rake: rake[i],
-                width: width[i],
-                vs30: vs30[i],
-                z1pt0: z1pt0[i],
-                vs30measured: vs30measured[i],
-            })
-            .collect();
-        Ok(Self { rows })
+row_inputs! {
+    /// ASK14 inputs, one row per rupture-site pair. Exposed to Python as
+    /// `gm_models._core.Ask14Inputs`. Distances are in km.
+    Ask14Inputs, Ask14Row {
+        mag: f64,
+        rrup: f64,
+        rx: f64,
+        ry0: f64,
+        dip: f64,
+        ztor: f64,
+        rake: f64,
+        width: f64,
+        vs30: f64,
+        /// Metres; negative means unknown, replaced by the reference depth.
+        z1pt0: f64,
+        vs30measured: bool,
     }
 }
 
@@ -145,9 +77,31 @@ fn site_response(c: &Coeffs, vs30: f64, vs30_star: f64, sa1180: f64) -> f64 {
     }
 }
 
-/// Mean + standard deviations for `AbrahamsonEtAl2014` (default California
-/// model, mainshocks), one value per rupture-site pair. SA periods outside the
-/// table are an error. Exposed to Python as `gm_models._core.ask14`.
+/// The ASK_14 model: `AbrahamsonEtAl2014` (default California model,
+/// mainshocks). SA periods outside the table are an error.
+pub struct Ask14;
+
+impl GMM for Ask14 {
+    type Row = Ask14Row;
+    type Coeffs = Coeffs;
+    /// `sigma_mu_epsilon`.
+    type Params = f64;
+
+    fn coeffs(im: IM, _: f64) -> Result<Coeffs, GMMError> {
+        Coeffs::for_im(im)
+    }
+
+    fn compute(
+        im: IM,
+        c: &Coeffs,
+        row: &Ask14Row,
+        sigma_mu_epsilon: f64,
+    ) -> Result<MeanStd, GMMError> {
+        compute(im, c, row, sigma_mu_epsilon)
+    }
+}
+
+/// [`Ask14`] for every row. Exposed to Python as `gm_models._core.ask14`.
 #[pyfunction]
 pub fn ask14(
     py: Python<'_>,
@@ -155,16 +109,7 @@ pub fn ask14(
     im: IM,
     sigma_mu_epsilon: f64,
 ) -> PyResult<GMMResult> {
-    let coeffs = Coeffs::for_im(im)?;
-    let inputs = &*inputs;
-    // Releases the GIL: `inputs` owns copies of the arrays.
-    Ok(py.detach(|| {
-        inputs
-            .rows
-            .iter()
-            .map(|row| compute(im, &coeffs, row, sigma_mu_epsilon))
-            .collect::<Result<GMMResult, GMMError>>()
-    })?)
+    evaluate::<Ask14>(py, &inputs.rows, im, sigma_mu_epsilon)
 }
 
 /// Computes mean + standard deviations for a single rupture-site pair.

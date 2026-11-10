@@ -48,11 +48,11 @@ pub mod coeffs {
 }
 
 use crate::error::GMMError;
+use crate::gmm::{evaluate, GMM};
 use crate::im::IM;
 use crate::result::{GMMResult, MeanStd};
-use crate::utils::check_lengths;
+use crate::row_inputs;
 use coeffs::{Coeffs, SA_COEFFS};
-use numpy::PyReadonlyArray1;
 use pyo3::prelude::*;
 
 /// Frequency (Hz) whose coefficients give the reference-rock Ir (consistent
@@ -67,72 +67,17 @@ const VS_REF: f64 = 760.0;
 /// OpenQuake's "no measured z1pt0" sentinel, replaced by the reference value.
 const Z1PT0_MISSING: f64 = -999.0;
 
-/// BA18 input columns, one value per rupture-site pair. `z1pt0` is in metres.
-/// Exposed to Python as `gm_models._core.BA18Inputs`. Column lengths are
-/// checked in [`BA18Inputs::iter`].
-#[pyclass(frozen, module = "gm_models._core")]
-#[derive(Debug)]
-pub struct BA18Inputs {
-    mag: Vec<f64>,
-    rake: Vec<f64>,
-    ztor: Vec<f64>,
-    rrup: Vec<f64>,
-    vs30: Vec<f64>,
-    z1pt0: Vec<f64>,
-}
-
-/// A single row of [`BA18Inputs`].
-#[derive(Debug, Clone, Copy)]
-pub struct BA18Row {
-    pub mag: f64,
-    pub rake: f64,
-    pub ztor: f64,
-    pub rrup: f64,
-    pub vs30: f64,
-    pub z1pt0: f64,
-}
-
-impl BA18Inputs {
-    /// The rupture-site pairs, in order. Fails if the columns differ in length.
-    pub fn iter(&self) -> Result<impl Iterator<Item = BA18Row> + '_, GMMError> {
-        let n = check_lengths(&[
-            ("mag", self.mag.len()),
-            ("rake", self.rake.len()),
-            ("ztor", self.ztor.len()),
-            ("rrup", self.rrup.len()),
-            ("vs30", self.vs30.len()),
-            ("z1pt0", self.z1pt0.len()),
-        ])?;
-        Ok((0..n).map(|i| BA18Row {
-            mag: self.mag[i],
-            rake: self.rake[i],
-            ztor: self.ztor[i],
-            rrup: self.rrup[i],
-            vs30: self.vs30[i],
-            z1pt0: self.z1pt0[i],
-        }))
-    }
-}
-
-#[pymethods]
-impl BA18Inputs {
-    #[new]
-    fn new(
-        mag: PyReadonlyArray1<f64>,
-        rake: PyReadonlyArray1<f64>,
-        ztor: PyReadonlyArray1<f64>,
-        rrup: PyReadonlyArray1<f64>,
-        vs30: PyReadonlyArray1<f64>,
-        z1pt0: PyReadonlyArray1<f64>,
-    ) -> Self {
-        Self {
-            mag: mag.as_array().to_vec(),
-            rake: rake.as_array().to_vec(),
-            ztor: ztor.as_array().to_vec(),
-            rrup: rrup.as_array().to_vec(),
-            vs30: vs30.as_array().to_vec(),
-            z1pt0: z1pt0.as_array().to_vec(),
-        }
+row_inputs! {
+    /// BA18 inputs, one row per rupture-site pair. Exposed to Python as
+    /// `gm_models._core.BA18Inputs`.
+    BA18Inputs, BA18Row {
+        mag: f64,
+        rake: f64,
+        ztor: f64,
+        rrup: f64,
+        vs30: f64,
+        /// Metres.
+        z1pt0: f64,
     }
 }
 
@@ -276,25 +221,38 @@ pub fn compute(frequency: f64, c: &Coeffs, row: &BA18Row) -> Result<MeanStd, GMM
     })
 }
 
-/// Mean + standard deviations for `BaylessAbrahamson2018`, one value per
-/// rupture-site pair in `inputs`. Only `IM::EAS` is supported, at frequencies
-/// rounded as by [`round_frequency`]. Exposed to Python as
-/// `gm_models._core.ba18`.
+/// The BA_18 model: `BaylessAbrahamson2018`. Only `IM::EAS` is supported, at
+/// frequencies rounded as by [`round_frequency`].
+pub struct BA18;
+
+impl GMM for BA18 {
+    type Row = BA18Row;
+    /// The rounded frequency and its coefficients.
+    type Coeffs = (f64, Coeffs);
+    type Params = ();
+
+    fn coeffs(im: IM, (): ()) -> Result<(f64, Coeffs), GMMError> {
+        let IM::EAS { frequency } = im else {
+            return Err(GMMError::UnsupportedIM(im));
+        };
+        let frequency = round_frequency(frequency);
+        Ok((frequency, Coeffs::for_sa_period(1.0 / frequency)?))
+    }
+
+    fn compute(
+        _im: IM,
+        (frequency, c): &(f64, Coeffs),
+        row: &BA18Row,
+        (): (),
+    ) -> Result<MeanStd, GMMError> {
+        compute(*frequency, c, row)
+    }
+}
+
+/// [`BA18`] for every row. Exposed to Python as `gm_models._core.ba18`.
 #[pyfunction]
 pub fn ba18(py: Python<'_>, inputs: PyRef<'_, BA18Inputs>, im: IM) -> PyResult<GMMResult> {
-    let IM::EAS { frequency } = im else {
-        return Err(GMMError::UnsupportedIM(im).into());
-    };
-    let frequency = round_frequency(frequency);
-    let coeffs = Coeffs::for_sa_period(1.0 / frequency)?;
-    let inputs = &*inputs;
-    // Releases the GIL: `inputs` owns copies of the arrays.
-    Ok(py.detach(|| {
-        inputs
-            .iter()?
-            .map(|row| compute(frequency, &coeffs, &row))
-            .collect::<Result<GMMResult, GMMError>>()
-    })?)
+    evaluate::<BA18>(py, &inputs.rows, im, ())
 }
 
 /// Verification against OpenQuake's reference tables, read from the
@@ -403,36 +361,6 @@ mod proptests {
 
     #[test]
     fn only_eas_is_supported() {
-        pyo3::Python::initialize();
-        pyo3::Python::attach(|py| {
-            let inputs = Py::new(
-                py,
-                BA18Inputs {
-                    mag: vec![],
-                    rake: vec![],
-                    ztor: vec![],
-                    rrup: vec![],
-                    vs30: vec![],
-                    z1pt0: vec![],
-                },
-            )
-            .unwrap();
-            assert!(ba18(py, inputs.borrow(py), IM::PGA {}).is_err());
-        });
-    }
-
-    #[test]
-    fn inputs_reject_mismatched_lengths() {
-        let col = |n| vec![1.0; n];
-        let inputs = |z1pt0_len| BA18Inputs {
-            mag: col(2),
-            rake: col(2),
-            ztor: col(2),
-            rrup: col(2),
-            vs30: col(2),
-            z1pt0: col(z1pt0_len),
-        };
-        assert!(inputs(1).iter().is_err());
-        assert_eq!(inputs(2).iter().unwrap().count(), 2);
+        assert!(BA18::coeffs(IM::PGA {}, ()).is_err());
     }
 }

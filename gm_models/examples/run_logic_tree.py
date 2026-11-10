@@ -7,6 +7,7 @@ tree of its tectonic type. The result holds the combined ``ln_mean`` and
 
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import xarray as xr
 
@@ -21,7 +22,7 @@ rupture_df = record_df.rename(
         "r_rup": "rrup",
         "r_jb": "rjb",
         "r_x": "rx",
-        "r_y": "ry",
+        "r_y": "ry0",
         "z_tor": "ztor",
         "z_bor": "zbot",
         "ev_depth": "hypo_depth",
@@ -33,6 +34,9 @@ rupture_df = record_df.rename(
 rupture_df["vs30measured"] = True
 rupture_df["backarc"] = False
 rupture_df["z1pt0"] /= 1000  # m -> km
+rupture_df["width"] = (rupture_df["zbot"] - rupture_df["ztor"]) / np.sin(
+    np.radians(rupture_df["dip"])
+)
 
 periods = [0.1, 0.5, 1.0, 3.0]
 results = {
