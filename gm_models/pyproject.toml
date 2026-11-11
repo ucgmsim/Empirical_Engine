@@ -3,7 +3,7 @@ requires = ["setuptools>=77", "setuptools-scm>=9", "setuptools-rust>=1.1.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "gm-models"
+name = "ucgmsim-gmm"
 authors = [{ name = "ucgmsim" }]
 description = "Native (Rust) reimplementations of empirical ground motion models"
 readme = "README.md"

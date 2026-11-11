@@ -62,44 +62,6 @@ wheels = [
 ]
 
 [[package]]
-name = "gm-models"
-source = { editable = "." }
-dependencies = [
-    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "numpy", version = "2.5.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
-    { name = "pandas" },
-    { name = "xarray" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "deptry" },
-    { name = "ruff" },
-    { name = "ty" },
-]
-test = [
-    { name = "pyarrow" },
-    { name = "pytest" },
-]
-types = [
-    { name = "pandas-stubs" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "deptry", marker = "extra == 'dev'" },
-    { name = "numpy", specifier = ">=2.0" },
-    { name = "pandas" },
-    { name = "pandas-stubs", marker = "extra == 'types'" },
-    { name = "pyarrow", marker = "extra == 'test'" },
-    { name = "pytest", marker = "extra == 'test'" },
-    { name = "ruff", marker = "extra == 'dev'" },
-    { name = "ty", marker = "extra == 'dev'" },
-    { name = "xarray", specifier = ">=2026.9.0" },
-]
-provides-extras = ["test", "types", "dev"]
-
-[[package]]
 name = "iniconfig"
 version = "2.3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -588,6 +550,44 @@ sdist = { url = "https://files.pythonhosted.org/packages/e4/31/3d74fa778a63b98b7
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f9/bc/8737e8d54cf51106118039b83f485a4783112fab49ea9d044b234978a46e/tzdata-2026.4-py2.py3-none-any.whl", hash = "sha256:c2169a8b0a7a5e9674da5a135ccdfb2b3e671b333ed9fed17b41f73c34476e81", size = 347494, upload-time = "2026-09-12T12:56:01.67Z" },
 ]
+
+[[package]]
+name = "ucgmsim-gmm"
+source = { editable = "." }
+dependencies = [
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "numpy", version = "2.5.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "pandas" },
+    { name = "xarray" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "deptry" },
+    { name = "ruff" },
+    { name = "ty" },
+]
+test = [
+    { name = "pyarrow" },
+    { name = "pytest" },
+]
+types = [
+    { name = "pandas-stubs" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "deptry", marker = "extra == 'dev'" },
+    { name = "numpy", specifier = ">=2.0" },
+    { name = "pandas" },
+    { name = "pandas-stubs", marker = "extra == 'types'" },
+    { name = "pyarrow", marker = "extra == 'test'" },
+    { name = "pytest", marker = "extra == 'test'" },
+    { name = "ruff", marker = "extra == 'dev'" },
+    { name = "ty", marker = "extra == 'dev'" },
+    { name = "xarray", specifier = ">=2026.9.0" },
+]
+provides-extras = ["test", "types", "dev"]
 
 [[package]]
 name = "xarray"
