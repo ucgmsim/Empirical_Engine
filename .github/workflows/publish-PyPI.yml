@@ -4,7 +4,7 @@ run-name: Publish Python Package to PyPI for release ${{ github.event.release.ta
 # Each package is versioned and released separately, from its own tags
 # (setuptools-scm only matches its package's prefix): a release tagged
 # oq_wrapper-v2026.11.1 publishes oq-wrapper 2026.11.1, one tagged
-# gm_models-v2026.11.1 publishes gm-models 2026.11.1.
+# gm_models-v2026.11.1 publishes ucgmsim-gmm 2026.11.1.
 on:
   release:
     types: [published]
@@ -27,11 +27,12 @@ jobs:
           TAG: ${{ github.event.release.tag_name || inputs.tag_name }}
         run: |
           case "$TAG" in
-            oq_wrapper-v* | gm_models-v*) dir="${TAG%%-v*}" ;;
+            oq_wrapper-v*) dir=oq_wrapper project=oq-wrapper ;;
+            gm_models-v*) dir=gm_models project=ucgmsim-gmm ;;
             *) echo "::error::Tag '$TAG' must start with oq_wrapper-v or gm_models-v"; exit 1 ;;
           esac
           echo "dir=$dir" >> "$GITHUB_OUTPUT"
-          echo "project=${dir//_/-}" >> "$GITHUB_OUTPUT"
+          echo "project=$project" >> "$GITHUB_OUTPUT"
 
   # oq_wrapper: one pure wheel plus the sdist. gm_models: the sdist plus a
   # cibuildwheel matrix (Linux, macOS, Windows) over every CPython that
